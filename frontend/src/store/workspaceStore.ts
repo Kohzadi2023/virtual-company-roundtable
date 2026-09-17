@@ -152,7 +152,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     }
 
     const defaultIds = defaultAgents.map(agent => agent.id);
-    const rooms = state.rooms.map((room, index) => {
+    const rooms: Room[] = state.rooms.map((room, index) => {
       const remappedIds = room.agentIds
         .map(canonicalAgentId)
         .filter(id => agentById.has(id));
@@ -172,8 +172,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         return {
           ...message,
           authorId,
-          authorNameSnapshot: agent?.name ?? message.authorNameSnapshot,
-          roleNameSnapshot: role?.name ?? message.roleNameSnapshot,
+          ...(agent?.name ? { authorNameSnapshot: agent.name } : {}),
+          ...(role?.name ? { roleNameSnapshot: role.name } : {}),
         };
       });
 
