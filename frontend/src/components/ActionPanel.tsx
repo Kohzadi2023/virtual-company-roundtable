@@ -13,9 +13,17 @@ function useAutoResize(value: string) {
     const element = ref.current;
     if (!element) return;
     element.style.height = 'auto';
-    element.style.height = `${Math.min(Math.max(element.scrollHeight, 96), 360)}px`;
+    element.style.height = `${Math.min(Math.max(element.scrollHeight, 72), 260)}px`;
   }, [value]);
   return ref;
+}
+
+function ToolButton({ label, title, onClick }: { label: string; title: string; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} title={title} className="grid h-8 min-w-8 place-items-center rounded-md px-1 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+      {label}
+    </button>
+  );
 }
 
 export function ActionPanel({ roomId }: { roomId: string }) {
@@ -63,7 +71,7 @@ export function ActionPanel({ roomId }: { roomId: string }) {
     if (!userMessage.trim()) return;
     if (addUserMessage(room.id, userMessage)) {
       setUserMessage('');
-      notify('پیام User به Timeline اضافه شد.');
+      notify('User message added to the discussion.');
     }
   };
 
@@ -72,9 +80,9 @@ export function ActionPanel({ roomId }: { roomId: string }) {
     try {
       await copyText(buildAgentPrompt(selectedAgent, selectedRole, unseen));
       markAgentContextCopied(room.id, selectedAgent.id);
-      notify(`${unseen.length} پیام جدید برای ${selectedAgent.name} کپی شد.`);
+      notify(`${unseen.length} new message${unseen.length === 1 ? '' : 's'} copied for ${selectedAgent.name}.`);
     } catch {
-      notify('کپی در Clipboard انجام نشد.', 'error');
+      notify('Could not copy to clipboard.', 'error');
     }
   };
 
@@ -82,109 +90,129 @@ export function ActionPanel({ roomId }: { roomId: string }) {
     if (!selectedAgent || !agentResponse.trim()) return;
     if (addAgentMessage(room.id, selectedAgent.id, agentResponse)) {
       setAgentResponse('');
-      notify(`نظر ${selectedAgent.name} به Timeline اضافه شد.`);
+      notify(`${selectedAgent.name}'s response added.`);
     }
   };
 
+  const formatUser = (before: string, after = before) => {
+    const element = userRef.current;
+    if (!element) return;
+    const start = element.selectionStart;
+    const end = element.selectionEnd;
+    const selected = userMessage.slice(start, end);
+    const next = `${userMessage.slice(0, start)}${before}${selected || 'text'}${after}${userMessage.slice(end)}`;
+    setUserMessage(next);
+    requestAnimationFrame(() => element.focus());
+  };
+
   return (
-    <section className="border-t border-slate-800 bg-slate-950/95 p-3" aria-label="پنل عملیات">
-      <div className="mx-auto max-w-5xl overflow-hidden rounded-2xl border border-slate-700 bg-slate-900/75 shadow-xl">
-        <div className="grid grid-cols-2 border-b border-slate-700" role="tablist" aria-label="نوع عملیات">
+    <section className="shrink-0 bg-[#f8fafc] px-4 pb-3" aria-label="Discussion actions">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.05)]">
+        <div className="grid grid-cols-2 border-b border-slate-200 bg-slate-50" role="tablist" aria-label="Action type">
           <button
             type="button"
             role="tab"
             aria-selected={tab === 'user'}
             onClick={() => setTab('user')}
-            className={`px-4 py-3 text-sm font-medium ${tab === 'user' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}
+            className={`relative px-4 py-3 text-center transition ${tab === 'user' ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-white'}`}
           >
-            👤 User Message
+            <span className="block text-sm font-bold">👤 User Message</span>
+            <span className={`mt-0.5 block text-xs ${tab === 'user' ? 'text-blue-500' : 'text-slate-400'}`}>Send a new message as User</span>
+            {tab === 'user' && <span className="absolute inset-x-0 bottom-0 h-0.5 bg-blue-600" />}
           </button>
           <button
             type="button"
             role="tab"
             aria-selected={tab === 'agent'}
             onClick={() => setTab('agent')}
-            className={`px-4 py-3 text-sm font-medium ${tab === 'agent' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`}
+            className={`relative border-s border-slate-200 px-4 py-3 text-center transition ${tab === 'agent' ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-white'}`}
           >
-            🤖 Agent Response
+            <span className="block text-sm font-bold">🤖 Agent Response</span>
+            <span className={`mt-0.5 block text-xs ${tab === 'agent' ? 'text-blue-500' : 'text-slate-400'}`}>Select an agent and add their response</span>
+            {tab === 'agent' && <span className="absolute inset-x-0 bottom-0 h-0.5 bg-blue-600" />}
           </button>
         </div>
 
         {tab === 'user' ? (
-          <div className="p-4" role="tabpanel">
-            <label htmlFor="user-message" className="mb-2 block text-xs font-medium text-slate-400">پیام User</label>
-            <textarea
-              id="user-message"
-              ref={userRef}
-              dir="auto"
-              value={userMessage}
-              onChange={event => setUserMessage(event.target.value)}
-              onKeyDown={event => {
-                if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-                  event.preventDefault();
-                  sendUser();
-                }
-              }}
-              placeholder="پیام خود را بنویسید… Ctrl+Enter برای ثبت"
-              className="w-full resize-none overflow-y-auto rounded-xl border border-slate-700 bg-slate-950 p-3 text-start text-sm placeholder:text-slate-600"
-            />
-            <div className="mt-2 flex justify-end">
-              <button type="button" onClick={sendUser} disabled={!userMessage.trim()} className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold hover:bg-indigo-500 disabled:opacity-50">ارسال پیام</button>
+          <div className="flex items-stretch gap-3 p-2" role="tabpanel">
+            <div className="min-w-0 flex-1 overflow-hidden rounded-lg border border-slate-300 bg-white focus-within:border-blue-400 focus-within:ring-1 focus-within:ring-blue-100">
+              <textarea
+                id="user-message"
+                ref={userRef}
+                dir="auto"
+                value={userMessage}
+                onChange={event => setUserMessage(event.target.value)}
+                onKeyDown={event => {
+                  if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+                    event.preventDefault();
+                    sendUser();
+                  }
+                }}
+                placeholder="پیام خود را اینجا بنویسید..."
+                className="block w-full resize-none overflow-y-auto border-0 bg-transparent px-3 py-3 text-start text-sm text-slate-800 outline-none placeholder:text-slate-400"
+              />
+              <div className="flex items-center gap-0.5 border-t border-slate-100 px-2 py-1">
+                <ToolButton label="B" title="Bold" onClick={() => formatUser('**')} />
+                <ToolButton label="I" title="Italic" onClick={() => formatUser('_')} />
+                <ToolButton label="</>" title="Inline code" onClick={() => formatUser('`')} />
+                <ToolButton label="❝" title="Quote" onClick={() => setUserMessage(value => `${value}${value ? '\n' : ''}> `)} />
+                <span className="mx-1 h-5 w-px bg-slate-200" />
+                <ToolButton label="☷" title="List" onClick={() => setUserMessage(value => `${value}${value ? '\n' : ''}- `)} />
+                <ToolButton label="🔗" title="Link" onClick={() => formatUser('[', '](https://)')} />
+                <ToolButton label="☺" title="Emoji" onClick={() => setUserMessage(value => `${value} 🙂`)} />
+              </div>
+            </div>
+            <div className="flex w-40 shrink-0 flex-col items-stretch justify-center gap-2 pe-1">
+              <button type="button" onClick={sendUser} disabled={!userMessage.trim()} className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40">✈ Send Message</button>
+              <span className="text-center text-xs text-slate-500">Ctrl + Enter</span>
             </div>
           </div>
         ) : (
-          <div className="p-4" role="tabpanel">
+          <div className="p-3" role="tabpanel">
             {roomAgents.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-700 p-5 text-center text-sm text-slate-400">هیچ متخصصی در این اتاق حضور ندارد.</div>
+              <div className="rounded-lg border border-dashed border-slate-300 p-5 text-center text-sm text-slate-500">No specialists are in this room.</div>
             ) : (
-              <div className="grid gap-4 lg:grid-cols-[20rem_1fr]">
-                <div>
-                  <label htmlFor="agent-select" className="mb-2 block text-xs font-medium text-slate-400">انتخاب متخصص</label>
-                  <select id="agent-select" value={selectedAgentId} onChange={event => setSelectedAgentId(event.target.value)} className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm">
+              <div className="grid gap-3 xl:grid-cols-[280px_1fr_165px]">
+                <div className="space-y-2">
+                  <select id="agent-select" value={selectedAgentId} onChange={event => setSelectedAgentId(event.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800">
                     {roomAgents.map(agent => {
                       const role = roles.find(item => item.id === agent.roleId);
                       return <option key={agent.id} value={agent.id}>{agent.name} · {role?.name ?? 'Specialist'}</option>;
                     })}
                   </select>
-
                   {selectedAgent && selectedRole && (
-                    <div className="mt-3 flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/70 p-3">
-                      <AgentAvatar agent={selectedAgent} role={selectedRole} size="lg" />
+                    <div className="flex items-center gap-3 rounded-lg bg-slate-50 p-2.5">
+                      <AgentAvatar agent={selectedAgent} role={selectedRole} size="md" />
                       <div className="min-w-0">
-                        <div className="font-semibold">{selectedAgent.name}</div>
-                        <div className="text-xs text-indigo-300">{selectedRole.name}</div>
-                        <div className="mt-1 truncate text-[11px] text-slate-500">{selectedRole.skills.join(' · ')}</div>
+                        <div className="truncate text-sm font-bold text-slate-900">{selectedAgent.name}</div>
+                        <div className="truncate text-xs text-slate-500">{selectedRole.name}</div>
                       </div>
                     </div>
                   )}
-
-                  <button type="button" onClick={copyNewContext} disabled={!selectedAgent || unseen.length === 0} className="mt-3 w-full rounded-xl bg-sky-600 px-3 py-2.5 text-sm font-semibold hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-45">
-                    {unseen.length > 0 ? `📋 Copy New Context · ${unseen.length}` : '✓ Agent is up to date'}
-                  </button>
-                  <p className="mt-2 text-[11px] leading-5 text-slate-500">فقط پیام‌هایی کپی می‌شوند که این متخصص هنوز ندیده است.</p>
                 </div>
 
-                <div>
-                  <label htmlFor="agent-response" className="mb-2 block text-xs font-medium text-slate-400">پاسخ {selectedAgent?.name ?? 'Agent'} را Paste کنید</label>
-                  <textarea
-                    id="agent-response"
-                    ref={agentRef}
-                    dir="auto"
-                    value={agentResponse}
-                    onChange={event => setAgentResponse(event.target.value)}
-                    onKeyDown={event => {
-                      if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-                        event.preventDefault();
-                        submitAgent();
-                      }
-                    }}
-                    placeholder="فقط نظر Agent را Paste کنید… Ctrl+Enter برای ثبت"
-                    className="w-full resize-none overflow-y-auto rounded-xl border border-slate-700 bg-slate-950 p-3 text-start text-sm placeholder:text-slate-600"
-                  />
-                  <div className="mt-2 flex justify-end gap-2">
-                    <button type="button" onClick={() => setAgentResponse('')} className="rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-300 hover:bg-slate-800">پاک کردن</button>
-                    <button type="button" onClick={submitAgent} disabled={!selectedAgent || !agentResponse.trim()} className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold hover:bg-emerald-500 disabled:opacity-50">ثبت نظر {selectedAgent?.name ?? ''}</button>
-                  </div>
+                <textarea
+                  id="agent-response"
+                  ref={agentRef}
+                  dir="auto"
+                  value={agentResponse}
+                  onChange={event => setAgentResponse(event.target.value)}
+                  onKeyDown={event => {
+                    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+                      event.preventDefault();
+                      submitAgent();
+                    }
+                  }}
+                  placeholder={`Paste ${selectedAgent?.name ?? 'Agent'}'s response here...`}
+                  className="w-full resize-none overflow-y-auto rounded-lg border border-slate-300 bg-white p-3 text-start text-sm text-slate-800 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
+                />
+
+                <div className="flex flex-col justify-center gap-2">
+                  <button type="button" onClick={copyNewContext} disabled={!selectedAgent || unseen.length === 0} className="rounded-lg border border-blue-500 bg-blue-50 px-3 py-2.5 text-sm font-bold text-blue-600 hover:bg-blue-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400">
+                    {unseen.length > 0 ? `⧉ Copy Context (${unseen.length})` : '✓ Up to date'}
+                  </button>
+                  <button type="button" onClick={submitAgent} disabled={!selectedAgent || !agentResponse.trim()} className="rounded-lg bg-emerald-600 px-3 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">Add Response</button>
+                  <span className="text-center text-[11px] text-slate-400">Ctrl + Enter</span>
                 </div>
               </div>
             )}
