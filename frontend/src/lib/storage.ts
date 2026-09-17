@@ -1,14 +1,17 @@
-import { defaultAgents, defaultRoles } from '@/lib/defaultCompany';
+import { defaultRoles, defaultTeams } from '@/lib/defaultCompany';
 import { agentContextKey } from '@/lib/id';
 import type { Agent, AgentContextState, RoleDefinition, Room, StorageSnapshot } from '@/types/domain';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
-const KEY = 'ai-team-chat:snapshot:v3';
-const LEGACY_KEY = 'ai-team-chat:snapshot:v2';
-const VERSION = 3 as const;
+const KEY = 'ai-team-chat:snapshot:v4';
+const LEGACY_V3_KEY = 'ai-team-chat:snapshot:v3';
+const LEGACY_V2_KEY = 'ai-team-chat:snapshot:v2';
+const VERSION = 4 as const;
 let unsubscribe: (() => void) | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
 const API_KEY = import.meta.env.VITE_API_KEY?.trim();
+
+type SnapshotV3 = Omit<StorageSnapshot, 'version' | 'teams'> & { version: 3 };
 
 type LegacyCharacter = {
   id: string;
@@ -56,6 +59,7 @@ function snapshotFromState(): StorageSnapshot {
     rooms: state.rooms,
     roles: state.roles,
     agents: state.agents,
+    teams: state.teams,
     agentContext: state.agentContext,
     activeRoomId: state.activeRoomId,
     savedAt: Date.now(),
@@ -70,6 +74,10 @@ function legacyRoleId(role: string): string {
     ui: 'role-uiux',
   };
   return map[role] ?? `legacy-role-${role || 'custom'}`;
+}
+
+function migrateV3(snapshot: SnapshotV3): StorageSnapshot {
+  return { ...snapshot, version: 4, teams: defaultTeams };
 }
 
 function migrateV2(snapshot: LegacySnapshot): StorageSnapshot {
@@ -106,25 +114,13 @@ function migrateV2(snapshot: LegacySnapshot): StorageSnapshot {
     };
   });
 
-  const presentRoleIds = new Set(agents.map(agent => agent.roleId));
-  for (const defaultAgent of defaultAgents) {
-    if (!presentRoleIds.has(defaultAgent.roleId)) {
-      agents.push(defaultAgent);
-      presentRoleIds.add(defaultAgent.roleId);
-    }
-  }
-
   const roleMap = new Map(roles.map(role => [role.id, role]));
   const agentMap = new Map(agents.map(agent => [agent.id, agent]));
-  const newlyAddedDefaultIds = defaultAgents
-    .filter(agent => !snapshot.characters.some(character => legacyRoleId(character.role) === agent.roleId))
-    .map(agent => agent.id);
-
   const rooms: Room[] = snapshot.rooms.map(room => ({
     id: room.id,
     name: room.name,
     emoji: room.emoji,
-    agentIds: Array.from(new Set([...room.characterIds.filter(id => agentMap.has(id)), ...newlyAddedDefaultIds])),
+    agentIds: room.characterIds.filter(id => agentMap.has(id)),
     messages: room.messages.map(message => {
       if (message.authorType === 'user') {
         return { id: message.id, authorType: 'user' as const, content: message.content, createdAt: message.createdAt };
@@ -161,10 +157,11 @@ function migrateV2(snapshot: LegacySnapshot): StorageSnapshot {
   }
 
   return {
-    version: 3,
+    version: 4,
     rooms,
     roles,
     agents,
+    teams: defaultTeams,
     agentContext,
     activeRoomId: snapshot.activeRoomId,
     savedAt: snapshot.savedAt,
@@ -174,13 +171,14 @@ function migrateV2(snapshot: LegacySnapshot): StorageSnapshot {
 function parseSnapshot(value: unknown): StorageSnapshot | null {
   if (!value || typeof value !== 'object') return null;
   const version = (value as { version?: unknown }).version;
-  if (version === 3) return value as StorageSnapshot;
+  if (version === 4) return value as StorageSnapshot;
+  if (version === 3) return migrateV3(value as SnapshotV3);
   if (version === 2) return migrateV2(value as LegacySnapshot);
   return null;
 }
 
 function loadLocal(): StorageSnapshot | null {
-  for (const key of [KEY, LEGACY_KEY]) {
+  for (const key of [KEY, LEGACY_V3_KEY, LEGACY_V2_KEY]) {
     try {
       const raw = localStorage.getItem(key);
       if (!raw) continue;
@@ -261,6 +259,7 @@ export function startPersistence(): void {
     const dataChanged = state.rooms !== previous.rooms
       || state.roles !== previous.roles
       || state.agents !== previous.agents
+      || state.teams !== previous.teams
       || state.agentContext !== previous.agentContext
       || state.activeRoomId !== previous.activeRoomId;
     if (!state.hydrated || !dataChanged) return;
