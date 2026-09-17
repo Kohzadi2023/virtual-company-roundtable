@@ -1,0 +1,17 @@
+services:
+  backend:
+    build: ./backend
+    environment:
+      AI_TEAM_DB: /app/data/ai-team-chat.db
+      CORS_ORIGINS: http://localhost:8080
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+    restart: unless-stopped

@@ -70,7 +70,7 @@ Every copied Agent prompt includes a shared company rule:
 
 ## UI / UX
 
-- Employee avatars are shown in the company directory, timeline, and Agent Response panel.
+- Employee profile photos are shown in the company directory, timeline, and Agent Response panel. Default demo photos use stable HTTPS profile-image URLs, with initials as an automatic fallback if an image cannot load.
 - Hover or keyboard-focus an avatar to see the employee's fixed role, role description, and skills.
 - The employee directory is searchable by name, role, or skill.
 - Mixed Persian/English message content renders with `dir="auto"` and Markdown support.
@@ -188,7 +188,7 @@ Open `http://localhost:8080`.
 ## Verification performed while generating this revision
 
 - Backend API tests: **4 passed**
-- Built-in catalog validation: **15 roles + 15 employees + 15 avatar files**
+- Built-in catalog validation: **15 roles + 15 employees**
 - Global TypeScript compiler found no parser/syntax diagnostics; full dependency-aware typecheck still requires installed npm packages.
 - Frontend `npm install` could not complete in the generation sandbox because npm registry access timed out, so full `npm run typecheck/test:run/build` must be run on the target machine with npm access.
 
