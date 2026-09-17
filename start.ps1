@@ -9,6 +9,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $RepoDir = $PSScriptRoot
+$FrontendDir = Join-Path $RepoDir 'frontend'
 $BackendPort = 8001
 $FrontendPort = 5173
 $BackendUrl = "http://127.0.0.1:$BackendPort"
@@ -85,6 +86,69 @@ function Stop-DevPort {
     }
 }
 
+function Stop-RepoFrontendProcesses {
+    param([Parameter(Mandatory)] [string]$FrontendPath)
+
+    if ($env:OS -ne 'Windows_NT') { return }
+
+    $normalizedPath = [IO.Path]::GetFullPath($FrontendPath).TrimEnd('\')
+    $repoProcesses = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+        $name = [string]$_.Name
+        $commandLine = [string]$_.CommandLine
+        $executablePath = [string]$_.ExecutablePath
+        $isFrontendProcess = $name -in @('node.exe', 'esbuild.exe')
+        $commandMatches = $commandLine -and $commandLine.IndexOf($normalizedPath, [StringComparison]::OrdinalIgnoreCase) -ge 0
+        $exeMatches = $executablePath -and $executablePath.IndexOf($normalizedPath, [StringComparison]::OrdinalIgnoreCase) -eq 0
+
+        $_.ProcessId -ne $PID -and $isFrontendProcess -and ($commandMatches -or $exeMatches)
+    }
+
+    foreach ($process in $repoProcesses) {
+        Write-Host "Stopping previous frontend process $($process.Name) (PID $($process.ProcessId))..." -ForegroundColor Yellow
+        Stop-Process -Id $process.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+
+    if ($repoProcesses) {
+        Start-Sleep -Seconds 2
+    }
+}
+
+function Install-FrontendDependencies {
+    param([Parameter(Mandatory)] [string]$FrontendPath)
+
+    $hasLockFile = Test-Path (Join-Path $FrontendPath 'package-lock.json')
+    $commandLabel = if ($hasLockFile) { 'npm ci' } else { 'npm install' }
+
+    for ($attempt = 1; $attempt -le 3; $attempt++) {
+        Set-Location $FrontendPath
+        if ($hasLockFile) {
+            npm ci
+        }
+        else {
+            npm install
+        }
+
+        if ($LASTEXITCODE -eq 0) {
+            return
+        }
+
+        if ($attempt -ge 3) {
+            throw "$commandLabel failed after $attempt attempts."
+        }
+
+        Write-Host "[WARN] $commandLabel failed. Releasing frontend file locks and retrying ($attempt/3)..." -ForegroundColor Yellow
+        Stop-DevPort -Port $FrontendPort
+        Stop-RepoFrontendProcesses -FrontendPath $FrontendPath
+
+        $esbuildPackageDir = Join-Path $FrontendPath 'node_modules\@esbuild'
+        if (Test-Path $esbuildPackageDir) {
+            Remove-Item $esbuildPackageDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+
+        Start-Sleep -Seconds 2
+    }
+}
+
 function Wait-Http {
     param(
         [Parameter(Mandatory)] [string]$Url,
@@ -131,6 +195,14 @@ Write-Host "Python : $(python --version 2>&1)"
 Write-Host "Node   : $(node --version)"
 Write-Host "npm    : $(npm --version)"
 
+# Stop old development processes before git/npm operations. On Windows, Vite's
+# esbuild child keeps node_modules/@esbuild/win32-x64/esbuild.exe locked and
+# causes npm ci to fail with EPERM if we wait until after dependency install.
+Write-Step 'Stopping previous development processes'
+Stop-DevPort -Port $BackendPort
+Stop-DevPort -Port $FrontendPort
+Stop-RepoFrontendProcesses -FrontendPath $FrontendDir
+
 Write-Step 'Updating repository from origin/main'
 Set-Location $RepoDir
 Invoke-Checked -FailureMessage 'git fetch failed.' -Command { git fetch origin }
@@ -155,15 +227,8 @@ if (-not $SkipTests) {
 }
 
 Write-Step 'Preparing frontend'
-$FrontendDir = Join-Path $RepoDir 'frontend'
+Install-FrontendDependencies -FrontendPath $FrontendDir
 Set-Location $FrontendDir
-
-if (Test-Path (Join-Path $FrontendDir 'package-lock.json')) {
-    Invoke-Checked -FailureMessage 'npm ci failed.' -Command { npm ci }
-}
-else {
-    Invoke-Checked -FailureMessage 'npm install failed.' -Command { npm install }
-}
 
 if (-not $SkipTests) {
     Write-Step 'Running frontend tests and TypeScript checks'
@@ -179,6 +244,7 @@ if (-not $SkipBuild) {
 Write-Step 'Starting backend and frontend'
 Stop-DevPort -Port $BackendPort
 Stop-DevPort -Port $FrontendPort
+Stop-RepoFrontendProcesses -FrontendPath $FrontendDir
 
 $ShellExe = if (Get-Command pwsh -ErrorAction SilentlyContinue) { 'pwsh' } else { 'powershell' }
 
