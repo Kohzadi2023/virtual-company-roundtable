@@ -20,7 +20,12 @@ function useAutoResize(value: string) {
 
 function ToolButton({ label, title, onClick }: { label: string; title: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} title={title} className="grid h-8 min-w-8 place-items-center rounded-md px-1 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className="grid h-9 min-w-9 place-items-center rounded-lg px-1.5 text-sm font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+    >
       {label}
     </button>
   );
@@ -105,6 +110,10 @@ export function ActionPanel({ roomId }: { roomId: string }) {
     requestAnimationFrame(() => element.focus());
   };
 
+  const tabClass = (active: boolean) => `relative px-4 py-3 text-center transition ${active
+    ? 'bg-white text-slate-900 shadow-[inset_0_-2px_0_#2563eb]'
+    : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700'}`;
+
   return (
     <section className="shrink-0 bg-[#f8fafc] px-4 pb-3" aria-label="Discussion actions">
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.05)]">
@@ -114,22 +123,20 @@ export function ActionPanel({ roomId }: { roomId: string }) {
             role="tab"
             aria-selected={tab === 'user'}
             onClick={() => setTab('user')}
-            className={`relative px-4 py-3 text-center transition ${tab === 'user' ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-white'}`}
+            className={tabClass(tab === 'user')}
           >
-            <span className="block text-sm font-bold">👤 User Message</span>
-            <span className={`mt-0.5 block text-xs ${tab === 'user' ? 'text-blue-500' : 'text-slate-400'}`}>Send a new message as User</span>
-            {tab === 'user' && <span className="absolute inset-x-0 bottom-0 h-0.5 bg-blue-600" />}
+            <span className="block text-sm font-semibold">👤 User Message</span>
+            <span className={`mt-0.5 block text-xs ${tab === 'user' ? 'text-blue-600' : 'text-slate-400'}`}>Send a new message as User</span>
           </button>
           <button
             type="button"
             role="tab"
             aria-selected={tab === 'agent'}
             onClick={() => setTab('agent')}
-            className={`relative border-s border-slate-200 px-4 py-3 text-center transition ${tab === 'agent' ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-white'}`}
+            className={`${tabClass(tab === 'agent')} border-s border-slate-200`}
           >
-            <span className="block text-sm font-bold">🤖 Agent Response</span>
-            <span className={`mt-0.5 block text-xs ${tab === 'agent' ? 'text-blue-500' : 'text-slate-400'}`}>Select an agent and add their response</span>
-            {tab === 'agent' && <span className="absolute inset-x-0 bottom-0 h-0.5 bg-blue-600" />}
+            <span className="block text-sm font-semibold">🤖 Agent Response</span>
+            <span className={`mt-0.5 block text-xs ${tab === 'agent' ? 'text-blue-600' : 'text-slate-400'}`}>Select an agent and add their response</span>
           </button>
         </div>
 
@@ -148,10 +155,10 @@ export function ActionPanel({ roomId }: { roomId: string }) {
                     sendUser();
                   }
                 }}
-                placeholder="پیام خود را اینجا بنویسید..."
+                placeholder="Type your message here..."
                 className="block w-full resize-none overflow-y-auto border-0 bg-transparent px-3 py-3 text-start text-sm text-slate-800 outline-none placeholder:text-slate-400"
               />
-              <div className="flex items-center gap-0.5 border-t border-slate-100 px-2 py-1">
+              <div className="flex items-center gap-2 border-t border-slate-100 px-2 py-1.5">
                 <ToolButton label="B" title="Bold" onClick={() => formatUser('**')} />
                 <ToolButton label="I" title="Italic" onClick={() => formatUser('_')} />
                 <ToolButton label="</>" title="Inline code" onClick={() => formatUser('`')} />
@@ -162,8 +169,8 @@ export function ActionPanel({ roomId }: { roomId: string }) {
                 <ToolButton label="☺" title="Emoji" onClick={() => setUserMessage(value => `${value} 🙂`)} />
               </div>
             </div>
-            <div className="flex w-40 shrink-0 flex-col items-stretch justify-center gap-2 pe-1">
-              <button type="button" onClick={sendUser} disabled={!userMessage.trim()} className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40">✈ Send Message</button>
+            <div className="flex w-40 shrink-0 flex-col items-stretch justify-end gap-2 pe-1 pb-1">
+              <button type="button" onClick={sendUser} disabled={!userMessage.trim()} className="rounded-lg bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40">✈ Send Message</button>
               <span className="text-center text-xs text-slate-500">Ctrl + Enter</span>
             </div>
           </div>
