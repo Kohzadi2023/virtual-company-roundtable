@@ -13,12 +13,22 @@ export default function App() {
   const seedDefaultCompany = useWorkspaceStore(state => state.seedDefaultCompany);
 
   useEffect(() => {
-    void bootstrapPersistence().finally(() => startPersistence());
-  }, []);
+    let cancelled = false;
 
-  useEffect(() => {
-    if (hydrated) seedDefaultCompany();
-  }, [hydrated, seedDefaultCompany]);
+    void bootstrapPersistence().then(() => {
+      if (cancelled) return;
+
+      // Repair any stale persisted built-ins before persistence starts.
+      // Starting persistence first guarantees that the canonical 15-person
+      // workforce is immediately written back to local + remote storage.
+      startPersistence();
+      seedDefaultCompany();
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [seedDefaultCompany]);
 
   if (!hydrated) {
     return (
@@ -42,7 +52,7 @@ export default function App() {
       </div>
 
       <footer className="flex h-8 shrink-0 items-center border-t border-slate-200 bg-white px-4 text-[11px] text-slate-500">
-        <div className="w-[318px] shrink-0">▣ &nbsp; Virtual Company &nbsp; v1.3.0</div>
+        <div className="w-[318px] shrink-0">▣ &nbsp; Virtual Company &nbsp; v1.3.1</div>
         <div className="flex min-w-0 flex-1 items-center justify-end gap-5 pe-1">
           <span>💡 {agents.length} team members</span>
           <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
