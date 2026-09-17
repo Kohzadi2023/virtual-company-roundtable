@@ -4,6 +4,34 @@ import { defaultAgents, defaultRoles } from '@/lib/defaultCompany';
 import { latestRoomMessage } from '@/lib/contextDelta';
 import type { Agent, RoleDefinition, Room, StorageSnapshot } from '@/types/domain';
 
+function agentSignature(agent: Pick<Agent, 'name' | 'roleId'>): string {
+  return `${agent.name.trim().toLocaleLowerCase()}::${agent.roleId}`;
+}
+
+function remapAgentContext(
+  context: StorageSnapshot['agentContext'],
+  aliases: Map<string, string>,
+): StorageSnapshot['agentContext'] {
+  if (aliases.size === 0) return context;
+
+  const next: StorageSnapshot['agentContext'] = {};
+  for (const [key, value] of Object.entries(context)) {
+    let targetKey = key;
+    for (const [legacyId, canonicalId] of aliases) {
+      const suffix = `:${legacyId}`;
+      if (!key.endsWith(suffix)) continue;
+      targetKey = `${key.slice(0, -suffix.length)}:${canonicalId}`;
+      break;
+    }
+
+    const existing = next[targetKey];
+    const existingTime = existing?.copiedAt ?? existing?.lastCopiedAt ?? 0;
+    const candidateTime = value.copiedAt ?? value.lastCopiedAt ?? 0;
+    if (!existing || candidateTime >= existingTime) next[targetKey] = value;
+  }
+  return next;
+}
+
 export interface WorkspaceState {
   rooms: Room[];
   activeRoomId: string | null;
@@ -54,42 +82,63 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   }),
 
   /**
-   * Reconcile the persisted workspace with the canonical built-in company.
+   * Reconcile persisted data with the canonical built-in company.
    *
-   * Built-in roles/employees are fixed product definitions. Older snapshots may
-   * contain the same IDs with stale/missing role metadata, prompts or avatars.
-   * Therefore built-ins are UPSERTED from the canonical definitions on every
-   * startup, while custom roles/employees (different IDs) are preserved.
+   * Older workspace versions could preserve a legacy employee ID and later add
+   * the canonical employee as well, producing duplicate Emma/Mike/Bob rows.
+   * Built-ins are now canonicalized by fixed identity (name + fixed role), stale
+   * aliases are remapped to the canonical IDs, and real custom employees remain.
    */
   seedDefaultCompany: () => set(state => {
-    const roleById = new Map(state.roles.map(role => [role.id, role]));
-    for (const builtIn of defaultRoles) {
-      const existing = roleById.get(builtIn.id);
-      roleById.set(builtIn.id, {
-        ...existing,
-        ...builtIn,
-        createdAt: existing?.createdAt ?? builtIn.createdAt,
-      });
-    }
+    const persistedRoleById = new Map(state.roles.map(role => [role.id, role]));
+    const canonicalRoleIds = new Set(defaultRoles.map(role => role.id));
+    const roles: RoleDefinition[] = [
+      ...defaultRoles.map(builtIn => {
+        const existing = persistedRoleById.get(builtIn.id);
+        return {
+          ...existing,
+          ...builtIn,
+          createdAt: existing?.createdAt ?? builtIn.createdAt,
+        };
+      }),
+      ...state.roles.filter(role => !canonicalRoleIds.has(role.id)),
+    ];
 
-    const agentById = new Map(state.agents.map(agent => [agent.id, agent]));
-    for (const builtIn of defaultAgents) {
-      const existing = agentById.get(builtIn.id);
-      agentById.set(builtIn.id, {
-        ...existing,
-        ...builtIn,
-        createdAt: existing?.createdAt ?? builtIn.createdAt,
-      });
-    }
+    const canonicalBySignature = new Map(defaultAgents.map(agent => [agentSignature(agent), agent]));
+    const canonicalIds = new Set(defaultAgents.map(agent => agent.id));
+    const aliases = new Map<string, string>();
 
-    const roles = [...roleById.values()];
-    const agents = [...agentById.values()];
+    const customAgents = state.agents.filter(agent => {
+      if (canonicalIds.has(agent.id)) return false;
+      const canonical = canonicalBySignature.get(agentSignature(agent));
+      if (!canonical) return true;
+      aliases.set(agent.id, canonical.id);
+      return false;
+    });
+
+    const persistedAgentById = new Map(state.agents.map(agent => [agent.id, agent]));
+    const agents: Agent[] = [
+      ...defaultAgents.map(builtIn => {
+        const existing = persistedAgentById.get(builtIn.id);
+        return {
+          ...existing,
+          ...builtIn,
+          createdAt: existing?.createdAt ?? builtIn.createdAt,
+        };
+      }),
+      ...customAgents,
+    ];
+
+    const agentById = new Map(agents.map(agent => [agent.id, agent]));
+    const roleById = new Map(roles.map(role => [role.id, role]));
+    const canonicalAgentId = (id: string): string => aliases.get(id) ?? id;
 
     if (state.rooms.length === 0) {
       const roomId = newId();
       return {
         roles,
         agents,
+        agentContext: remapAgentContext(state.agentContext, aliases),
         rooms: [{
           id: roomId,
           name: 'Company Roundtable',
@@ -102,17 +151,41 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       };
     }
 
-    // Ensure the primary company room always contains the canonical workforce.
-    // Other rooms keep their manually curated membership unchanged.
-    const defaultIds = new Set(defaultAgents.map(agent => agent.id));
+    const defaultIds = defaultAgents.map(agent => agent.id);
     const rooms = state.rooms.map((room, index) => {
-      if (index !== 0 && room.name !== 'Company Roundtable') return room;
-      const ids = new Set(room.agentIds);
-      for (const id of defaultIds) ids.add(id);
-      return { ...room, agentIds: [...ids] };
+      const remappedIds = room.agentIds
+        .map(canonicalAgentId)
+        .filter(id => agentById.has(id));
+      const ids = new Set(remappedIds);
+
+      // The primary company room always contains the full canonical workforce.
+      if (index === 0 || room.name === 'Company Roundtable') {
+        for (const id of defaultIds) ids.add(id);
+      }
+
+      const messages = room.messages.map(message => {
+        if (message.authorType !== 'agent' || !message.authorId) return message;
+        const authorId = canonicalAgentId(message.authorId);
+        if (authorId === message.authorId) return message;
+        const agent = agentById.get(authorId);
+        const role = agent ? roleById.get(agent.roleId) : undefined;
+        return {
+          ...message,
+          authorId,
+          authorNameSnapshot: agent?.name ?? message.authorNameSnapshot,
+          roleNameSnapshot: role?.name ?? message.roleNameSnapshot,
+        };
+      });
+
+      return { ...room, agentIds: [...ids], messages };
     });
 
-    return { roles, agents, rooms };
+    return {
+      roles,
+      agents,
+      rooms,
+      agentContext: remapAgentContext(state.agentContext, aliases),
+    };
   }),
 
   setSyncState: (syncState) => set({ syncState }),
