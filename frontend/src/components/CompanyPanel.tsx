@@ -65,25 +65,25 @@ export function CompanyPanel() {
   };
 
   return (
-    <aside className="hidden w-[348px] shrink-0 flex-col border-e border-slate-200 bg-white lg:flex" aria-label="Virtual Company team">
-      <div className="flex items-center justify-between px-5 pb-3 pt-4">
-        <h2 className="text-sm font-bold text-slate-900">Team Members ({agents.length})</h2>
-        <button type="button" onClick={() => setManageOpen(value => !value)} className="grid h-8 w-8 place-items-center rounded-lg text-lg text-slate-400 hover:bg-slate-100" aria-label="Team menu">⋯</button>
+    <aside className="flex w-[318px] shrink-0 flex-col border-e border-slate-200 bg-[#fbfcfe]" aria-label="Virtual Company team">
+      <div className="flex items-center justify-between px-5 pb-2 pt-3">
+        <h2 className="text-[14px] font-bold text-[#111b3a]">Team Members <span className="font-medium text-slate-500">({agents.length})</span></h2>
+        <button type="button" onClick={() => setManageOpen(value => !value)} className="grid h-7 w-7 place-items-center rounded-md text-lg text-slate-400 hover:bg-slate-100" aria-label="Team menu">⋯</button>
       </div>
 
-      <div className="px-4 pb-3">
+      <div className="px-4 pb-2">
         <label className="relative block">
           <span className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true">⌕</span>
           <input
             value={search}
             onChange={event => setSearch(event.target.value)}
             placeholder="Search team members..."
-            className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pe-3 ps-10 text-sm text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-blue-500 focus:outline-none"
+            className="h-9 w-full rounded-lg border border-slate-300 bg-white pe-3 ps-9 text-[13px] text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-blue-500 focus:outline-none"
           />
         </label>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-3">
+      <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2.5 pb-2">
         {visibleAgents.map(agent => {
           const role = roleMap.get(agent.roleId);
           const present = room?.agentIds.includes(agent.id) ?? false;
@@ -93,25 +93,26 @@ export function CompanyPanel() {
               key={agent.id}
               type="button"
               onClick={() => setSelectedMemberId(agent.id)}
-              className={`group flex w-full items-center gap-3 rounded-xl border px-2.5 py-2 text-start transition ${selected ? 'border-blue-400 bg-blue-50 shadow-sm' : 'border-transparent hover:bg-slate-50'}`}
+              className={`relative flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-1.5 text-start transition ${selected ? 'border-blue-300 bg-blue-50 shadow-sm' : 'border-transparent bg-white/70 hover:bg-slate-50'}`}
             >
+              {selected && <span className="absolute inset-y-0 start-0 w-0.5 rounded-full bg-blue-600" />}
               <span className="relative">
                 <AgentAvatar agent={agent} role={role} size="md" />
-                <span className="absolute -bottom-0.5 -end-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-500" aria-label={present ? 'In room' : 'Available'} />
+                <span className={`absolute -bottom-0.5 -end-0.5 h-3.5 w-3.5 rounded-full border-2 border-white ${present ? 'bg-emerald-500' : 'bg-slate-300'}`} aria-label={present ? 'In room' : 'Available'} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-bold text-slate-900">{agent.name}</span>
-                <span className="block truncate text-sm text-slate-500">{role?.name ?? 'Specialist'}</span>
+                <span className="block truncate text-[13px] font-bold text-[#111b3a]">{agent.name}</span>
+                <span className="block truncate text-[12px] text-slate-500">{role?.name ?? 'Specialist'}</span>
               </span>
-              <span className="text-xl" aria-hidden="true">{agent.emoji}</span>
+              <span className="text-[20px] leading-none" aria-hidden="true">{agent.emoji}</span>
             </button>
           );
         })}
       </div>
 
       {manageOpen && (
-        <div className="mx-4 mb-3 rounded-xl border border-slate-200 bg-slate-50 p-3 shadow-sm">
-          <div className="mb-3 grid grid-cols-2 rounded-lg bg-slate-200/70 p-1 text-xs font-semibold">
+        <div className="mx-3 mb-2 rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
+          <div className="mb-3 grid grid-cols-2 rounded-lg bg-slate-100 p-1 text-xs font-semibold">
             <button type="button" onClick={() => setMode('agent')} className={`rounded-md px-2 py-1.5 ${mode === 'agent' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>Employee</button>
             <button type="button" onClick={() => setMode('role')} className={`rounded-md px-2 py-1.5 ${mode === 'role' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>Role</button>
           </div>
@@ -139,12 +140,12 @@ export function CompanyPanel() {
         </div>
       )}
 
-      <div className="border-t border-slate-200 p-4">
-        <button type="button" onClick={() => setManageOpen(value => !value)} className="mb-3 flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
+      <div className="border-t border-slate-200 bg-white p-3">
+        <button type="button" onClick={() => setManageOpen(value => !value)} className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-[13px] font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
           <span aria-hidden="true">👥</span> Manage Team
         </button>
-        <div className="flex items-center justify-between text-xs text-slate-500">
-          <span>▣ Virtual Company · v1.2</span>
+        <div className="mt-2 flex items-center justify-between px-1 text-[11px] text-slate-500">
+          <span>Virtual Company</span>
           <SyncBadge />
         </div>
       </div>
