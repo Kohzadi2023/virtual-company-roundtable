@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { AgentAvatar } from '@/components/AgentAvatar';
+import { SyncBadge } from '@/components/SyncBadge';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
 export function CompanyPanel() {
@@ -9,31 +10,31 @@ export function CompanyPanel() {
   const rooms = useWorkspaceStore(state => state.rooms);
   const addRole = useWorkspaceStore(state => state.addRole);
   const addAgent = useWorkspaceStore(state => state.addAgent);
-  const removeAgent = useWorkspaceStore(state => state.removeAgent);
   const toggleAgentInRoom = useWorkspaceStore(state => state.toggleAgentInRoom);
 
   const room = rooms.find(item => item.id === activeRoomId);
-  const [form, setForm] = useState<'none' | 'role' | 'agent'>('none');
+  const roleMap = useMemo(() => new Map(roles.map(role => [role.id, role])), [roles]);
   const [search, setSearch] = useState('');
+  const [selectedMemberId, setSelectedMemberId] = useState(agents[0]?.id ?? '');
+  const [manageOpen, setManageOpen] = useState(false);
+  const [mode, setMode] = useState<'role' | 'agent'>('agent');
 
   const [roleName, setRoleName] = useState('');
   const [roleDescription, setRoleDescription] = useState('');
   const [roleSkills, setRoleSkills] = useState('');
   const [rolePrompt, setRolePrompt] = useState('');
-
   const [agentName, setAgentName] = useState('');
   const [agentEmoji, setAgentEmoji] = useState('🤖');
-  const [agentRoleId, setAgentRoleId] = useState('');
+  const [agentRoleId, setAgentRoleId] = useState(roles[0]?.id ?? '');
 
-  const roleMap = useMemo(() => new Map(roles.map(role => [role.id, role])), [roles]);
   const visibleAgents = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
     if (!query) return agents;
     return agents.filter(agent => {
       const role = roleMap.get(agent.roleId);
       return [agent.name, role?.name, role?.skills.join(' ')]
-        .filter(Boolean)
-        .some(value => value!.toLocaleLowerCase().includes(query));
+        .filter((value): value is string => Boolean(value))
+        .some(value => value.toLocaleLowerCase().includes(query));
     });
   }, [agents, roleMap, search]);
 
@@ -50,104 +51,104 @@ export function CompanyPanel() {
     setRoleSkills('');
     setRolePrompt('');
     setAgentRoleId(id);
-    setForm('agent');
+    setMode('agent');
   };
 
   const createAgent = () => {
     const roleId = agentRoleId || roles[0]?.id;
     if (!roleId) return;
-    const id = addAgent({
-      name: agentName,
-      roleId,
-      emoji: agentEmoji.trim() || '🤖',
-      color: '#6366F1',
-    });
+    const id = addAgent({ name: agentName, roleId, emoji: agentEmoji.trim() || '🤖', color: '#2563EB' });
     if (!id) return;
+    if (room) toggleAgentInRoom(room.id, id);
     setAgentName('');
     setAgentEmoji('🤖');
-    setForm('none');
+    setSelectedMemberId(id);
+    setManageOpen(false);
   };
 
   return (
-    <aside className="max-h-[44vh] overflow-y-auto border-b border-slate-800 bg-slate-950 p-3 lg:max-h-none lg:w-80 lg:border-b-0 lg:border-e" aria-label="شرکت مجازی">
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <div>
-          <h2 className="font-semibold">🏢 Virtual Company</h2>
-          <p className="mt-1 text-xs text-slate-500">{agents.length} متخصص · نقش‌ها و Skills ثابت</p>
-        </div>
-        {room && <span className="rounded-full border border-slate-700 px-2 py-1 text-[10px] text-slate-400">{room.agentIds.length} in room</span>}
+    <aside className="hidden w-[348px] shrink-0 flex-col border-e border-slate-200 bg-white lg:flex" aria-label="Virtual Company team">
+      <div className="flex items-center justify-between px-5 pb-3 pt-4">
+        <h2 className="text-sm font-bold text-slate-900">Team Members ({agents.length})</h2>
+        <button type="button" onClick={() => setManageOpen(value => !value)} className="grid h-8 w-8 place-items-center rounded-lg text-lg text-slate-400 hover:bg-slate-100" aria-label="Team menu">⋯</button>
       </div>
 
-      <label className="mb-3 block">
-        <span className="sr-only">جستجوی کارمند</span>
-        <input
-          value={search}
-          onChange={event => setSearch(event.target.value)}
-          placeholder="Search employees, roles, skills…"
-          className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm placeholder:text-slate-600"
-        />
-      </label>
-
-      <div className="mb-3 grid grid-cols-2 gap-2">
-        <button type="button" onClick={() => setForm(form === 'role' ? 'none' : 'role')} className="rounded-lg border border-slate-700 px-2 py-2 text-xs hover:bg-slate-900">+ Role</button>
-        <button type="button" onClick={() => { setAgentRoleId(current => current || roles[0]?.id || ''); setForm(form === 'agent' ? 'none' : 'agent'); }} className="rounded-lg bg-indigo-600 px-2 py-2 text-xs font-medium hover:bg-indigo-500">+ Employee</button>
+      <div className="px-4 pb-3">
+        <label className="relative block">
+          <span className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true">⌕</span>
+          <input
+            value={search}
+            onChange={event => setSearch(event.target.value)}
+            placeholder="Search team members..."
+            className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pe-3 ps-10 text-sm text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-blue-500 focus:outline-none"
+          />
+        </label>
       </div>
 
-      {form === 'role' && (
-        <div className="mb-4 space-y-2 rounded-xl border border-slate-700 bg-slate-900 p-3">
-          <strong className="text-xs">افزودن تخصص جدید</strong>
-          <input value={roleName} onChange={event => setRoleName(event.target.value)} placeholder="Role name" className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm" />
-          <input value={roleDescription} onChange={event => setRoleDescription(event.target.value)} placeholder="Description" className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm" />
-          <textarea value={roleSkills} onChange={event => setRoleSkills(event.target.value)} rows={2} placeholder="Skills, comma separated" className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm" />
-          <textarea value={rolePrompt} onChange={event => setRolePrompt(event.target.value)} rows={3} placeholder="Role system prompt" className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm" />
-          <button type="button" onClick={createRole} disabled={!roleName.trim()} className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold disabled:opacity-50">ذخیره Role</button>
-        </div>
-      )}
-
-      {form === 'agent' && (
-        <div className="mb-4 space-y-2 rounded-xl border border-slate-700 bg-slate-900 p-3">
-          <strong className="text-xs">افزودن متخصص به شرکت</strong>
-          <input value={agentName} onChange={event => setAgentName(event.target.value)} placeholder="Employee name" className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm" />
-          <div className="grid grid-cols-[5rem_1fr] gap-2">
-            <input value={agentEmoji} onChange={event => setAgentEmoji(event.target.value)} aria-label="Agent emoji" className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm" />
-            <select value={agentRoleId} onChange={event => setAgentRoleId(event.target.value)} className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm">
-              {roles.map(role => <option key={role.id} value={role.id}>{role.name}</option>)}
-            </select>
-          </div>
-          <p className="text-[11px] leading-5 text-slate-500">Role انتخاب‌شده هویت ثابت این کارمند است. برای کارمند سفارشی، Avatar با حروف اول نام ساخته می‌شود.</p>
-          <button type="button" onClick={createAgent} disabled={!agentName.trim() || !(agentRoleId || roles[0]?.id)} className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold disabled:opacity-50">ساخت Employee</button>
-        </div>
-      )}
-
-      <div className="space-y-2">
+      <div className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-3">
         {visibleAgents.map(agent => {
           const role = roleMap.get(agent.roleId);
           const present = room?.agentIds.includes(agent.id) ?? false;
+          const selected = selectedMemberId === agent.id;
           return (
-            <article key={agent.id} className={`rounded-xl border p-3 transition ${present ? 'border-slate-700 bg-slate-900/80' : 'border-slate-800 bg-slate-900/40 opacity-75'}`}>
-              <div className="flex items-center gap-3">
+            <button
+              key={agent.id}
+              type="button"
+              onClick={() => setSelectedMemberId(agent.id)}
+              className={`group flex w-full items-center gap-3 rounded-xl border px-2.5 py-2 text-start transition ${selected ? 'border-blue-400 bg-blue-50 shadow-sm' : 'border-transparent hover:bg-slate-50'}`}
+            >
+              <span className="relative">
                 <AgentAvatar agent={agent} role={role} size="md" />
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-semibold">{agent.name}</div>
-                  <div className="truncate text-xs text-slate-400">{role?.name ?? 'Unknown role'}</div>
-                </div>
-                {!role?.builtIn && (
-                  <button type="button" onClick={() => removeAgent(agent.id)} className="text-[11px] text-slate-600 hover:text-rose-300" aria-label={`حذف ${agent.name}`}>حذف</button>
-                )}
-              </div>
-              {room && (
-                <button
-                  type="button"
-                  onClick={() => toggleAgentInRoom(room.id, agent.id)}
-                  className={`mt-2 w-full rounded-lg border px-2 py-1.5 text-[11px] ${present ? 'border-emerald-800 bg-emerald-950/30 text-emerald-300' : 'border-slate-700 text-slate-400 hover:bg-slate-800'}`}
-                >
-                  {present ? '✓ حاضر در این اتاق' : '+ ورود به این اتاق'}
-                </button>
-              )}
-            </article>
+                <span className="absolute -bottom-0.5 -end-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-500" aria-label={present ? 'In room' : 'Available'} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-bold text-slate-900">{agent.name}</span>
+                <span className="block truncate text-sm text-slate-500">{role?.name ?? 'Specialist'}</span>
+              </span>
+              <span className="text-xl" aria-hidden="true">{agent.emoji}</span>
+            </button>
           );
         })}
-        {visibleAgents.length === 0 && <p className="py-8 text-center text-xs text-slate-600">کارمندی مطابق جستجو پیدا نشد.</p>}
+      </div>
+
+      {manageOpen && (
+        <div className="mx-4 mb-3 rounded-xl border border-slate-200 bg-slate-50 p-3 shadow-sm">
+          <div className="mb-3 grid grid-cols-2 rounded-lg bg-slate-200/70 p-1 text-xs font-semibold">
+            <button type="button" onClick={() => setMode('agent')} className={`rounded-md px-2 py-1.5 ${mode === 'agent' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>Employee</button>
+            <button type="button" onClick={() => setMode('role')} className={`rounded-md px-2 py-1.5 ${mode === 'role' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>Role</button>
+          </div>
+
+          {mode === 'agent' ? (
+            <div className="space-y-2">
+              <input value={agentName} onChange={event => setAgentName(event.target.value)} placeholder="Employee name" className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" />
+              <div className="grid grid-cols-[4rem_1fr] gap-2">
+                <input value={agentEmoji} onChange={event => setAgentEmoji(event.target.value)} aria-label="Agent emoji" className="rounded-lg border border-slate-300 bg-white px-2 py-2 text-center text-sm" />
+                <select value={agentRoleId} onChange={event => setAgentRoleId(event.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+                  {roles.map(role => <option key={role.id} value={role.id}>{role.name}</option>)}
+                </select>
+              </div>
+              <button type="button" onClick={createAgent} disabled={!agentName.trim()} className="w-full rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-40">Add Employee</button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <input value={roleName} onChange={event => setRoleName(event.target.value)} placeholder="Role name" className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" />
+              <input value={roleDescription} onChange={event => setRoleDescription(event.target.value)} placeholder="Description" className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" />
+              <textarea value={roleSkills} onChange={event => setRoleSkills(event.target.value)} rows={2} placeholder="Skills, comma separated" className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" />
+              <textarea value={rolePrompt} onChange={event => setRolePrompt(event.target.value)} rows={2} placeholder="System prompt" className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" />
+              <button type="button" onClick={createRole} disabled={!roleName.trim()} className="w-full rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-40">Add Role</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="border-t border-slate-200 p-4">
+        <button type="button" onClick={() => setManageOpen(value => !value)} className="mb-3 flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
+          <span aria-hidden="true">👥</span> Manage Team
+        </button>
+        <div className="flex items-center justify-between text-xs text-slate-500">
+          <span>▣ Virtual Company · v1.2</span>
+          <SyncBadge />
+        </div>
       </div>
     </aside>
   );
