@@ -10,6 +10,7 @@ export default function App() {
   const activeRoomId = useWorkspaceStore(state => state.activeRoomId);
   const agents = useWorkspaceStore(state => state.agents);
   const roles = useWorkspaceStore(state => state.roles);
+  const teams = useWorkspaceStore(state => state.teams);
   const seedDefaultCompany = useWorkspaceStore(state => state.seedDefaultCompany);
 
   useEffect(() => {
@@ -17,10 +18,6 @@ export default function App() {
 
     void bootstrapPersistence().then(() => {
       if (cancelled) return;
-
-      // Repair any stale persisted built-ins before persistence starts.
-      // Starting persistence first guarantees that the canonical 15-person
-      // workforce is immediately written back to local + remote storage.
       startPersistence();
       seedDefaultCompany();
     });
@@ -52,13 +49,15 @@ export default function App() {
       </div>
 
       <footer className="flex h-8 shrink-0 items-center border-t border-slate-200 bg-white px-4 text-[11px] text-slate-500">
-        <div className="w-[318px] shrink-0">▣ &nbsp; Virtual Company &nbsp; v1.3.2</div>
+        <div className="w-[318px] shrink-0">▣ &nbsp; Virtual Company &nbsp; v1.4.0</div>
         <div className="flex min-w-0 flex-1 items-center justify-end gap-5 pe-1">
-          <span>💡 {agents.length} team members</span>
+          <span>💡 {agents.length} specialists</span>
           <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
-          <span>{roles.length} roles active</span>
+          <span>{teams.length} teams</span>
           <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
-          <span>Productive discussions build better products</span>
+          <span>{roles.length} roles</span>
+          <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
+          <span>Build the right team for each room</span>
           <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" title="System ready" aria-label="System ready" />
         </div>
       </footer>
