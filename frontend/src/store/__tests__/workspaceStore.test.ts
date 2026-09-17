@@ -109,6 +109,74 @@ describe('workspaceStore virtual company model', () => {
     expect(state.rooms[0]?.agentIds).toHaveLength(15);
   });
 
+  it('removes legacy duplicate built-ins and remaps room, message and cursor identity', () => {
+    useWorkspaceStore.setState({
+      roles: [{
+        id: 'role-architect',
+        name: 'Software Architect',
+        description: 'legacy',
+        skills: ['legacy'],
+        systemPrompt: 'legacy prompt',
+        builtIn: true,
+        createdAt: 10,
+      }],
+      agents: [
+        {
+          id: 'legacy-emma-id',
+          name: 'Emma',
+          roleId: 'role-architect',
+          emoji: 'E',
+          color: '#999999',
+          createdAt: 10,
+        },
+        {
+          id: 'custom-nora',
+          name: 'Nora',
+          roleId: 'role-architect',
+          emoji: 'N',
+          color: '#111111',
+          createdAt: 11,
+        },
+      ],
+      rooms: [{
+        id: 'legacy-room',
+        name: 'Company Roundtable',
+        emoji: '🏢',
+        agentIds: ['legacy-emma-id', 'custom-nora'],
+        messages: [{
+          id: 'legacy-message',
+          authorType: 'agent',
+          authorId: 'legacy-emma-id',
+          authorNameSnapshot: 'Emma',
+          roleNameSnapshot: 'Software Architect',
+          content: 'Legacy Emma response',
+          createdAt: 20,
+        }],
+        createdAt: 10,
+      }],
+      activeRoomId: 'legacy-room',
+      agentContext: {
+        'legacy-room:legacy-emma-id': {
+          lastCopiedMessageId: 'legacy-message',
+          lastCopiedAt: 20,
+          copiedAt: 20,
+        },
+      },
+    });
+
+    useWorkspaceStore.getState().seedDefaultCompany();
+    const state = useWorkspaceStore.getState();
+
+    expect(state.agents.filter(agent => agent.name === 'Emma')).toHaveLength(1);
+    expect(state.agents.find(agent => agent.name === 'Emma')?.id).toBe('agent-emma');
+    expect(state.agents.find(agent => agent.id === 'custom-nora')).toBeDefined();
+    expect(state.rooms[0]?.agentIds).not.toContain('legacy-emma-id');
+    expect(state.rooms[0]?.agentIds).toContain('agent-emma');
+    expect(state.rooms[0]?.messages[0]).toMatchObject({ authorId: 'agent-emma', authorNameSnapshot: 'Emma' });
+    expect(state.agentContext['legacy-room:legacy-emma-id']).toBeUndefined();
+    expect(state.agentContext[agentContextKey('legacy-room', 'agent-emma')]?.lastCopiedMessageId).toBe('legacy-message');
+  });
+
   it('stores User and Agent messages in one shared timeline', () => {
     useWorkspaceStore.getState().seedDefaultCompany();
     const state = useWorkspaceStore.getState();
