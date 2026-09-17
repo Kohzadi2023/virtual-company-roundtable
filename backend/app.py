@@ -15,13 +15,15 @@ MAX_SNAPSHOT_BYTES = 5 * 1024 * 1024
 
 def validate_snapshot(payload: dict[str, Any]) -> dict[str, Any]:
     version = payload.get("version")
-    if version not in (2, 3):
+    if version not in (2, 3, 4):
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="unsupported snapshot version")
     saved_at = payload.get("savedAt")
     if not isinstance(saved_at, int) or saved_at < 0:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="savedAt must be a non-negative integer")
     if not isinstance(payload.get("rooms", []), list):
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="rooms must be an array")
+    if version == 4 and not isinstance(payload.get("teams", []), list):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="teams must be an array")
     return payload
 
 
@@ -93,7 +95,7 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         if api_key and x_api_key != api_key:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid API key")
 
-    app = FastAPI(title="Virtual Company Roundtable API", version="3.0.0")
+    app = FastAPI(title="Virtual Company Roundtable API", version="4.0.0")
     allowed_origins = [origin.strip() for origin in os.getenv(
         "CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
     ).split(",") if origin.strip()]
