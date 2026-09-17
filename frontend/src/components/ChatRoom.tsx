@@ -1,15 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { ActionPanel } from '@/components/ActionPanel';
 import { TimelineMessage } from '@/components/TimelineMessage';
-import { Toast, type ToastMessage } from '@/components/Toast';
-import { copyText } from '@/lib/clipboard';
-import { buildFullChatText } from '@/lib/fullChat';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
 export function ChatRoom({ roomId }: { roomId: string }) {
   const room = useWorkspaceStore(state => state.rooms.find(item => item.id === roomId));
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [toast, setToast] = useState<ToastMessage | null>(null);
 
   useEffect(() => {
     const element = scrollRef.current;
@@ -17,42 +13,31 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     element.scrollTo({ top: element.scrollHeight, behavior: 'smooth' });
   }, [room?.messages.length]);
 
-  if (!room) return <div className="grid h-full place-items-center text-slate-500">اتاق یافت نشد</div>;
-
-  const copyFullChat = async () => {
-    if (room.messages.length === 0) return;
-    try {
-      await copyText(buildFullChatText(room));
-      setToast({ id: Date.now(), text: 'کل Timeline با فرمت تمیز کپی شد.', tone: 'success' });
-    } catch {
-      setToast({ id: Date.now(), text: 'کپی کل Timeline انجام نشد.', tone: 'error' });
-    }
-  };
+  if (!room) return <div className="grid h-full place-items-center text-slate-400">Room not found</div>;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <header className="flex flex-wrap items-center gap-3 border-b border-slate-800 px-4 py-3">
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate font-bold">{room.emoji} {room.name}</h1>
-          <p className="mt-0.5 text-xs text-slate-500">Company discussion timeline · {room.messages.length} messages</p>
-        </div>
-        <button type="button" onClick={copyFullChat} disabled={room.messages.length === 0} className="rounded-xl border border-sky-800 bg-sky-950/30 px-3 py-2 text-xs font-medium text-sky-300 hover:bg-sky-950/60 disabled:opacity-40">📋 Copy Full Chat</button>
-      </header>
-
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto p-4" role="log" aria-live="polite" aria-label="گفتگوی شرکت">
-        <div className="mx-auto max-w-5xl space-y-4">
+    <section className="flex min-w-0 flex-1 flex-col bg-[#f8fafc]">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 pt-2" role="log" aria-live="polite" aria-label="Company discussion">
+        <div className="min-h-full rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.02)] xl:px-5">
           {room.messages.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-800 py-16 text-center text-sm text-slate-500">
-              هنوز پیامی ثبت نشده است. User گفتگو را شروع می‌کند.
+            <div className="grid min-h-[420px] place-items-center text-center">
+              <div>
+                <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-xl bg-blue-50 text-2xl">💬</div>
+                <div className="font-semibold text-slate-700">Start the company discussion</div>
+                <p className="mt-1 text-sm text-slate-400">Send a User message, then choose a specialist to contribute.</p>
+              </div>
             </div>
-          ) : room.messages.map(message => (
-            <TimelineMessage key={message.id} roomId={room.id} message={message} />
-          ))}
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {room.messages.map(message => (
+                <TimelineMessage key={message.id} roomId={room.id} message={message} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       <ActionPanel roomId={room.id} />
-      <Toast toast={toast} onDismiss={() => setToast(null)} />
-    </div>
+    </section>
   );
 }
