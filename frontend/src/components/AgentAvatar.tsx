@@ -17,7 +17,7 @@ export function AgentAvatar({
   showHoverCard = true,
 }: {
   agent: Agent;
-  role?: RoleDefinition;
+  role?: RoleDefinition | undefined;
   size?: 'sm' | 'md' | 'lg';
   showHoverCard?: boolean;
 }) {
