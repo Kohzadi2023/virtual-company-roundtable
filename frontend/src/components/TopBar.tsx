@@ -6,8 +6,8 @@ import { useWorkspaceStore } from '@/store/workspaceStore';
 
 function CompanyLogo() {
   return (
-    <span className="grid h-11 w-11 place-items-center rounded-xl bg-blue-50 text-blue-600" aria-hidden="true">
-      <svg viewBox="0 0 24 24" className="h-7 w-7 fill-current" aria-hidden="true">
+    <span className="grid h-10 w-10 place-items-center text-blue-600" aria-hidden="true">
+      <svg viewBox="0 0 24 24" className="h-8 w-8 fill-current" aria-hidden="true">
         <circle cx="12" cy="7" r="3" />
         <circle cx="5" cy="9" r="2.4" />
         <circle cx="19" cy="9" r="2.4" />
@@ -39,28 +39,28 @@ export function TopBar() {
 
   return (
     <>
-      <header className="relative z-40 flex h-[72px] shrink-0 border-b border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
-        <div className="flex w-[348px] shrink-0 items-center gap-3 border-e border-slate-200 px-5">
+      <header className="relative z-40 flex h-16 shrink-0 border-b border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+        <div className="flex w-[318px] shrink-0 items-center gap-3 border-e border-slate-200 px-5">
           <CompanyLogo />
           <div className="min-w-0">
-            <div className="truncate text-[21px] font-bold tracking-tight text-slate-900">Virtual Company</div>
-            <div className="truncate text-sm text-slate-500">AI-Powered Team Collaboration</div>
+            <div className="truncate text-[20px] font-bold tracking-tight text-[#111b3a]">Virtual Company</div>
+            <div className="truncate text-[13px] text-slate-500">AI-Powered Team Collaboration</div>
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-1 items-center gap-4 px-5">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-violet-50 text-violet-600" aria-hidden="true">▣</div>
+        <div className="flex min-w-0 flex-1 items-center gap-3 px-4">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-violet-50 text-violet-600" aria-hidden="true">▣</div>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-lg font-bold text-slate-900">{activeRoom?.name ?? 'Product Architecture Discussion'}</h1>
-            <p className="truncate text-sm text-slate-500">Discuss · Analyze · Challenge · Build Better</p>
+            <h1 className="truncate text-[17px] font-bold text-[#111b3a]">{activeRoom?.name ?? 'Product Architecture Discussion'}</h1>
+            <p className="truncate text-[13px] text-slate-500">Discuss · Analyze · Challenge · Build Better</p>
           </div>
 
-          <div className="relative hidden items-center gap-2 md:flex">
+          <div className="relative flex items-center gap-2">
             <button
               type="button"
               onClick={copyFullChat}
               disabled={!activeRoom || activeRoom.messages.length === 0}
-              className="inline-flex items-center gap-2 rounded-lg border border-blue-500 bg-white px-3.5 py-2 text-sm font-semibold text-blue-600 shadow-sm transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex items-center gap-2 rounded-lg border border-blue-500 bg-white px-3 py-2 text-[13px] font-semibold text-blue-600 shadow-sm transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <span aria-hidden="true">⧉</span> Copy Full Chat
             </button>
@@ -69,24 +69,24 @@ export function TopBar() {
               type="button"
               onClick={() => setRoomMenuOpen(value => !value)}
               aria-expanded={roomMenuOpen}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[13px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
             >
               <span aria-hidden="true">⚙</span> Room Settings
             </button>
 
-            <button type="button" className="grid h-10 w-10 place-items-center rounded-lg border border-slate-200 bg-white text-lg text-slate-500 hover:bg-slate-50" aria-label="More options">⋮</button>
+            <button type="button" className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-lg text-slate-500 hover:bg-slate-50" aria-label="More options">⋮</button>
 
             <div className="ms-2 flex items-center gap-2 border-s border-slate-200 ps-4">
-              <span className="grid h-10 w-10 place-items-center rounded-full bg-blue-600 text-sm font-bold text-white">U</span>
-              <div className="hidden xl:block">
-                <div className="text-sm font-semibold text-slate-900">User</div>
-                <div className="text-xs text-slate-500">Owner</div>
+              <span className="grid h-9 w-9 place-items-center rounded-full bg-blue-600 text-sm font-bold text-white">U</span>
+              <div>
+                <div className="text-[13px] font-semibold text-slate-900">User</div>
+                <div className="text-[11px] text-slate-500">Owner</div>
               </div>
               <span className="text-slate-400" aria-hidden="true">⌄</span>
             </div>
 
             {roomMenuOpen && (
-              <div className="absolute end-32 top-12 w-64 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+              <div className="absolute end-24 top-11 w-64 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
                 <div className="px-2 pb-2 pt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Rooms</div>
                 {rooms.map(room => (
                   <button
