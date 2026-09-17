@@ -19,6 +19,16 @@ export interface Agent {
   createdAt: number;
 }
 
+export interface TeamDefinition {
+  id: string;
+  name: string;
+  description: string;
+  emoji: string;
+  agentIds: string[];
+  builtIn: boolean;
+  createdAt: number;
+}
+
 export interface Message {
   id: string;
   authorType: 'user' | 'agent';
@@ -46,10 +56,11 @@ export interface AgentContextState {
 }
 
 export interface StorageSnapshot {
-  version: 3;
+  version: 4;
   rooms: Room[];
   roles: RoleDefinition[];
   agents: Agent[];
+  teams: TeamDefinition[];
   agentContext: Record<string, AgentContextState>;
   activeRoomId: string | null;
   savedAt: number;
