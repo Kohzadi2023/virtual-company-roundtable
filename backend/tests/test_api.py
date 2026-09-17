@@ -7,10 +7,11 @@ from app import create_app
 
 def sample_snapshot(saved_at: int = 1) -> dict:
     return {
-        "version": 3,
+        "version": 4,
         "rooms": [],
         "roles": [],
         "agents": [],
+        "teams": [],
         "agentContext": {},
         "activeRoomId": None,
         "savedAt": saved_at,
@@ -38,9 +39,9 @@ def test_delete_snapshot(tmp_path: Path) -> None:
     assert client.get("/api/snapshot").status_code == 404
 
 
-def test_accepts_legacy_v2_during_migration(tmp_path: Path) -> None:
+def test_accepts_legacy_v2_and_v3_during_migration(tmp_path: Path) -> None:
     client = TestClient(create_app(tmp_path / "test.db"))
-    payload = {
+    v2 = {
         "version": 2,
         "rooms": [],
         "characters": [],
@@ -48,13 +49,29 @@ def test_accepts_legacy_v2_during_migration(tmp_path: Path) -> None:
         "activeRoomId": None,
         "savedAt": 1,
     }
-    response = client.put("/api/snapshot", json=payload)
-    assert response.status_code == 200
-    assert response.json() == payload
+    assert client.put("/api/snapshot", json=v2).status_code == 200
+
+    v3 = {
+        "version": 3,
+        "rooms": [],
+        "roles": [],
+        "agents": [],
+        "agentContext": {},
+        "activeRoomId": None,
+        "savedAt": 2,
+    }
+    assert client.put("/api/snapshot", json=v3).status_code == 200
+
+
+def test_v4_requires_teams_array(tmp_path: Path) -> None:
+    client = TestClient(create_app(tmp_path / "test.db"))
+    payload = sample_snapshot()
+    payload["teams"] = "invalid"
+    assert client.put("/api/snapshot", json=payload).status_code == 422
 
 
 def test_rejects_unknown_version(tmp_path: Path) -> None:
     client = TestClient(create_app(tmp_path / "test.db"))
     payload = sample_snapshot()
-    payload["version"] = 4
+    payload["version"] = 5
     assert client.put("/api/snapshot", json=payload).status_code == 422
