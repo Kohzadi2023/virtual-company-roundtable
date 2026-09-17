@@ -1,8 +1,21 @@
+export interface SkillGroup {
+  name: string;
+  skills: string[];
+}
+
 export interface RoleDefinition {
   id: string;
   name: string;
   description: string;
   skills: string[];
+  /** Enterprise-grade grouped capabilities for built-in specialists. */
+  skillGroups?: SkillGroup[];
+  /** Typical concrete outputs this specialist should produce. */
+  deliverables?: string[];
+  /** What this role is expected to own or advise on. */
+  scope?: string;
+  /** Explicit boundaries, especially for regulated/high-stakes roles. */
+  limitations?: string[];
   systemPrompt: string;
   builtIn: boolean;
   createdAt: number;
