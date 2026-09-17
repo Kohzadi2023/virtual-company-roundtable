@@ -17,8 +17,8 @@ export function ChatRoom({ roomId }: { roomId: string }) {
 
   return (
     <section className="flex min-w-0 flex-1 flex-col bg-[#f8fafc]">
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 pt-2" role="log" aria-live="polite" aria-label="Company discussion">
-        <div className="min-h-full rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.02)] xl:px-5">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 pb-2 pt-2" role="log" aria-live="polite" aria-label="Company discussion">
+        <div className="min-h-full rounded-xl border border-slate-200 bg-white px-3 py-1 shadow-[0_1px_2px_rgba(15,23,42,0.02)]">
           {room.messages.length === 0 ? (
             <div className="grid min-h-[420px] place-items-center text-center">
               <div>
@@ -28,7 +28,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
               </div>
             </div>
           ) : (
-            <div className="divide-y divide-slate-100">
+            <div className="space-y-0.5">
               {room.messages.map(message => (
                 <TimelineMessage key={message.id} roomId={room.id} message={message} />
               ))}
