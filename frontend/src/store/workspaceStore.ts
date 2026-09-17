@@ -53,15 +53,33 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     };
   }),
 
+  /**
+   * Reconcile the persisted workspace with the canonical built-in company.
+   *
+   * Built-in roles/employees are fixed product definitions. Older snapshots may
+   * contain the same IDs with stale/missing role metadata, prompts or avatars.
+   * Therefore built-ins are UPSERTED from the canonical definitions on every
+   * startup, while custom roles/employees (different IDs) are preserved.
+   */
   seedDefaultCompany: () => set(state => {
     const roleById = new Map(state.roles.map(role => [role.id, role]));
     for (const builtIn of defaultRoles) {
-      if (!roleById.has(builtIn.id)) roleById.set(builtIn.id, builtIn);
+      const existing = roleById.get(builtIn.id);
+      roleById.set(builtIn.id, {
+        ...existing,
+        ...builtIn,
+        createdAt: existing?.createdAt ?? builtIn.createdAt,
+      });
     }
 
     const agentById = new Map(state.agents.map(agent => [agent.id, agent]));
     for (const builtIn of defaultAgents) {
-      if (!agentById.has(builtIn.id)) agentById.set(builtIn.id, builtIn);
+      const existing = agentById.get(builtIn.id);
+      agentById.set(builtIn.id, {
+        ...existing,
+        ...builtIn,
+        createdAt: existing?.createdAt ?? builtIn.createdAt,
+      });
     }
 
     const roles = [...roleById.values()];
@@ -84,6 +102,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       };
     }
 
+    // Ensure the primary company room always contains the canonical workforce.
+    // Other rooms keep their manually curated membership unchanged.
     const defaultIds = new Set(defaultAgents.map(agent => agent.id));
     const rooms = state.rooms.map((room, index) => {
       if (index !== 0 && room.name !== 'Company Roundtable') return room;
