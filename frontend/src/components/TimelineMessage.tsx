@@ -19,12 +19,12 @@ function truncateWords(value: string, maxWords: number): string {
 
 function messageTone(roleId?: string): string {
   switch (roleId) {
-    case 'role-frontend': return 'bg-emerald-50/80 border-emerald-100';
-    case 'role-critic': return 'bg-amber-50/80 border-amber-100';
-    case 'role-uiux': return 'bg-violet-50/80 border-violet-100';
-    case 'role-marketing-sales': return 'bg-sky-50/80 border-sky-100';
+    case 'role-frontend': return 'bg-emerald-50/70 border-emerald-100';
+    case 'role-critic': return 'bg-amber-50/70 border-amber-100';
+    case 'role-uiux': return 'bg-violet-50/70 border-violet-100';
+    case 'role-marketing-sales': return 'bg-sky-50/70 border-sky-100';
     case 'role-security': return 'bg-slate-50 border-slate-200';
-    default: return 'bg-slate-50/80 border-slate-200';
+    default: return 'bg-slate-50/70 border-slate-200';
   }
 }
 
@@ -41,18 +41,18 @@ export function TimelineMessage({ roomId, message }: { roomId: string; message: 
   const visibleContent = long && !expanded ? truncateWords(message.content, COLLAPSE_WORDS) : message.content;
 
   return (
-    <article className="group flex items-start gap-3 py-2">
+    <article className="group flex items-start gap-3 py-1.5">
       {isUser ? (
-        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-blue-600 text-base font-semibold text-white shadow-sm" aria-label="User">U</span>
+        <span className="mt-0.5 grid h-11 w-11 shrink-0 place-items-center rounded-full bg-blue-600 text-sm font-semibold text-white shadow-sm" aria-label="User">U</span>
       ) : agent ? (
-        <AgentAvatar agent={agent} role={role} size="lg" />
+        <AgentAvatar agent={agent} role={role} size="md" />
       ) : (
-        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-slate-200 text-lg">🤖</span>
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-slate-200 text-lg">🤖</span>
       )}
 
       <div className="min-w-0 flex-1">
-        <header className="mb-1.5 flex min-h-7 items-center gap-2 text-sm">
-          <strong className="text-base font-bold text-slate-900">{author}</strong>
+        <header className="mb-1 flex min-h-6 items-center gap-2 text-[12px]">
+          <strong className="text-[14px] font-bold text-[#111b3a]">{author}</strong>
           {!isUser && message.roleNameSnapshot && <span className="text-slate-500">{message.roleNameSnapshot}</span>}
           <time className="text-slate-400" dateTime={new Date(message.createdAt).toISOString()}>
             {formatTimestamp(message.createdAt)}
@@ -60,7 +60,7 @@ export function TimelineMessage({ roomId, message }: { roomId: string; message: 
           <button
             type="button"
             onClick={() => deleteMessage(roomId, message.id)}
-            className="ms-auto grid h-7 w-7 place-items-center rounded-md text-lg text-slate-400 opacity-0 transition hover:bg-slate-100 hover:text-rose-500 group-hover:opacity-100 focus:opacity-100"
+            className="ms-auto grid h-6 w-7 place-items-center rounded-md text-base text-slate-400 opacity-0 transition hover:bg-slate-100 hover:text-rose-500 group-hover:opacity-100 focus:opacity-100"
             aria-label={`حذف پیام ${author}`}
             title="Delete message"
           >
@@ -68,13 +68,13 @@ export function TimelineMessage({ roomId, message }: { roomId: string; message: 
           </button>
         </header>
 
-        <div className={`rounded-xl border px-4 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.03)] ${isUser ? 'border-blue-100 bg-blue-50' : messageTone(role?.id)}`}>
+        <div className={`rounded-lg border px-3 py-2 text-[13px] leading-5 shadow-[0_1px_2px_rgba(15,23,42,0.025)] ${isUser ? 'border-blue-100 bg-blue-50' : messageTone(role?.id)}`}>
           <MarkdownMessage content={visibleContent} />
           {long && (
             <button
               type="button"
               onClick={() => setExpanded(value => !value)}
-              className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:text-blue-700"
+              className="mt-1.5 inline-flex items-center gap-1 text-[12px] font-semibold text-blue-600 hover:text-blue-700"
               aria-expanded={expanded}
             >
               {expanded ? 'Read less' : 'Read more'} <span aria-hidden="true">⌄</span>
