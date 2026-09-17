@@ -93,18 +93,20 @@ export function CompanyPanel() {
               key={agent.id}
               type="button"
               onClick={() => setSelectedMemberId(agent.id)}
-              className={`relative flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-1.5 text-start transition ${selected ? 'border-blue-300 bg-blue-50 shadow-sm' : 'border-transparent bg-white/70 hover:bg-slate-50'}`}
+              className={`relative flex w-full items-center justify-between rounded-lg border px-2.5 py-1.5 text-start transition ${selected ? 'border-blue-300 bg-blue-50 shadow-sm' : 'border-transparent bg-white/70 hover:bg-slate-50'}`}
             >
               {selected && <span className="absolute inset-y-0 start-0 w-0.5 rounded-full bg-blue-600" />}
-              <span className="relative">
-                <AgentAvatar agent={agent} role={role} size="md" />
-                <span className={`absolute -bottom-0.5 -end-0.5 h-3.5 w-3.5 rounded-full border-2 border-white ${present ? 'bg-emerald-500' : 'bg-slate-300'}`} aria-label={present ? 'In room' : 'Available'} />
+              <span className="flex min-w-0 items-center gap-2.5">
+                <span className="relative shrink-0">
+                  <AgentAvatar agent={agent} role={role} size="md" />
+                  <span className={`absolute -bottom-0.5 -end-0.5 h-3.5 w-3.5 rounded-full border-2 border-white ${present ? 'bg-emerald-500' : 'bg-slate-300'}`} aria-label={present ? 'In room' : 'Available'} />
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-[13px] font-bold text-[#111b3a]">{agent.name}</span>
+                  <span className="block truncate text-[12px] text-slate-500">{role?.name ?? 'Specialist'}</span>
+                </span>
               </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] font-bold text-[#111b3a]">{agent.name}</span>
-                <span className="block truncate text-[12px] text-slate-500">{role?.name ?? 'Specialist'}</span>
-              </span>
-              <span className="text-[20px] leading-none" aria-hidden="true">{agent.emoji}</span>
+              <span className="ms-3 shrink-0 text-[20px] leading-none" aria-hidden="true">{agent.emoji}</span>
             </button>
           );
         })}
