@@ -10,7 +10,6 @@ export function CompanyPanel() {
   const rooms = useWorkspaceStore(state => state.rooms);
   const addRole = useWorkspaceStore(state => state.addRole);
   const addAgent = useWorkspaceStore(state => state.addAgent);
-  const toggleAgentInRoom = useWorkspaceStore(state => state.toggleAgentInRoom);
 
   const room = rooms.find(item => item.id === activeRoomId);
   const roleMap = useMemo(() => new Map(roles.map(role => [role.id, role])), [roles]);
@@ -59,7 +58,6 @@ export function CompanyPanel() {
     if (!roleId) return;
     const id = addAgent({ name: agentName, roleId, emoji: agentEmoji.trim() || '🤖', color: '#2563EB' });
     if (!id) return;
-    if (room) toggleAgentInRoom(room.id, id);
     setAgentName('');
     setAgentEmoji('🤖');
     setSelectedMemberId(id);
