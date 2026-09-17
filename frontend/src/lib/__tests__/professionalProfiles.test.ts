@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { defaultAgents, defaultRoles } from '@/lib/defaultCompany';
-import { professionalProfiles } from '@/lib/professionalProfiles';
+import { professionalProfiles, type ProfessionalProfile } from '@/lib/professionalProfiles';
 import { buildAgentPrompt } from '@/lib/promptBuilder';
 
 const regulatedRoleIds = [
@@ -11,14 +11,19 @@ const regulatedRoleIds = [
   'role-physician',
 ];
 
+function requireProfile(roleId: string): ProfessionalProfile {
+  const profile = professionalProfiles[roleId];
+  if (!profile) throw new Error(`Missing professional profile for ${roleId}`);
+  return profile;
+}
+
 describe('enterprise professional skill matrices', () => {
   it('covers every built-in specialist with a deep professional profile', () => {
     expect(defaultAgents).toHaveLength(23);
     expect(defaultRoles).toHaveLength(23);
 
     for (const role of defaultRoles) {
-      const profile = professionalProfiles[role.id];
-      expect(profile, `${role.name} must have a professional profile`).toBeDefined();
+      const profile = requireProfile(role.id);
       expect(profile.skillGroups.length, `${role.name} must have grouped capabilities`).toBeGreaterThanOrEqual(4);
 
       const skills = profile.skillGroups.flatMap(group => group.skills);
@@ -32,8 +37,7 @@ describe('enterprise professional skill matrices', () => {
 
   it('defines explicit safety and professional boundaries for regulated roles', () => {
     for (const roleId of regulatedRoleIds) {
-      const profile = professionalProfiles[roleId];
-      expect(profile).toBeDefined();
+      const profile = requireProfile(roleId);
       const boundaries = profile.limitations.join(' ').toLocaleLowerCase();
       expect(boundaries.length).toBeGreaterThan(80);
       expect(boundaries).toMatch(/licensed|professional|clinician|legal|tax|counsel|diagnos|jurisdiction/);
