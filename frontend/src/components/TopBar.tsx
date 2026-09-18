@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Toast, type ToastMessage } from '@/components/Toast';
 import { copyText } from '@/lib/clipboard';
 import { buildFullChatText } from '@/lib/fullChat';
+import { useClickOutside } from '@/lib/useClickOutside';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
 function CompanyLogo() {
@@ -37,6 +38,12 @@ export function TopBar() {
   const [newRoomName, setNewRoomName] = useState('');
   const [newRoomTeamId, setNewRoomTeamId] = useState('');
   const [toast, setToast] = useState<ToastMessage | null>(null);
+  const roomMenuRef = useRef<HTMLDivElement>(null);
+
+  useClickOutside(roomMenuRef, roomMenuOpen, () => {
+    setRoomMenuOpen(false);
+    setNewRoomOpen(false);
+  });
 
   const copyFullChat = async () => {
     if (!activeRoom || activeRoom.messages.length === 0) return;
@@ -96,95 +103,97 @@ export function TopBar() {
             <p className="truncate text-[13px] text-slate-500">{activeRoom ? `${activeRoom.agentIds.length} specialists in this room` : 'Discuss · Analyze · Challenge · Build Better'}</p>
           </div>
 
-          <div className="relative flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <button type="button" onClick={copyFullChat} disabled={!activeRoom || activeRoom.messages.length === 0} className="inline-flex items-center gap-2 rounded-lg border border-blue-500 bg-white px-3 py-2 text-[13px] font-semibold text-blue-600 shadow-sm transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"><span aria-hidden="true">⧉</span> Copy Full Chat</button>
 
-            <button type="button" onClick={() => setRoomMenuOpen(value => !value)} aria-expanded={roomMenuOpen} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[13px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"><span aria-hidden="true">⚙</span> Room Settings</button>
+            <div ref={roomMenuRef} className="relative">
+              <button type="button" onClick={() => setRoomMenuOpen(value => !value)} aria-expanded={roomMenuOpen} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[13px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"><span aria-hidden="true">⚙</span> Room Settings</button>
+
+              {roomMenuOpen && (
+                <div className="absolute end-0 top-12 w-[430px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
+                  <div className="border-b border-slate-200 p-3">
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Rooms</div>
+                    <div className="max-h-32 space-y-1 overflow-y-auto">
+                      {rooms.map(room => (
+                        <button key={room.id} type="button" onClick={() => setActiveRoom(room.id)} className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-start text-sm ${room.id === activeRoomId ? 'bg-blue-50 font-semibold text-blue-700' : 'text-slate-700 hover:bg-slate-50'}`}>
+                          <span className="truncate"><span className="me-2">{room.emoji}</span>{room.name}</span>
+                          <span className="text-[11px] text-slate-400">{room.agentIds.length} members</span>
+                        </button>
+                      ))}
+                    </div>
+                    {!newRoomOpen ? (
+                      <button type="button" onClick={() => setNewRoomOpen(true)} className="mt-2 w-full rounded-lg border border-dashed border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">+ New Room</button>
+                    ) : (
+                      <div className="mt-2 space-y-2 rounded-lg border border-blue-100 bg-blue-50/50 p-2">
+                        <input autoFocus value={newRoomName} onChange={event => setNewRoomName(event.target.value)} placeholder="Room name" className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm" />
+                        <select value={newRoomTeamId} onChange={event => setNewRoomTeamId(event.target.value)} className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm">
+                          <option value="">Start empty — add specialists later</option>
+                          {teams.map(team => <option key={team.id} value={team.id}>{team.emoji} {team.name} ({team.agentIds.length})</option>)}
+                        </select>
+                        <div className="flex gap-2">
+                          <button type="button" onClick={submitNewRoom} className="flex-1 rounded-md bg-blue-600 px-3 py-2 text-xs font-semibold text-white">Create Room</button>
+                          <button type="button" onClick={() => setNewRoomOpen(false)} className="rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-600">Cancel</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {activeRoom && (
+                    <div className="grid max-h-[55vh] grid-cols-2 divide-x divide-slate-200">
+                      <div className="p-3">
+                        <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Add or remove a team</div>
+                        <div className="space-y-1.5">
+                          {teams.map(team => {
+                            const selected = activeRoom.teamIds?.includes(team.id) ?? false;
+                            return (
+                              <button
+                                key={team.id}
+                                type="button"
+                                onClick={() => handleTeamToggle(team.id)}
+                                title={selected ? `Remove ${team.name} from this room` : `Add ${team.name} to this room`}
+                                className={`flex w-full items-center justify-between rounded-lg border px-2.5 py-2 text-start text-xs transition ${selected ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700' : 'border-slate-200 hover:border-blue-200 hover:bg-blue-50'}`}
+                              >
+                                <span className="truncate"><span className="me-1">{team.emoji}</span>{team.name}</span>
+                                <span className="ms-2 font-bold">{selected ? '−' : '+'}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <div className="p-3">
+                        <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Individual specialists</div>
+                        <div className="max-h-72 space-y-1 overflow-y-auto">
+                          {agents.map(agent => {
+                            const present = activeRoom.agentIds.includes(agent.id);
+                            const selectedTeamIds = activeRoom.teamIds ?? [];
+                            const suppliedByTeam = selectedTeamIds.some(teamId => teamMap.get(teamId)?.agentIds.includes(agent.id));
+                            const explicitlySelected = activeRoom.individualAgentIds?.includes(agent.id) ?? false;
+                            const lockedByTeam = suppliedByTeam && !explicitlySelected;
+                            return (
+                              <label
+                                key={agent.id}
+                                title={lockedByTeam ? 'Included by an active team. Remove the team first to remove this specialist.' : undefined}
+                                className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-xs ${lockedByTeam ? 'cursor-not-allowed bg-emerald-50/50' : 'cursor-pointer hover:bg-slate-50'}`}
+                              >
+                                <input type="checkbox" checked={present} disabled={lockedByTeam} onChange={() => toggleAgentInRoom(activeRoom.id, agent.id)} />
+                                <span className="min-w-0 flex-1 truncate font-medium text-slate-700">{agent.name}</span>
+                                {suppliedByTeam ? <span className="rounded bg-emerald-100 px-1 py-0.5 text-[9px] font-semibold text-emerald-700">TEAM</span> : null}
+                                <span className="max-w-24 truncate text-[10px] text-slate-400">{roleMap.get(agent.roleId)?.name}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             <div className="ms-2 flex items-center gap-2 border-s border-slate-200 ps-4">
               <span className="grid h-9 w-9 place-items-center rounded-full bg-blue-600 text-sm font-bold text-white">U</span>
               <div><div className="text-[13px] font-semibold text-slate-900">User</div><div className="text-[11px] text-slate-500">Owner</div></div>
             </div>
-
-            {roomMenuOpen && (
-              <div className="absolute end-0 top-12 w-[430px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
-                <div className="border-b border-slate-200 p-3">
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Rooms</div>
-                  <div className="max-h-32 space-y-1 overflow-y-auto">
-                    {rooms.map(room => (
-                      <button key={room.id} type="button" onClick={() => setActiveRoom(room.id)} className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-start text-sm ${room.id === activeRoomId ? 'bg-blue-50 font-semibold text-blue-700' : 'text-slate-700 hover:bg-slate-50'}`}>
-                        <span className="truncate"><span className="me-2">{room.emoji}</span>{room.name}</span>
-                        <span className="text-[11px] text-slate-400">{room.agentIds.length} members</span>
-                      </button>
-                    ))}
-                  </div>
-                  {!newRoomOpen ? (
-                    <button type="button" onClick={() => setNewRoomOpen(true)} className="mt-2 w-full rounded-lg border border-dashed border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">+ New Room</button>
-                  ) : (
-                    <div className="mt-2 space-y-2 rounded-lg border border-blue-100 bg-blue-50/50 p-2">
-                      <input autoFocus value={newRoomName} onChange={event => setNewRoomName(event.target.value)} placeholder="Room name" className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm" />
-                      <select value={newRoomTeamId} onChange={event => setNewRoomTeamId(event.target.value)} className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm">
-                        <option value="">Start empty — add specialists later</option>
-                        {teams.map(team => <option key={team.id} value={team.id}>{team.emoji} {team.name} ({team.agentIds.length})</option>)}
-                      </select>
-                      <div className="flex gap-2">
-                        <button type="button" onClick={submitNewRoom} className="flex-1 rounded-md bg-blue-600 px-3 py-2 text-xs font-semibold text-white">Create Room</button>
-                        <button type="button" onClick={() => setNewRoomOpen(false)} className="rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-600">Cancel</button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {activeRoom && (
-                  <div className="grid max-h-[55vh] grid-cols-2 divide-x divide-slate-200">
-                    <div className="p-3">
-                      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Add or remove a team</div>
-                      <div className="space-y-1.5">
-                        {teams.map(team => {
-                          const selected = activeRoom.teamIds?.includes(team.id) ?? false;
-                          return (
-                            <button
-                              key={team.id}
-                              type="button"
-                              onClick={() => handleTeamToggle(team.id)}
-                              title={selected ? `Remove ${team.name} from this room` : `Add ${team.name} to this room`}
-                              className={`flex w-full items-center justify-between rounded-lg border px-2.5 py-2 text-start text-xs transition ${selected ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700' : 'border-slate-200 hover:border-blue-200 hover:bg-blue-50'}`}
-                            >
-                              <span className="truncate"><span className="me-1">{team.emoji}</span>{team.name}</span>
-                              <span className="ms-2 font-bold">{selected ? '−' : '+'}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    <div className="p-3">
-                      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Individual specialists</div>
-                      <div className="max-h-72 space-y-1 overflow-y-auto">
-                        {agents.map(agent => {
-                          const present = activeRoom.agentIds.includes(agent.id);
-                          const selectedTeamIds = activeRoom.teamIds ?? [];
-                          const suppliedByTeam = selectedTeamIds.some(teamId => teamMap.get(teamId)?.agentIds.includes(agent.id));
-                          const explicitlySelected = activeRoom.individualAgentIds?.includes(agent.id) ?? false;
-                          const lockedByTeam = suppliedByTeam && !explicitlySelected;
-                          return (
-                            <label
-                              key={agent.id}
-                              title={lockedByTeam ? 'Included by an active team. Remove the team first to remove this specialist.' : undefined}
-                              className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-xs ${lockedByTeam ? 'cursor-not-allowed bg-emerald-50/50' : 'cursor-pointer hover:bg-slate-50'}`}
-                            >
-                              <input type="checkbox" checked={present} disabled={lockedByTeam} onChange={() => toggleAgentInRoom(activeRoom.id, agent.id)} />
-                              <span className="min-w-0 flex-1 truncate font-medium text-slate-700">{agent.name}</span>
-                              {suppliedByTeam ? <span className="rounded bg-emerald-100 px-1 py-0.5 text-[9px] font-semibold text-emerald-700">TEAM</span> : null}
-                              <span className="max-w-24 truncate text-[10px] text-slate-400">{roleMap.get(agent.roleId)?.name}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </header>
