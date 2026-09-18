@@ -60,6 +60,7 @@ export function TopBar() {
     setNewRoomName('');
     setNewRoomTeamId('');
     setNewRoomOpen(false);
+    setRoomMenuOpen(false);
     setToast({ id: Date.now(), text: team ? `Room created with ${team.name}.` : 'Empty room created.', tone: 'success' });
   };
 
