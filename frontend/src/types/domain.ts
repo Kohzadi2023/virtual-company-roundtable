@@ -57,7 +57,12 @@ export interface Room {
   id: string;
   name: string;
   emoji: string;
+  /** Effective membership used by chat and agent selection. */
   agentIds: string[];
+  /** Teams explicitly attached to this room. Optional for legacy v4 snapshots. */
+  teamIds?: string[];
+  /** Specialists explicitly added outside team membership. Optional for legacy v4 snapshots. */
+  individualAgentIds?: string[];
   messages: Message[];
   createdAt: number;
 }
