@@ -1,9 +1,11 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Toast, type ToastMessage } from '@/components/Toast';
 import { copyText } from '@/lib/clipboard';
 import { buildFullChatText } from '@/lib/fullChat';
 import { useClickOutside } from '@/lib/useClickOutside';
 import { useWorkspaceStore } from '@/store/workspaceStore';
+
+const OPEN_ROOM_SETTINGS_EVENT = 'virtual-company:open-room-settings';
 
 function CompanyLogo() {
   return (
@@ -44,6 +46,18 @@ export function TopBar() {
     setRoomMenuOpen(false);
     setNewRoomOpen(false);
   });
+
+  useEffect(() => {
+    const openRoomSettings = (event: Event) => {
+      const roomId = (event as CustomEvent<{ roomId?: string }>).detail?.roomId;
+      if (roomId && rooms.some(room => room.id === roomId)) setActiveRoom(roomId);
+      setNewRoomOpen(false);
+      setRoomMenuOpen(true);
+    };
+
+    window.addEventListener(OPEN_ROOM_SETTINGS_EVENT, openRoomSettings);
+    return () => window.removeEventListener(OPEN_ROOM_SETTINGS_EVENT, openRoomSettings);
+  }, [rooms, setActiveRoom]);
 
   const copyFullChat = async () => {
     if (!activeRoom || activeRoom.messages.length === 0) return;
