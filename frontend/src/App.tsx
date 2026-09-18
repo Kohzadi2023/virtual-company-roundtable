@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { ChatRoom } from '@/components/ChatRoom';
-import { CompanyPanel } from '@/components/CompanyPanel';
-import { ThinkRoomsPanel } from '@/components/ThinkRoomsPanel';
+import { CollapsibleCompanyDirectory } from '@/components/CollapsibleCompanyDirectory';
+import { OtherRoomsPanel } from '@/components/OtherRoomsPanel';
 import { TopBar } from '@/components/TopBar';
 import { bootstrapPersistence, startPersistence } from '@/lib/storage';
 import { useWorkspaceStore } from '@/store/workspaceStore';
@@ -37,21 +37,21 @@ export default function App() {
   }
 
   return (
-    <main className="flex h-screen min-w-[1460px] flex-col overflow-hidden bg-[#f7f9fc] text-slate-900">
+    <main className="flex h-screen min-w-[1180px] flex-col overflow-hidden bg-[#f7f9fc] text-slate-900">
       <TopBar />
 
       <div className="flex min-h-0 flex-1">
-        <CompanyPanel />
+        <CollapsibleCompanyDirectory />
         {activeRoomId ? (
           <ChatRoom roomId={activeRoomId} />
         ) : (
           <div className="grid min-w-0 flex-1 place-items-center text-slate-400">Create a room to start a discussion.</div>
         )}
-        <ThinkRoomsPanel />
+        <OtherRoomsPanel />
       </div>
 
       <footer className="flex h-8 shrink-0 items-center border-t border-slate-200 bg-white px-4 text-[11px] text-slate-500">
-        <div className="w-[318px] shrink-0">▣ &nbsp; Virtual Company &nbsp; v1.6.1</div>
+        <div className="shrink-0">▣ &nbsp; Virtual Company &nbsp; v1.6.2</div>
         <div className="flex min-w-0 flex-1 items-center justify-end gap-5 pe-1">
           <span>💡 {agents.length} specialists</span>
           <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
