@@ -1,9 +1,14 @@
 import { useRef, useState } from 'react';
 import { MeetingMinutesDialog } from '@/components/MeetingMinutesDialog';
 import { SyncBadge } from '@/components/SyncBadge';
+import { Toast, type ToastMessage } from '@/components/Toast';
+import { copyText } from '@/lib/clipboard';
+import { buildFullChatText } from '@/lib/fullChat';
 import { deleteRoom } from '@/lib/roomActions';
 import { useClickOutside } from '@/lib/useClickOutside';
 import { useWorkspaceStore } from '@/store/workspaceStore';
+
+const OPEN_ROOM_SETTINGS_EVENT = 'virtual-company:open-room-settings';
 
 export function OtherRoomsPanel() {
   const rooms = useWorkspaceStore(state => state.rooms);
@@ -11,6 +16,7 @@ export function OtherRoomsPanel() {
   const setActiveRoom = useWorkspaceStore(state => state.setActiveRoom);
   const [open, setOpen] = useState(true);
   const [minutesRoomId, setMinutesRoomId] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastMessage | null>(null);
   const panelRef = useRef<HTMLElement>(null);
 
   useClickOutside(panelRef, open, () => setOpen(false));
@@ -19,6 +25,23 @@ export function OtherRoomsPanel() {
     if (!window.confirm(`Delete room “${roomName}” and all of its messages? This cannot be undone.`)) return;
     if (minutesRoomId === roomId) setMinutesRoomId(null);
     deleteRoom(roomId);
+  };
+
+  const handleCopyFullChat = async (roomId: string) => {
+    const room = rooms.find(item => item.id === roomId);
+    if (!room || room.messages.length === 0) return;
+
+    try {
+      await copyText(buildFullChatText(room));
+      setToast({ id: Date.now(), text: `${room.name}: full chat copied.`, tone: 'success' });
+    } catch {
+      setToast({ id: Date.now(), text: 'Could not copy the full chat.', tone: 'error' });
+    }
+  };
+
+  const handleOpenSettings = (roomId: string) => {
+    setActiveRoom(roomId);
+    window.dispatchEvent(new CustomEvent(OPEN_ROOM_SETTINGS_EVENT, { detail: { roomId } }));
   };
 
   if (!open) {
@@ -42,7 +65,7 @@ export function OtherRoomsPanel() {
 
   return (
     <>
-      <aside ref={panelRef} className="relative flex w-[310px] shrink-0 flex-col border-s border-slate-200 bg-[#fbfcfe]" aria-label="Other Rooms">
+      <aside ref={panelRef} className="relative flex w-[338px] shrink-0 flex-col border-s border-slate-200 bg-[#fbfcfe]" aria-label="Other Rooms">
         <button
           type="button"
           onClick={() => setOpen(false)}
@@ -70,12 +93,13 @@ export function OtherRoomsPanel() {
             <div className="space-y-1.5">
               {rooms.map(room => {
                 const active = room.id === activeRoomId;
+                const hasMessages = room.messages.length > 0;
                 return (
                   <div
                     key={room.id}
                     className={`rounded-lg border p-2.5 transition ${active ? 'border-blue-300 bg-blue-50 shadow-sm' : 'border-slate-200 bg-white hover:border-blue-200 hover:bg-blue-50/50'}`}
                   >
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1">
                       <button
                         type="button"
                         onClick={() => setActiveRoom(room.id)}
@@ -89,12 +113,33 @@ export function OtherRoomsPanel() {
                       <button
                         type="button"
                         onClick={() => setMinutesRoomId(room.id)}
-                        disabled={room.messages.length === 0}
+                        disabled={!hasMessages}
                         className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[13px] text-blue-600 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent"
-                        title={room.messages.length === 0 ? 'No messages for Meeting Minutes' : 'Meeting Minutes'}
+                        title={hasMessages ? 'Meeting Minutes' : 'No messages for Meeting Minutes'}
                         aria-label={`Meeting Minutes for ${room.name}`}
                       >
                         ▤
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => void handleCopyFullChat(room.id)}
+                        disabled={!hasMessages}
+                        className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[13px] text-indigo-600 transition hover:bg-indigo-50 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent"
+                        title={hasMessages ? 'Copy Full Chat' : 'No messages to copy'}
+                        aria-label={`Copy Full Chat for ${room.name}`}
+                      >
+                        ⧉
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleOpenSettings(room.id)}
+                        className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[13px] text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                        title="Room Settings"
+                        aria-label={`Room Settings for ${room.name}`}
+                      >
+                        ⚙
                       </button>
 
                       <button
@@ -132,6 +177,7 @@ export function OtherRoomsPanel() {
       </aside>
 
       <MeetingMinutesDialog roomId={minutesRoomId} onClose={() => setMinutesRoomId(null)} />
+      <Toast toast={toast} onDismiss={() => setToast(null)} />
     </>
   );
 }
