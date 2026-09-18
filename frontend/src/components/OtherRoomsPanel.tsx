@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { SyncBadge } from '@/components/SyncBadge';
+import { useClickOutside } from '@/lib/useClickOutside';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
 export function OtherRoomsPanel() {
@@ -7,6 +8,9 @@ export function OtherRoomsPanel() {
   const activeRoomId = useWorkspaceStore(state => state.activeRoomId);
   const setActiveRoom = useWorkspaceStore(state => state.setActiveRoom);
   const [open, setOpen] = useState(true);
+  const panelRef = useRef<HTMLElement>(null);
+
+  useClickOutside(panelRef, open, () => setOpen(false));
 
   if (!open) {
     return (
@@ -30,7 +34,7 @@ export function OtherRoomsPanel() {
   }
 
   return (
-    <aside className="relative flex w-[286px] shrink-0 flex-col border-s border-slate-200 bg-[#fbfcfe]" aria-label="Other Rooms">
+    <aside ref={panelRef} className="relative flex w-[286px] shrink-0 flex-col border-s border-slate-200 bg-[#fbfcfe]" aria-label="Other Rooms">
       <button
         type="button"
         onClick={() => setOpen(false)}
