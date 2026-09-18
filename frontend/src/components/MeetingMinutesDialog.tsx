@@ -16,6 +16,7 @@ export function MeetingMinutesDialog({ roomId, onClose }: MeetingMinutesDialogPr
   const [manualResult, setManualResult] = useState('');
   const [copied, setCopied] = useState(false);
   const [promptCopied, setPromptCopied] = useState(false);
+  const [promptCopyError, setPromptCopyError] = useState(false);
 
   const language = getRoomLanguage(room?.languageCode);
   const localMinutes = useMemo(() => room ? buildMeetingMinutes(room) : '', [room]);
@@ -27,22 +28,33 @@ export function MeetingMinutesDialog({ roomId, onClose }: MeetingMinutesDialogPr
     setManualResult('');
     setCopied(false);
     setPromptCopied(false);
+    setPromptCopyError(false);
   }, [roomId]);
 
   if (!roomId || !room) return null;
 
   const handleCopyMinutes = async () => {
     if (!activeMinutes) return;
-    await copyText(activeMinutes);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
+    try {
+      await copyText(activeMinutes);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setCopied(false);
+    }
   };
 
   const handleCopyPrompt = async () => {
     if (!manualPrompt) return;
-    await copyText(manualPrompt);
-    setPromptCopied(true);
-    window.setTimeout(() => setPromptCopied(false), 1800);
+    setPromptCopyError(false);
+    try {
+      await copyText(manualPrompt);
+      setPromptCopied(true);
+      window.setTimeout(() => setPromptCopied(false), 1800);
+    } catch {
+      setPromptCopied(false);
+      setPromptCopyError(true);
+    }
   };
 
   const handleDownload = () => {
@@ -99,9 +111,10 @@ export function MeetingMinutesDialog({ roomId, onClose }: MeetingMinutesDialogPr
                   <div className="mb-2 flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">1</div>
                   <h3 className="text-sm font-bold text-slate-900">Copy grounded AI prompt</h3>
                   <p className="mt-1 text-xs leading-5 text-slate-600">Includes the full room transcript, message evidence IDs, selected language, and strict anti-hallucination rules.</p>
-                  <button type="button" onClick={handleCopyPrompt} className="mt-3 w-full rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-blue-700">
+                  <button type="button" onClick={() => void handleCopyPrompt()} className="mt-3 w-full rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-blue-700">
                     {promptCopied ? '✓ Prompt Copied' : '⧉ Copy AI Minutes Prompt'}
                   </button>
+                  {promptCopyError ? <p className="mt-2 text-[11px] font-medium text-rose-600">Clipboard access failed. Check browser clipboard permission and try again.</p> : null}
                 </div>
 
                 <div className="rounded-xl border border-slate-200 bg-white p-4">
@@ -143,7 +156,7 @@ export function MeetingMinutesDialog({ roomId, onClose }: MeetingMinutesDialogPr
           </span>
           <div className="flex items-center gap-2">
             <button type="button" onClick={handleDownload} disabled={!activeMinutes} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">Download .md</button>
-            <button type="button" onClick={handleCopyMinutes} disabled={!activeMinutes} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40">{copied ? 'Copied' : 'Copy Minutes'}</button>
+            <button type="button" onClick={() => void handleCopyMinutes()} disabled={!activeMinutes} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40">{copied ? 'Copied' : 'Copy Minutes'}</button>
           </div>
         </div>
       </div>
