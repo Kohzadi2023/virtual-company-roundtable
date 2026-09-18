@@ -32,6 +32,66 @@ function remapAgentContext(
   return next;
 }
 
+function effectiveAgentIds(
+  individualAgentIds: string[],
+  teamIds: string[],
+  teams: TeamDefinition[],
+  validAgentIds: Set<string>,
+): string[] {
+  const result = new Set(individualAgentIds.filter(id => validAgentIds.has(id)));
+  const teamById = new Map(teams.map(team => [team.id, team]));
+  for (const teamId of teamIds) {
+    const team = teamById.get(teamId);
+    if (!team) continue;
+    for (const agentId of team.agentIds) {
+      if (validAgentIds.has(agentId)) result.add(agentId);
+    }
+  }
+  return [...result];
+}
+
+function inferLegacyTeamIds(agentIds: string[], teams: TeamDefinition[]): string[] {
+  const present = new Set(agentIds);
+  return teams
+    .filter(team => team.agentIds.length > 0 && team.agentIds.every(id => present.has(id)))
+    .map(team => team.id);
+}
+
+function normalizeRoomMembership(
+  room: Room,
+  teams: TeamDefinition[],
+  validAgentIds: Set<string>,
+  canonicalAgentId: (id: string) => string = id => id,
+): Room {
+  const remappedCurrent = Array.from(new Set(
+    room.agentIds.map(canonicalAgentId).filter(id => validAgentIds.has(id)),
+  ));
+
+  const validTeamIds = new Set(teams.map(team => team.id));
+  const teamIds = Array.from(new Set(
+    (room.teamIds ?? inferLegacyTeamIds(remappedCurrent, teams)).filter(id => validTeamIds.has(id)),
+  ));
+
+  const teamById = new Map(teams.map(team => [team.id, team]));
+  const suppliedByTeam = new Set<string>();
+  for (const teamId of teamIds) {
+    for (const agentId of teamById.get(teamId)?.agentIds ?? []) suppliedByTeam.add(agentId);
+  }
+
+  const individualAgentIds = Array.from(new Set(
+    (room.individualAgentIds ?? remappedCurrent.filter(id => !suppliedByTeam.has(id)))
+      .map(canonicalAgentId)
+      .filter(id => validAgentIds.has(id)),
+  ));
+
+  return {
+    ...room,
+    teamIds,
+    individualAgentIds,
+    agentIds: effectiveAgentIds(individualAgentIds, teamIds, teams, validAgentIds),
+  };
+}
+
 export interface WorkspaceState {
   rooms: Room[];
   activeRoomId: string | null;
@@ -45,7 +105,7 @@ export interface WorkspaceState {
   hydrate: (snapshot: StorageSnapshot | null) => void;
   seedDefaultCompany: () => void;
   setSyncState: (syncState: WorkspaceState['syncState']) => void;
-  createRoom: (name: string, emoji?: string, agentIds?: string[]) => string;
+  createRoom: (name: string, emoji?: string, individualAgentIds?: string[], teamIds?: string[]) => string;
   setActiveRoom: (roomId: string) => void;
   addRole: (input: Omit<RoleDefinition, 'id' | 'builtIn' | 'createdAt'>) => string | null;
   addAgent: (input: Omit<Agent, 'id' | 'createdAt'>) => string | null;
@@ -53,6 +113,8 @@ export interface WorkspaceState {
   addTeam: (input: Omit<TeamDefinition, 'id' | 'builtIn' | 'createdAt'>) => string | null;
   removeTeam: (teamId: string) => void;
   addTeamToRoom: (roomId: string, teamId: string) => void;
+  removeTeamFromRoom: (roomId: string, teamId: string) => void;
+  toggleTeamInRoom: (roomId: string, teamId: string) => void;
   toggleAgentInRoom: (roomId: string, agentId: string) => void;
   addUserMessage: (roomId: string, content: string) => string | null;
   addAgentMessage: (roomId: string, agentId: string, content: string) => string | null;
@@ -119,6 +181,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     ];
 
     const agentById = new Map(agents.map(agent => [agent.id, agent]));
+    const validAgentIds = new Set(agents.map(agent => agent.id));
     const roleById = new Map(roles.map(role => [role.id, role]));
     const canonicalAgentId = (id: string): string => aliases.get(id) ?? id;
 
@@ -154,6 +217,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
           name: 'Company Roundtable',
           emoji: '🏢',
           agentIds: [],
+          teamIds: [],
+          individualAgentIds: [],
           messages: [],
           createdAt: Date.now(),
         }],
@@ -162,8 +227,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     }
 
     const rooms: Room[] = state.rooms.map(room => {
-      const ids = new Set(room.agentIds.map(canonicalAgentId).filter(id => agentById.has(id)));
-      const messages = room.messages.map(message => {
+      const normalized = normalizeRoomMembership(room, teams, validAgentIds, canonicalAgentId);
+      const messages = normalized.messages.map(message => {
         if (message.authorType !== 'agent' || !message.authorId) return message;
         const authorId = canonicalAgentId(message.authorId);
         if (authorId === message.authorId) return message;
@@ -176,7 +241,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
           ...(role?.name ? { roleNameSnapshot: role.name } : {}),
         };
       });
-      return { ...room, agentIds: [...ids], messages };
+      return { ...normalized, messages };
     });
 
     return {
@@ -190,15 +255,20 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
   setSyncState: (syncState) => set({ syncState }),
 
-  createRoom: (name, emoji = '🏢', agentIds = []) => {
+  createRoom: (name, emoji = '🏢', individualAgentIds = [], teamIds = []) => {
     const id = newId();
     const state = get();
-    const validIds = Array.from(new Set(agentIds.filter(agentId => state.agents.some(agent => agent.id === agentId))));
+    const validAgentIds = new Set(state.agents.map(agent => agent.id));
+    const validTeamIds = new Set(state.teams.map(team => team.id));
+    const individuals = Array.from(new Set(individualAgentIds.filter(agentId => validAgentIds.has(agentId))));
+    const selectedTeams = Array.from(new Set(teamIds.filter(teamId => validTeamIds.has(teamId))));
     const room: Room = {
       id,
       name: name.trim() || 'New Room',
       emoji,
-      agentIds: validIds,
+      agentIds: effectiveAgentIds(individuals, selectedTeams, state.teams, validAgentIds),
+      teamIds: selectedTeams,
+      individualAgentIds: individuals,
       messages: [],
       createdAt: Date.now(),
     };
@@ -241,14 +311,29 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     return id;
   },
 
-  removeAgent: (agentId) => set(state => ({
-    agents: state.agents.filter(agent => agent.id !== agentId),
-    teams: state.teams.map(team => ({ ...team, agentIds: team.agentIds.filter(id => id !== agentId) })),
-    rooms: state.rooms.map(room => ({ ...room, agentIds: room.agentIds.filter(id => id !== agentId) })),
-    agentContext: Object.fromEntries(
-      Object.entries(state.agentContext).filter(([key]) => !key.endsWith(`:${agentId}`)),
-    ),
-  })),
+  removeAgent: (agentId) => set(state => {
+    const agents = state.agents.filter(agent => agent.id !== agentId);
+    const validAgentIds = new Set(agents.map(agent => agent.id));
+    const teams = state.teams.map(team => ({ ...team, agentIds: team.agentIds.filter(id => id !== agentId) }));
+    const rooms = state.rooms.map(room => {
+      const teamIds = room.teamIds ?? [];
+      const individualAgentIds = (room.individualAgentIds ?? room.agentIds).filter(id => id !== agentId);
+      return {
+        ...room,
+        teamIds,
+        individualAgentIds,
+        agentIds: effectiveAgentIds(individualAgentIds, teamIds, teams, validAgentIds),
+      };
+    });
+    return {
+      agents,
+      teams,
+      rooms,
+      agentContext: Object.fromEntries(
+        Object.entries(state.agentContext).filter(([key]) => !key.endsWith(`:${agentId}`)),
+      ),
+    };
+  }),
 
   addTeam: (input) => {
     const name = input.name.trim();
@@ -271,27 +356,87 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     return id;
   },
 
-  removeTeam: (teamId) => set(state => ({
-    teams: state.teams.filter(team => team.id !== teamId || team.builtIn),
-  })),
+  removeTeam: (teamId) => set(state => {
+    const target = state.teams.find(team => team.id === teamId);
+    if (!target || target.builtIn) return {};
+    const teams = state.teams.filter(team => team.id !== teamId);
+    const validAgentIds = new Set(state.agents.map(agent => agent.id));
+    const rooms = state.rooms.map(room => {
+      const selectedTeams = (room.teamIds ?? []).filter(id => id !== teamId);
+      const individuals = room.individualAgentIds ?? room.agentIds;
+      return {
+        ...room,
+        teamIds: selectedTeams,
+        individualAgentIds: individuals,
+        agentIds: effectiveAgentIds(individuals, selectedTeams, teams, validAgentIds),
+      };
+    });
+    return { teams, rooms };
+  }),
 
   addTeamToRoom: (roomId, teamId) => set(state => {
     const team = state.teams.find(item => item.id === teamId);
     if (!team) return {};
-    return {
-      rooms: state.rooms.map(room => room.id === roomId
-        ? { ...room, agentIds: Array.from(new Set([...room.agentIds, ...team.agentIds])) }
-        : room),
-    };
-  }),
-
-  toggleAgentInRoom: (roomId, agentId) => set(state => {
-    if (!state.agents.some(agent => agent.id === agentId)) return {};
+    const validAgentIds = new Set(state.agents.map(agent => agent.id));
     return {
       rooms: state.rooms.map(room => {
         if (room.id !== roomId) return room;
-        const isPresent = room.agentIds.includes(agentId);
-        return { ...room, agentIds: isPresent ? room.agentIds.filter(id => id !== agentId) : [...room.agentIds, agentId] };
+        const current = normalizeRoomMembership(room, state.teams, validAgentIds);
+        const teamIds = Array.from(new Set([...(current.teamIds ?? []), teamId]));
+        const individuals = current.individualAgentIds ?? [];
+        return {
+          ...current,
+          teamIds,
+          agentIds: effectiveAgentIds(individuals, teamIds, state.teams, validAgentIds),
+        };
+      }),
+    };
+  }),
+
+  removeTeamFromRoom: (roomId, teamId) => set(state => {
+    if (!state.teams.some(team => team.id === teamId)) return {};
+    const validAgentIds = new Set(state.agents.map(agent => agent.id));
+    return {
+      rooms: state.rooms.map(room => {
+        if (room.id !== roomId) return room;
+        const current = normalizeRoomMembership(room, state.teams, validAgentIds);
+        const teamIds = (current.teamIds ?? []).filter(id => id !== teamId);
+        const individuals = current.individualAgentIds ?? [];
+        return {
+          ...current,
+          teamIds,
+          agentIds: effectiveAgentIds(individuals, teamIds, state.teams, validAgentIds),
+        };
+      }),
+    };
+  }),
+
+  toggleTeamInRoom: (roomId, teamId) => {
+    const state = get();
+    const room = state.rooms.find(item => item.id === roomId);
+    if (!room) return;
+    const selected = room.teamIds?.includes(teamId) ?? false;
+    if (selected) state.removeTeamFromRoom(roomId, teamId);
+    else state.addTeamToRoom(roomId, teamId);
+  },
+
+  toggleAgentInRoom: (roomId, agentId) => set(state => {
+    if (!state.agents.some(agent => agent.id === agentId)) return {};
+    const validAgentIds = new Set(state.agents.map(agent => agent.id));
+    return {
+      rooms: state.rooms.map(room => {
+        if (room.id !== roomId) return room;
+        const current = normalizeRoomMembership(room, state.teams, validAgentIds);
+        const individuals = new Set(current.individualAgentIds ?? []);
+        if (individuals.has(agentId)) individuals.delete(agentId);
+        else individuals.add(agentId);
+        const individualAgentIds = [...individuals];
+        const teamIds = current.teamIds ?? [];
+        return {
+          ...current,
+          individualAgentIds,
+          agentIds: effectiveAgentIds(individualAgentIds, teamIds, state.teams, validAgentIds),
+        };
       }),
     };
   }),
