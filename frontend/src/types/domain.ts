@@ -57,6 +57,8 @@ export interface Room {
   id: string;
   name: string;
   emoji: string;
+  /** Preferred working language for this room. Legacy rooms default to English. */
+  languageCode?: string;
   /** Effective membership used by chat and agent selection. */
   agentIds: string[];
   /** Teams explicitly attached to this room. Optional for legacy v4 snapshots. */
