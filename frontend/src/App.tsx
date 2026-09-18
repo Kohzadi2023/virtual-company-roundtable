@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { ChatRoom } from '@/components/ChatRoom';
-import { CompanyPanel } from '@/components/CompanyPanel';
 import { TopBar } from '@/components/TopBar';
+import { WorkspaceSidebar } from '@/components/WorkspaceSidebar';
 import { bootstrapPersistence, startPersistence } from '@/lib/storage';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
@@ -40,7 +40,7 @@ export default function App() {
       <TopBar />
 
       <div className="flex min-h-0 flex-1">
-        <CompanyPanel />
+        <WorkspaceSidebar />
         {activeRoomId ? (
           <ChatRoom roomId={activeRoomId} />
         ) : (
@@ -49,7 +49,7 @@ export default function App() {
       </div>
 
       <footer className="flex h-8 shrink-0 items-center border-t border-slate-200 bg-white px-4 text-[11px] text-slate-500">
-        <div className="w-[318px] shrink-0">▣ &nbsp; Virtual Company &nbsp; v1.5.2</div>
+        <div className="w-[318px] shrink-0">▣ &nbsp; Virtual Company &nbsp; v1.6.0</div>
         <div className="flex min-w-0 flex-1 items-center justify-end gap-5 pe-1">
           <span>💡 {agents.length} specialists</span>
           <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
