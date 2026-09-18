@@ -44,8 +44,13 @@ export function ChatRoom({ roomId }: { roomId: string }) {
             <EmptyDiscussionState />
           ) : (
             <div className="space-y-0.5">
-              {room.messages.map(message => (
-                <TimelineMessage key={message.id} roomId={room.id} message={message} />
+              {room.messages.map((message, index) => (
+                <TimelineMessage
+                  key={message.id}
+                  roomId={room.id}
+                  message={message}
+                  isLast={index === room.messages.length - 1}
+                />
               ))}
             </div>
           )}
