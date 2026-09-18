@@ -26,11 +26,12 @@ export function TopBar() {
   const activeRoomId = useWorkspaceStore(state => state.activeRoomId);
   const setActiveRoom = useWorkspaceStore(state => state.setActiveRoom);
   const createRoom = useWorkspaceStore(state => state.createRoom);
-  const addTeamToRoom = useWorkspaceStore(state => state.addTeamToRoom);
+  const toggleTeamInRoom = useWorkspaceStore(state => state.toggleTeamInRoom);
   const toggleAgentInRoom = useWorkspaceStore(state => state.toggleAgentInRoom);
 
   const activeRoom = rooms.find(room => room.id === activeRoomId);
   const roleMap = useMemo(() => new Map(roles.map(role => [role.id, role])), [roles]);
+  const teamMap = useMemo(() => new Map(teams.map(team => [team.id, team])), [teams]);
   const [roomMenuOpen, setRoomMenuOpen] = useState(false);
   const [newRoomOpen, setNewRoomOpen] = useState(false);
   const [newRoomName, setNewRoomName] = useState('');
@@ -49,12 +50,31 @@ export function TopBar() {
 
   const submitNewRoom = () => {
     const team = teams.find(item => item.id === newRoomTeamId);
-    const id = createRoom(newRoomName || `Room ${rooms.length + 1}`, '🏢', team?.agentIds ?? []);
+    const id = createRoom(
+      newRoomName || `Room ${rooms.length + 1}`,
+      '🏢',
+      [],
+      team ? [team.id] : [],
+    );
     setActiveRoom(id);
     setNewRoomName('');
     setNewRoomTeamId('');
     setNewRoomOpen(false);
     setToast({ id: Date.now(), text: team ? `Room created with ${team.name}.` : 'Empty room created.', tone: 'success' });
+  };
+
+  const handleTeamToggle = (teamId: string) => {
+    if (!activeRoom) return;
+    const selected = activeRoom.teamIds?.includes(teamId) ?? false;
+    const team = teamMap.get(teamId);
+    toggleTeamInRoom(activeRoom.id, teamId);
+    if (team) {
+      setToast({
+        id: Date.now(),
+        text: selected ? `${team.name} removed from this room.` : `${team.name} added to this room.`,
+        tone: 'success',
+      });
+    }
   };
 
   return (
@@ -117,13 +137,20 @@ export function TopBar() {
                 {activeRoom && (
                   <div className="grid max-h-[55vh] grid-cols-2 divide-x divide-slate-200">
                     <div className="p-3">
-                      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Add a team</div>
+                      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Add or remove a team</div>
                       <div className="space-y-1.5">
                         {teams.map(team => {
-                          const included = team.agentIds.length > 0 && team.agentIds.every(id => activeRoom.agentIds.includes(id));
+                          const selected = activeRoom.teamIds?.includes(team.id) ?? false;
                           return (
-                            <button key={team.id} type="button" disabled={included} onClick={() => addTeamToRoom(activeRoom.id, team.id)} className="flex w-full items-center justify-between rounded-lg border border-slate-200 px-2.5 py-2 text-start text-xs hover:bg-blue-50 disabled:bg-emerald-50 disabled:text-emerald-700">
-                              <span className="truncate"><span className="me-1">{team.emoji}</span>{team.name}</span><span>{included ? '✓' : '+'}</span>
+                            <button
+                              key={team.id}
+                              type="button"
+                              onClick={() => handleTeamToggle(team.id)}
+                              title={selected ? `Remove ${team.name} from this room` : `Add ${team.name} to this room`}
+                              className={`flex w-full items-center justify-between rounded-lg border px-2.5 py-2 text-start text-xs transition ${selected ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700' : 'border-slate-200 hover:border-blue-200 hover:bg-blue-50'}`}
+                            >
+                              <span className="truncate"><span className="me-1">{team.emoji}</span>{team.name}</span>
+                              <span className="ms-2 font-bold">{selected ? '−' : '+'}</span>
                             </button>
                           );
                         })}
@@ -134,11 +161,20 @@ export function TopBar() {
                       <div className="max-h-72 space-y-1 overflow-y-auto">
                         {agents.map(agent => {
                           const present = activeRoom.agentIds.includes(agent.id);
+                          const selectedTeamIds = activeRoom.teamIds ?? [];
+                          const suppliedByTeam = selectedTeamIds.some(teamId => teamMap.get(teamId)?.agentIds.includes(agent.id));
+                          const explicitlySelected = activeRoom.individualAgentIds?.includes(agent.id) ?? false;
+                          const lockedByTeam = suppliedByTeam && !explicitlySelected;
                           return (
-                            <label key={agent.id} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-slate-50">
-                              <input type="checkbox" checked={present} onChange={() => toggleAgentInRoom(activeRoom.id, agent.id)} />
+                            <label
+                              key={agent.id}
+                              title={lockedByTeam ? 'Included by an active team. Remove the team first to remove this specialist.' : undefined}
+                              className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-xs ${lockedByTeam ? 'cursor-not-allowed bg-emerald-50/50' : 'cursor-pointer hover:bg-slate-50'}`}
+                            >
+                              <input type="checkbox" checked={present} disabled={lockedByTeam} onChange={() => toggleAgentInRoom(activeRoom.id, agent.id)} />
                               <span className="min-w-0 flex-1 truncate font-medium text-slate-700">{agent.name}</span>
-                              <span className="max-w-28 truncate text-[10px] text-slate-400">{roleMap.get(agent.roleId)?.name}</span>
+                              {suppliedByTeam ? <span className="rounded bg-emerald-100 px-1 py-0.5 text-[9px] font-semibold text-emerald-700">TEAM</span> : null}
+                              <span className="max-w-24 truncate text-[10px] text-slate-400">{roleMap.get(agent.roleId)?.name}</span>
                             </label>
                           );
                         })}
