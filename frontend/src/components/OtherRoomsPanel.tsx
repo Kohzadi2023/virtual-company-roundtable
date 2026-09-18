@@ -19,7 +19,7 @@ export function OtherRoomsPanel() {
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const panelRef = useRef<HTMLElement>(null);
 
-  useClickOutside(panelRef, open, () => setOpen(false));
+  useClickOutside(panelRef, open && !minutesRoomId, () => setOpen(false));
 
   const handleDelete = (roomId: string, roomName: string) => {
     if (!window.confirm(`Delete room “${roomName}” and all of its messages? This cannot be undone.`)) return;
