@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { CompanyPanel } from '@/components/CompanyPanel';
+import { useClickOutside } from '@/lib/useClickOutside';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
 export function CollapsibleCompanyDirectory() {
   const [open, setOpen] = useState(true);
+  const panelRef = useRef<HTMLDivElement>(null);
   const agents = useWorkspaceStore(state => state.agents);
   const teams = useWorkspaceStore(state => state.teams);
+
+  useClickOutside(panelRef, open, () => setOpen(false));
 
   if (!open) {
     return (
@@ -31,7 +35,7 @@ export function CollapsibleCompanyDirectory() {
   }
 
   return (
-    <div className="relative flex w-[318px] shrink-0">
+    <div ref={panelRef} className="relative flex w-[318px] shrink-0">
       <CompanyPanel />
       <button
         type="button"
