@@ -7,6 +7,9 @@ const labels: Record<string, Record<string, string>> = {
   fr: { title: 'Compte rendu de réunion', room: 'Salle', date: 'Généré le', language: 'Langue', participants: 'Participants', discussion: 'Points clés', decisions: 'Décisions explicites', actions: 'Actions', none: 'Aucun élément explicitement enregistré.' },
   es: { title: 'Acta de reunión', room: 'Sala', date: 'Generado', language: 'Idioma', participants: 'Participantes', discussion: 'Puntos principales', decisions: 'Decisiones explícitas', actions: 'Acciones', none: 'No se registró ninguno explícitamente.' },
   ar: { title: 'محضر الاجتماع', room: 'الغرفة', date: 'تاريخ الإنشاء', language: 'اللغة', participants: 'المشاركون', discussion: 'أبرز النقاط', decisions: 'القرارات الصريحة', actions: 'بنود العمل', none: 'لم يتم تسجيل أي عنصر بشكل صريح.' },
+  de: { title: 'Besprechungsprotokoll', room: 'Raum', date: 'Erstellt', language: 'Sprache', participants: 'Teilnehmende', discussion: 'Diskussionspunkte', decisions: 'Explizite Entscheidungen', actions: 'Aufgaben', none: 'Keine ausdrücklich erfassten Punkte.' },
+  tr: { title: 'Toplantı Tutanağı', room: 'Oda', date: 'Oluşturulma', language: 'Dil', participants: 'Katılımcılar', discussion: 'Görüşme Özeti', decisions: 'Açık Kararlar', actions: 'Aksiyon Maddeleri', none: 'Açıkça kaydedilmiş bir madde yok.' },
+  it: { title: 'Verbale della riunione', room: 'Stanza', date: 'Generato', language: 'Lingua', participants: 'Partecipanti', discussion: 'Punti principali', decisions: 'Decisioni esplicite', actions: 'Azioni', none: 'Nessun elemento registrato esplicitamente.' },
 };
 
 function firstSentence(value: string, max = 240): string {
@@ -17,8 +20,8 @@ function firstSentence(value: string, max = 240): string {
 
 function explicitItems(content: string, kind: 'decision' | 'action'): string[] {
   const patterns = kind === 'decision'
-    ? /^(?:decision|decided|تصمیم|تصمیم‌گیری|décision|decisión|قرار شد)\s*[:：-]\s*(.+)$/i
-    : /^(?:action|action item|todo|اقدام|وظیفه|action à faire|acción|کار بعدی)\s*[:：-]\s*(.+)$/i;
+    ? /^(?:decision|decided|تصمیم|تصمیم‌گیری|décision|decisión|قرار شد|entscheidung|karar|decisione)\s*[:：-]\s*(.+)$/i
+    : /^(?:action|action item|todo|اقدام|وظیفه|action à faire|acción|کار بعدی|aufgabe|aktion|aksiyon|görev|azione|attività)\s*[:：-]\s*(.+)$/i;
 
   return content
     .split(/\r?\n/)
