@@ -41,6 +41,7 @@ export function buildMeetingMinutesPrompt(room: Room): string {
     '8. Do not include facts from general knowledge, previous chats, external sources, or assumptions.',
     '9. Keep evidence quotes short. Never alter the meaning of a source message.',
     '10. Return ONLY the final Markdown document. Do not add commentary before or after it.',
+    '11. The section labels shown below are structural examples. Translate all headings, labels, table headers, statuses, and “Not specified” into the selected output language while preserving the exact section order and Markdown structure.',
     '',
     'REQUIRED OUTPUT FORMAT',
     '# Meeting Minutes',
