@@ -1,5 +1,7 @@
 import { sharedAgentBehavior } from '@/lib/defaultCompany';
+import { getRoomLanguage } from '@/lib/languages';
 import { professionalProfiles } from '@/lib/professionalProfiles';
+import { useWorkspaceStore } from '@/store/workspaceStore';
 import type { Agent, Message, RoleDefinition } from '@/types/domain';
 
 function formatMessage(message: Message): string {
@@ -33,11 +35,16 @@ function formatProfessionalProfile(role: RoleDefinition): string[] {
 
 export function buildAgentPrompt(agent: Agent, role: RoleDefinition, messages: Message[]): string {
   const context = messages.map(formatMessage).join('\n\n');
+  const state = useWorkspaceStore.getState();
+  const activeRoom = state.rooms.find(room => room.id === state.activeRoomId);
+  const language = getRoomLanguage(activeRoom?.languageCode);
+
   return [
     `You are ${agent.name}, the company's ${role.name}.`,
     ...formatProfessionalProfile(role),
     role.systemPrompt,
     sharedAgentBehavior,
+    `Room working language: ${language.name} (${language.nativeName}). Write your entire response in this language unless the user explicitly asks for another language.`,
     '',
     'NEW CONTEXT — these are only the messages you have not seen yet:',
     context || '(No new context)',
