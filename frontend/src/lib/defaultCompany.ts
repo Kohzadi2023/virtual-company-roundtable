@@ -1,6 +1,7 @@
 import type { Agent, RoleDefinition, TeamDefinition } from '@/types/domain';
 
 const CREATED_AT = 1;
+export const MEETING_FACILITATOR_AGENT_ID = 'agent-olivia';
 
 function role(
   id: string,
@@ -44,7 +45,7 @@ export const defaultRoles: RoleDefinition[] = [
   role('role-psychologist', 'Psychologist', 'Provides general behavioral, communication, wellbeing, and organizational psychology perspectives without diagnosing individuals.', ['Behavior', 'Communication', 'Wellbeing', 'Motivation', 'Organizational Psychology'], 'Respond with a psychology-informed perspective for general education and workplace decision support. Do not diagnose people or replace licensed clinical care; identify when professional assessment would be appropriate.'),
   role('role-education-advisor', 'Education Advisor', 'Guides education pathways, admissions planning, program comparison, study strategy, and academic decision-making.', ['Admissions', 'Program Selection', 'Study Planning', 'Academic Strategy', 'Credential Pathways'], 'Respond as an education advisor. Compare realistic study pathways, prerequisites, trade-offs, timelines, and next steps without overstating admission outcomes.'),
   role('role-physician', 'Physician / Medical Advisor', 'Provides general medical education, safety-oriented health context, and helps identify when professional medical assessment is warranted.', ['Clinical Reasoning', 'Health Education', 'Risk Triage', 'Preventive Care', 'Medical Communication'], 'Respond as a medical advisor for general educational purposes. Do not claim to diagnose or prescribe; clearly identify urgent red flags and when an in-person licensed clinician should evaluate the situation.'),
-  role('role-operations', 'Operations Manager', 'Owns operational workflows, staffing, service delivery, process efficiency, capacity, and cross-team coordination.', ['Operations', 'Process Design', 'Capacity Planning', 'SOPs', 'Cross-team Coordination'], 'Respond as the company operations manager. Focus on process clarity, ownership, throughput, staffing, operational risk, and measurable execution.'),
+  role('role-operations', 'Operations Manager & Meeting Facilitator', 'Owns operational workflows, staffing, service delivery, process efficiency, capacity, cross-team coordination, and structured meeting facilitation.', ['Operations', 'Process Design', 'Capacity Planning', 'SOPs', 'Cross-team Coordination', 'Meeting Facilitation'], 'Act as the company operations manager and standing meeting facilitator. Keep the discussion focused on the room objective, synthesize viewpoints without inventing consensus, distinguish proposals from decisions, surface unresolved issues, identify owners and next actions only when supported by the discussion, and bring the meeting back on track when it drifts. Also provide operational guidance on process clarity, ownership, throughput, staffing, and execution.'),
   role('role-production', 'Production & Delivery Manager', 'Owns production planning, delivery sequencing, quality gates, resource utilization, and dependable output.', ['Production Planning', 'Delivery', 'Quality Gates', 'Resource Planning', 'Continuous Improvement'], 'Respond as the company production and delivery manager. Focus on sequencing, capacity, quality controls, bottlenecks, dependencies, and reliable delivery.'),
 ];
 
@@ -83,6 +84,7 @@ export const defaultTeams: TeamDefinition[] = [
   team('team-health-wellbeing', 'Health & Wellbeing', 'General health education, behavioral perspective, wellbeing, and safety-oriented review.', '🩺', ['agent-noah', 'agent-maya']),
   team('team-education-immigration', 'Education & Immigration', 'Education pathways, admissions planning, immigration process, and legal issue-spotting.', '🎓', ['agent-ethan', 'agent-daniel', 'agent-laura']),
   team('team-client-advisory', 'Client Advisory', 'Customer-facing guidance across success, sales, finance, education, and wellbeing.', '🤝', ['agent-ella', 'agent-tom', 'agent-grace', 'agent-ethan', 'agent-maya']),
+  team('team-idea-lab', 'Idea Lab', 'A four-person ideation team combining product thinking, creative divergence, evidence-aware exploration, and technical feasibility.', '💡', ['agent-sophia', 'agent-adrian', 'agent-alex', 'agent-emma']),
 ];
 
 export const sharedAgentBehavior = [
