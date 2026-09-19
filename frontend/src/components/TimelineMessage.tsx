@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { MarkdownMessage } from '@/components/MarkdownMessage';
+import { openAgentMemory } from '@/lib/agentMemory';
 import { copyText } from '@/lib/clipboard';
 import { formatTimestamp } from '@/lib/format';
 import { recordAudit } from '@/lib/workspaceSuite';
@@ -24,6 +25,13 @@ function truncateWords(value: string, maxWords: number): string {
   const words = value.trim().split(/\s+/);
   if (words.length <= maxWords) return value;
   return `${words.slice(0, maxWords).join(' ')}\n\n…`;
+}
+
+function memoryTitle(message: Message): string {
+  const firstLine = message.content.split('\n').map(value => value.trim()).find(Boolean) ?? 'Discussion memory';
+  const prefix = message.reaction === 'risk' ? 'Risk: ' : message.reaction === 'accepted' ? 'Accepted: ' : '';
+  const value = `${prefix}${firstLine}`;
+  return value.length > 72 ? `${value.slice(0, 69)}…` : value;
 }
 
 function messageTone(roleId?: string): string {
@@ -114,6 +122,16 @@ export function TimelineMessage({ roomId, message, isLast = false }: TimelineMes
     if (!window.confirm('Delete this message?')) return;
     deleteMessage(roomId, message.id);
     recordAudit('message.deleted', `Deleted a message from ${rooms.find(room => room.id === roomId)?.name ?? 'room'}.`);
+  };
+
+  const rememberMessage = () => {
+    openAgentMemory({
+      ...(message.authorType === 'agent' && message.authorId ? { agentId: message.authorId } : {}),
+      sourceRoomId: roomId,
+      sourceMessageId: message.id,
+      suggestedTitle: memoryTitle(message),
+      suggestedContent: message.content,
+    });
   };
 
   const togglePin = () => {
@@ -217,6 +235,7 @@ export function TimelineMessage({ roomId, message, isLast = false }: TimelineMes
         {!editing && (
           <div className="mt-1.5 flex flex-wrap items-center justify-end gap-1 text-[10px] text-slate-500" aria-label="Message collaboration actions">
             <button type="button" onClick={togglePin} className="rounded-md px-2 py-1 font-medium hover:bg-amber-50 hover:text-amber-700">{message.pinned ? 'Unpin' : '📌 Pin'}</button>
+            <button type="button" onClick={rememberMessage} className="rounded-md px-2 py-1 font-medium hover:bg-violet-50 hover:text-violet-700">🧠 Remember</button>
             <div className="relative">
               <button type="button" onClick={() => setReactionOpen(value => !value)} className="rounded-md px-2 py-1 font-medium hover:bg-slate-100">{reaction ? `${reaction.icon} ${reaction.label}` : 'React'}</button>
               {reactionOpen ? <div className="absolute bottom-7 end-0 z-20 flex gap-1 rounded-lg border border-slate-200 bg-white p-1.5 shadow-xl">{REACTIONS.map(item => <button key={item.value} type="button" onClick={() => setReaction(item.value)} title={item.label} className="grid h-7 w-7 place-items-center rounded hover:bg-slate-100">{item.icon}</button>)}</div> : null}
