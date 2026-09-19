@@ -67,7 +67,7 @@ export function buildAgentPrompt(agent: Agent, role: RoleDefinition, messages: M
     ? [
         '',
         'PERSISTENT AGENT MEMORY — durable working knowledge that is separate from this room conversation:',
-        ...memories.map(entry => formatMemory(entry, entry.projectId === activeProject?.id ? activeProject.name : undefined)),
+        ...memories.map(entry => formatMemory(entry, activeProject && entry.projectId === activeProject.id ? activeProject.name : undefined)),
         'Treat active memories as prior working context, not as new user messages. If new context clearly contradicts a memory, surface the conflict instead of silently overriding either one.',
       ]
     : [];
