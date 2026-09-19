@@ -29,11 +29,13 @@ $tempPfx = Join-Path ([IO.Path]::GetTempPath()) ("virtual-company-codesign-{0}.p
 
 try {
   $securePassword = ConvertTo-SecureString -String $CertificatePassword -Force -AsPlainText
-  $certificate = Import-PfxCertificate \
-    -FilePath $tempPfx \
-    -CertStoreLocation Cert:\CurrentUser\My \
-    -Password $securePassword \
-    -Exportable:$false
+  $importArgs = @{
+    FilePath = $tempPfx
+    CertStoreLocation = 'Cert:\CurrentUser\My'
+    Password = $securePassword
+    Exportable = $false
+  }
+  $certificate = Import-PfxCertificate @importArgs
 
   if (-not $certificate) {
     throw "The PFX certificate could not be imported."
@@ -76,5 +78,7 @@ try {
   if (Test-Path $tempPfx) {
     Remove-Item $tempPfx -Force
   }
-  [Array]::Clear($certificateBytes, 0, $certificateBytes.Length)
+  if ($certificateBytes) {
+    [Array]::Clear($certificateBytes, 0, $certificateBytes.Length)
+  }
 }
