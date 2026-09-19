@@ -1,6 +1,11 @@
 import { sharedAgentBehavior } from '@/lib/defaultCompany';
 import { getRoomLanguage } from '@/lib/languages';
 import { professionalProfiles } from '@/lib/professionalProfiles';
+import {
+  loadWorkspaceSuite,
+  relevantAgentMemories,
+  type AgentMemoryEntry,
+} from '@/lib/workspaceSuite';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 import type { Agent, Message, RoleDefinition } from '@/types/domain';
 
@@ -33,6 +38,11 @@ function formatProfessionalProfile(role: RoleDefinition): string[] {
   return lines;
 }
 
+function formatMemory(entry: AgentMemoryEntry, projectName?: string): string {
+  const scope = entry.projectId ? `Project: ${projectName ?? entry.projectId}` : 'Company-wide';
+  return `- [${entry.importance.toUpperCase()} · ${entry.category.toUpperCase()} · ${scope}] ${entry.title}: ${entry.content}`;
+}
+
 export function buildExternalChatTitleHint(agent: Pick<Agent, 'name'>): string[] {
   return [
     `CHAT TITLE: ${agent.name}`,
@@ -45,7 +55,22 @@ export function buildAgentPrompt(agent: Agent, role: RoleDefinition, messages: M
   const context = messages.map(formatMessage).join('\n\n');
   const state = useWorkspaceStore.getState();
   const activeRoom = state.rooms.find(room => room.id === state.activeRoomId);
+  const activeProject = activeRoom?.projectId
+    ? state.projects.find(project => project.id === activeRoom.projectId)
+    : undefined;
+  const suite = loadWorkspaceSuite();
+  const companyId = activeRoom?.companyId ?? suite.activeCompanyId;
+  const memories = relevantAgentMemories(agent.id, activeRoom?.projectId, companyId);
   const language = getRoomLanguage(activeRoom?.languageCode);
+
+  const memorySection = memories.length > 0
+    ? [
+        '',
+        'PERSISTENT AGENT MEMORY — durable working knowledge that is separate from this room conversation:',
+        ...memories.map(entry => formatMemory(entry, entry.projectId === activeProject?.id ? activeProject.name : undefined)),
+        'Treat active memories as prior working context, not as new user messages. If new context clearly contradicts a memory, surface the conflict instead of silently overriding either one.',
+      ]
+    : [];
 
   return [
     ...buildExternalChatTitleHint(agent),
@@ -54,6 +79,7 @@ export function buildAgentPrompt(agent: Agent, role: RoleDefinition, messages: M
     role.systemPrompt,
     sharedAgentBehavior,
     `Room working language: ${language.name} (${language.nativeName}). Write your entire response in this language unless the user explicitly asks for another language.`,
+    ...memorySection,
     '',
     'NEW CONTEXT — these are only the messages you have not seen yet:',
     context || '(No new context)',
