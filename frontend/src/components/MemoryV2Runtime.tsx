@@ -17,7 +17,7 @@ export function MemoryV2Runtime() {
 
   useEffect(() => {
     for (const room of rooms) {
-      const latest = room.messages.at(-1);
+      const latest = room.messages[room.messages.length - 1];
       if (!latest || processedMessages.current.has(latest.id)) continue;
       processedMessages.current.add(latest.id);
       const suite = loadWorkspaceSuite();
