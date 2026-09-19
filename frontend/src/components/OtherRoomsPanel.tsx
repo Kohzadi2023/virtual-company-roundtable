@@ -12,6 +12,7 @@ const OPEN_ROOM_SETTINGS_EVENT = 'virtual-company:open-room-settings';
 
 export function OtherRoomsPanel() {
   const rooms = useWorkspaceStore(state => state.rooms);
+  const projects = useWorkspaceStore(state => state.projects);
   const activeRoomId = useWorkspaceStore(state => state.activeRoomId);
   const setActiveRoom = useWorkspaceStore(state => state.setActiveRoom);
   const [open, setOpen] = useState(true);
@@ -94,6 +95,7 @@ export function OtherRoomsPanel() {
               {rooms.map(room => {
                 const active = room.id === activeRoomId;
                 const hasMessages = room.messages.length > 0;
+                const project = projects.find(item => item.id === room.projectId);
                 return (
                   <div
                     key={room.id}
@@ -158,7 +160,9 @@ export function OtherRoomsPanel() {
                       onClick={() => setActiveRoom(room.id)}
                       className="mt-1.5 flex w-full items-center justify-between gap-2 text-start"
                     >
-                      <span className="text-[10px] text-slate-400">{room.agentIds.length} specialists · {room.messages.length} messages</span>
+                      <span className="min-w-0 truncate text-[10px] text-slate-400">
+                        {project ? `${project.emoji} ${project.name} · ` : ''}{room.agentIds.length} specialists · {room.messages.length} messages
+                      </span>
                       {active ? <span className="text-[9px] font-semibold text-blue-600">ACTIVE</span> : null}
                     </button>
                   </div>
@@ -170,7 +174,7 @@ export function OtherRoomsPanel() {
 
         <div className="border-t border-slate-200 bg-white px-3 py-2">
           <div className="flex items-center justify-between text-[11px] text-slate-500">
-            <span>{rooms.length} rooms</span>
+            <span>{rooms.length} rooms · {projects.length} projects</span>
             <SyncBadge />
           </div>
         </div>
