@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { AgentMemoryDialogHost } from '@/components/AgentMemoryDialogHost';
 import { AppLockGate } from '@/components/AppLockGate';
 import { ChatRoom } from '@/components/ChatRoom';
 import { CollapsibleCompanyDirectory } from '@/components/CollapsibleCompanyDirectory';
@@ -83,6 +84,7 @@ export default function App() {
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" title="System ready" aria-label="System ready" />
           </div>
         </footer>
+        <AgentMemoryDialogHost />
       </main>
     </AppLockGate>
   );
