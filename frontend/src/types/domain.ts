@@ -53,6 +53,18 @@ export interface Message {
   createdAt: number;
 }
 
+export interface SavedMeetingMinutes {
+  /** Final Markdown pasted back from the manual AI workflow. */
+  content: string;
+  /** Last local edit/save time. */
+  savedAt: number;
+  /** Number of room messages represented when this version was saved. */
+  sourceMessageCount: number;
+  /** Room language at the time this version was saved. */
+  languageCode: string;
+  source: 'manual-ai';
+}
+
 export interface Room {
   id: string;
   name: string;
@@ -65,6 +77,8 @@ export interface Room {
   teamIds?: string[];
   /** Specialists explicitly added outside team membership. Optional for legacy v4 snapshots. */
   individualAgentIds?: string[];
+  /** Persisted final minutes from the manual copy/paste workflow. */
+  meetingMinutes?: SavedMeetingMinutes;
   messages: Message[];
   createdAt: number;
 }
