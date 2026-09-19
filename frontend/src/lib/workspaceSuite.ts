@@ -51,12 +51,44 @@ export interface AppLockConfig {
   createdAt: number;
 }
 
+export type AgentMemoryCategory =
+  | 'decision'
+  | 'assumption'
+  | 'risk'
+  | 'constraint'
+  | 'preference'
+  | 'fact'
+  | 'open-question'
+  | 'lesson'
+  | 'protocol';
+
+export type AgentMemoryStatus = 'active' | 'resolved' | 'superseded' | 'archived';
+export type AgentMemoryImportance = 'low' | 'medium' | 'high';
+
+export interface AgentMemoryEntry {
+  id: string;
+  agentId: string;
+  companyId?: string | undefined;
+  projectId?: string | undefined;
+  category: AgentMemoryCategory;
+  title: string;
+  content: string;
+  status: AgentMemoryStatus;
+  importance: AgentMemoryImportance;
+  sourceRoomId?: string | undefined;
+  sourceMessageId?: string | undefined;
+  expiresAt?: number | undefined;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface WorkspaceSuiteState {
   companies: NonEmptyArray<CompanyProfile>;
   activeCompanyId: string;
   promptTemplates: PromptTemplate[];
   roomTemplates: RoomTemplate[];
   auditLog: AuditEntry[];
+  agentMemories: AgentMemoryEntry[];
   autoBackupEnabled: boolean;
   appLock?: AppLockConfig;
 }
@@ -179,6 +211,7 @@ function defaults(): WorkspaceSuiteState {
     promptTemplates: defaultPromptTemplates,
     roomTemplates: defaultRoomTemplates,
     auditLog: [],
+    agentMemories: [],
     autoBackupEnabled: true,
   };
 }
@@ -210,6 +243,7 @@ export function loadWorkspaceSuite(): WorkspaceSuiteState {
       promptTemplates: mergeBuiltIns(parsed.promptTemplates, defaultPromptTemplates),
       roomTemplates: mergeBuiltIns(parsed.roomTemplates, defaultRoomTemplates),
       auditLog: parsed.auditLog ?? [],
+      agentMemories: Array.isArray(parsed.agentMemories) ? parsed.agentMemories : [],
       autoBackupEnabled: parsed.autoBackupEnabled ?? true,
       ...(parsed.appLock ? { appLock: parsed.appLock } : {}),
     };
@@ -237,6 +271,69 @@ export function recordAudit(action: string, details: string): void {
       ...state.auditLog,
     ].slice(0, 500),
   }));
+}
+
+export function addAgentMemory(input: Omit<AgentMemoryEntry, 'id' | 'createdAt' | 'updatedAt'>): string | null {
+  const title = input.title.trim();
+  const content = input.content.trim();
+  if (!input.agentId || !title || !content) return null;
+  const id = newId();
+  const createdAt = now();
+  const entry: AgentMemoryEntry = {
+    ...input,
+    id,
+    title,
+    content,
+    createdAt,
+    updatedAt: createdAt,
+  };
+  updateWorkspaceSuite(state => ({ ...state, agentMemories: [entry, ...state.agentMemories] }));
+  recordAudit('agent-memory.created', `Created ${input.category} memory: ${title}.`);
+  return id;
+}
+
+export function updateAgentMemory(
+  id: string,
+  patch: Partial<Omit<AgentMemoryEntry, 'id' | 'createdAt'>>,
+): void {
+  updateWorkspaceSuite(state => ({
+    ...state,
+    agentMemories: state.agentMemories.map(entry => {
+      if (entry.id !== id) return entry;
+      const title = patch.title === undefined ? entry.title : patch.title.trim();
+      const content = patch.content === undefined ? entry.content : patch.content.trim();
+      if (!title || !content) return entry;
+      return { ...entry, ...patch, title, content, updatedAt: now() };
+    }),
+  }));
+  recordAudit('agent-memory.updated', `Updated persistent memory ${id}.`);
+}
+
+export function deleteAgentMemory(id: string): void {
+  updateWorkspaceSuite(state => ({ ...state, agentMemories: state.agentMemories.filter(entry => entry.id !== id) }));
+  recordAudit('agent-memory.deleted', `Deleted persistent memory ${id}.`);
+}
+
+const importanceRank: Record<AgentMemoryImportance, number> = { high: 3, medium: 2, low: 1 };
+
+export function relevantAgentMemories(
+  agentId: string,
+  projectId?: string,
+  companyId?: string,
+  limit = 24,
+): AgentMemoryEntry[] {
+  const currentTime = now();
+  return loadWorkspaceSuite().agentMemories
+    .filter(entry => entry.agentId === agentId)
+    .filter(entry => entry.status === 'active')
+    .filter(entry => !entry.expiresAt || entry.expiresAt > currentTime)
+    .filter(entry => !entry.companyId || !companyId || entry.companyId === companyId)
+    .filter(entry => !entry.projectId || entry.projectId === projectId)
+    .sort((left, right) => {
+      const importanceDifference = importanceRank[right.importance] - importanceRank[left.importance];
+      return importanceDifference || right.updatedAt - left.updatedAt;
+    })
+    .slice(0, Math.max(1, limit));
 }
 
 export function loadAutomaticBackups(): AutomaticBackup[] {
