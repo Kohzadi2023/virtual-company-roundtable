@@ -1,7 +1,6 @@
 from pathlib import Path
 
-root = Path(SPECPATH).parent.parent
-backend_dir = root / "backend"
+backend_dir = Path(SPECPATH)
 
 hiddenimports = [
     "uvicorn.logging",
