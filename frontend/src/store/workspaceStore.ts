@@ -2,7 +2,28 @@ import { create } from 'zustand';
 import { agentContextKey, newId } from '@/lib/id';
 import { defaultAgents, defaultRoles, defaultTeams } from '@/lib/defaultCompany';
 import { latestRoomMessage } from '@/lib/contextDelta';
-import type { Agent, RoleDefinition, Room, StorageSnapshot, TeamDefinition } from '@/types/domain';
+import type {
+  ActionItem,
+  Agent,
+  DecisionRecord,
+  ProjectDefinition,
+  RoleDefinition,
+  Room,
+  StorageSnapshot,
+  TeamDefinition,
+} from '@/types/domain';
+
+export const DEFAULT_PROJECT_ID = 'project-general';
+
+function createGeneralProject(): ProjectDefinition {
+  return {
+    id: DEFAULT_PROJECT_ID,
+    name: 'General',
+    description: 'Default workspace for rooms that are not assigned to a specific project.',
+    emoji: '📁',
+    createdAt: Date.now(),
+  };
+}
 
 function agentSignature(agent: Pick<Agent, 'name' | 'roleId'>): string {
   return `${agent.name.trim().toLocaleLowerCase()}::${agent.roleId}`;
@@ -98,6 +119,9 @@ export interface WorkspaceState {
   roles: RoleDefinition[];
   agents: Agent[];
   teams: TeamDefinition[];
+  projects: ProjectDefinition[];
+  decisions: DecisionRecord[];
+  actionItems: ActionItem[];
   agentContext: StorageSnapshot['agentContext'];
   hydrated: boolean;
   syncState: 'idle' | 'saving' | 'saved' | 'offline' | 'error';
@@ -105,8 +129,16 @@ export interface WorkspaceState {
   hydrate: (snapshot: StorageSnapshot | null) => void;
   seedDefaultCompany: () => void;
   setSyncState: (syncState: WorkspaceState['syncState']) => void;
-  createRoom: (name: string, emoji?: string, individualAgentIds?: string[], teamIds?: string[]) => string;
+  createRoom: (name: string, emoji?: string, individualAgentIds?: string[], teamIds?: string[], projectId?: string) => string;
   setActiveRoom: (roomId: string) => void;
+  createProject: (name: string, emoji?: string, description?: string) => string | null;
+  setRoomProject: (roomId: string, projectId: string) => void;
+  addDecision: (input: Omit<DecisionRecord, 'id' | 'createdAt' | 'updatedAt'>) => string | null;
+  updateDecision: (decisionId: string, patch: Partial<Omit<DecisionRecord, 'id' | 'projectId' | 'createdAt'>>) => void;
+  deleteDecision: (decisionId: string) => void;
+  addActionItem: (input: Omit<ActionItem, 'id' | 'createdAt' | 'updatedAt'>) => string | null;
+  updateActionItem: (actionItemId: string, patch: Partial<Omit<ActionItem, 'id' | 'projectId' | 'createdAt'>>) => void;
+  deleteActionItem: (actionItemId: string) => void;
   addRole: (input: Omit<RoleDefinition, 'id' | 'builtIn' | 'createdAt'>) => string | null;
   addAgent: (input: Omit<Agent, 'id' | 'createdAt'>) => string | null;
   removeAgent: (agentId: string) => void;
@@ -128,6 +160,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   roles: [],
   agents: [],
   teams: [],
+  projects: [],
+  decisions: [],
+  actionItems: [],
   agentContext: {},
   hydrated: false,
   syncState: 'idle',
@@ -143,6 +178,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       roles: snapshot.roles,
       agents: snapshot.agents,
       teams: snapshot.teams,
+      projects: snapshot.projects ?? [],
+      decisions: snapshot.decisions ?? [],
+      actionItems: snapshot.actionItems ?? [],
       agentContext: snapshot.agentContext,
       activeRoomId,
       hydrated: true,
@@ -205,17 +243,27 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         })),
     ];
 
+    const existingGeneral = state.projects.find(project => project.id === DEFAULT_PROJECT_ID);
+    const projects = state.projects.length > 0
+      ? (existingGeneral ? state.projects : [createGeneralProject(), ...state.projects])
+      : [createGeneralProject()];
+    const validProjectIds = new Set(projects.map(project => project.id));
+
     if (state.rooms.length === 0) {
       const roomId = newId();
       return {
         roles,
         agents,
         teams,
+        projects,
+        decisions: state.decisions,
+        actionItems: state.actionItems,
         agentContext: remapAgentContext(state.agentContext, aliases),
         rooms: [{
           id: roomId,
           name: 'Company Roundtable',
           emoji: '🏢',
+          projectId: DEFAULT_PROJECT_ID,
           agentIds: [],
           teamIds: [],
           individualAgentIds: [],
@@ -241,13 +289,34 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
           ...(role?.name ? { roleNameSnapshot: role.name } : {}),
         };
       });
-      return { ...normalized, messages };
+      return {
+        ...normalized,
+        projectId: normalized.projectId && validProjectIds.has(normalized.projectId)
+          ? normalized.projectId
+          : DEFAULT_PROJECT_ID,
+        messages,
+      };
     });
+
+    const validRoomIds = new Set(rooms.map(room => room.id));
+    const decisions = state.decisions.map(decision => ({
+      ...decision,
+      projectId: validProjectIds.has(decision.projectId) ? decision.projectId : DEFAULT_PROJECT_ID,
+      ...(decision.roomId && !validRoomIds.has(decision.roomId) ? { roomId: undefined } : {}),
+    }));
+    const actionItems = state.actionItems.map(actionItem => ({
+      ...actionItem,
+      projectId: validProjectIds.has(actionItem.projectId) ? actionItem.projectId : DEFAULT_PROJECT_ID,
+      ...(actionItem.roomId && !validRoomIds.has(actionItem.roomId) ? { roomId: undefined } : {}),
+    }));
 
     return {
       roles,
       agents,
       teams,
+      projects,
+      decisions,
+      actionItems,
       rooms,
       agentContext: remapAgentContext(state.agentContext, aliases),
     };
@@ -255,17 +324,25 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
   setSyncState: (syncState) => set({ syncState }),
 
-  createRoom: (name, emoji = '🏢', individualAgentIds = [], teamIds = []) => {
+  createRoom: (name, emoji = '🏢', individualAgentIds = [], teamIds = [], projectId) => {
     const id = newId();
     const state = get();
     const validAgentIds = new Set(state.agents.map(agent => agent.id));
     const validTeamIds = new Set(state.teams.map(team => team.id));
+    const validProjectIds = new Set(state.projects.map(project => project.id));
+    const activeProjectId = state.rooms.find(room => room.id === state.activeRoomId)?.projectId;
+    const resolvedProjectId = projectId && validProjectIds.has(projectId)
+      ? projectId
+      : activeProjectId && validProjectIds.has(activeProjectId)
+        ? activeProjectId
+        : state.projects[0]?.id ?? DEFAULT_PROJECT_ID;
     const individuals = Array.from(new Set(individualAgentIds.filter(agentId => validAgentIds.has(agentId))));
     const selectedTeams = Array.from(new Set(teamIds.filter(teamId => validTeamIds.has(teamId))));
     const room: Room = {
       id,
       name: name.trim() || 'New Room',
       emoji,
+      projectId: resolvedProjectId,
       agentIds: effectiveAgentIds(individuals, selectedTeams, state.teams, validAgentIds),
       teamIds: selectedTeams,
       individualAgentIds: individuals,
@@ -279,6 +356,114 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   setActiveRoom: (roomId) => set(state => (
     state.rooms.some(room => room.id === roomId) ? { activeRoomId: roomId } : {}
   )),
+
+  createProject: (name, emoji = '📁', description = '') => {
+    const trimmed = name.trim();
+    if (!trimmed) return null;
+    const state = get();
+    if (state.projects.some(project => project.name.toLocaleLowerCase() === trimmed.toLocaleLowerCase())) return null;
+    const id = newId();
+    const project: ProjectDefinition = {
+      id,
+      name: trimmed,
+      emoji: emoji.trim() || '📁',
+      description: description.trim(),
+      createdAt: Date.now(),
+    };
+    set(current => ({ projects: [...current.projects, project] }));
+    return id;
+  },
+
+  setRoomProject: (roomId, projectId) => set(state => {
+    if (!state.projects.some(project => project.id === projectId)) return {};
+    return {
+      rooms: state.rooms.map(room => room.id === roomId ? { ...room, projectId } : room),
+    };
+  }),
+
+  addDecision: (input) => {
+    const title = input.title.trim();
+    if (!title) return null;
+    const state = get();
+    if (!state.projects.some(project => project.id === input.projectId)) return null;
+    const id = newId();
+    const now = Date.now();
+    const decision: DecisionRecord = {
+      ...input,
+      id,
+      title,
+      details: input.details.trim(),
+      evidence: input.evidence?.trim() || undefined,
+      roomId: input.roomId && state.rooms.some(room => room.id === input.roomId) ? input.roomId : undefined,
+      createdAt: now,
+      updatedAt: now,
+    };
+    set(current => ({ decisions: [decision, ...current.decisions] }));
+    return id;
+  },
+
+  updateDecision: (decisionId, patch) => set(state => ({
+    decisions: state.decisions.map(decision => {
+      if (decision.id !== decisionId) return decision;
+      const nextTitle = patch.title === undefined ? decision.title : patch.title.trim();
+      if (!nextTitle) return decision;
+      return {
+        ...decision,
+        ...patch,
+        title: nextTitle,
+        ...(patch.details !== undefined ? { details: patch.details.trim() } : {}),
+        ...(patch.evidence !== undefined ? { evidence: patch.evidence.trim() || undefined } : {}),
+        updatedAt: Date.now(),
+      };
+    }),
+  })),
+
+  deleteDecision: (decisionId) => set(state => ({
+    decisions: state.decisions.filter(decision => decision.id !== decisionId),
+  })),
+
+  addActionItem: (input) => {
+    const title = input.title.trim();
+    if (!title) return null;
+    const state = get();
+    if (!state.projects.some(project => project.id === input.projectId)) return null;
+    const id = newId();
+    const now = Date.now();
+    const actionItem: ActionItem = {
+      ...input,
+      id,
+      title,
+      owner: input.owner?.trim() || undefined,
+      deadline: input.deadline?.trim() || undefined,
+      evidence: input.evidence?.trim() || undefined,
+      roomId: input.roomId && state.rooms.some(room => room.id === input.roomId) ? input.roomId : undefined,
+      createdAt: now,
+      updatedAt: now,
+    };
+    set(current => ({ actionItems: [actionItem, ...current.actionItems] }));
+    return id;
+  },
+
+  updateActionItem: (actionItemId, patch) => set(state => ({
+    actionItems: state.actionItems.map(actionItem => {
+      if (actionItem.id !== actionItemId) return actionItem;
+      const nextTitle = patch.title === undefined ? actionItem.title : patch.title.trim();
+      if (!nextTitle) return actionItem;
+      return {
+        ...actionItem,
+        ...patch,
+        title: nextTitle,
+        ...(patch.owner !== undefined ? { owner: patch.owner.trim() || undefined } : {}),
+        ...(patch.deadline !== undefined ? { deadline: patch.deadline.trim() || undefined } : {}),
+        ...(patch.evidence !== undefined ? { evidence: patch.evidence.trim() || undefined } : {}),
+        updatedAt: Date.now(),
+      };
+    }),
+  })),
+
+  deleteActionItem: (actionItemId) => set(state => ({
+    actionItems: state.actionItems.filter(actionItem => actionItem.id !== actionItemId),
+  })),
 
   addRole: (input) => {
     const name = input.name.trim();
