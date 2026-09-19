@@ -3,6 +3,7 @@ import { AgentAvatar } from '@/components/AgentAvatar';
 import { Toast, type ToastMessage } from '@/components/Toast';
 import { copyText } from '@/lib/clipboard';
 import { unseenMessagesForAgent } from '@/lib/contextDelta';
+import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
 import { agentContextKey } from '@/lib/id';
 import { buildAgentPrompt } from '@/lib/promptBuilder';
 import { useWorkspaceStore } from '@/store/workspaceStore';
@@ -43,7 +44,13 @@ export function ActionPanel({ roomId }: { roomId: string }) {
   const roomAgents = useMemo(() => {
     if (!room) return [];
     const allowed = new Set(room.agentIds);
-    return agents.filter(agent => allowed.has(agent.id));
+    return agents
+      .filter(agent => allowed.has(agent.id))
+      .sort((left, right) => {
+        if (left.id === MEETING_FACILITATOR_AGENT_ID) return -1;
+        if (right.id === MEETING_FACILITATOR_AGENT_ID) return 1;
+        return 0;
+      });
   }, [agents, room]);
 
   const [tab, setTab] = useState<'user' | 'agent'>('user');
@@ -63,6 +70,7 @@ export function ActionPanel({ roomId }: { roomId: string }) {
 
   const selectedAgent = roomAgents.find(agent => agent.id === selectedAgentId);
   const selectedRole = selectedAgent ? roles.find(role => role.id === selectedAgent.roleId) : undefined;
+  const selectedIsFacilitator = selectedAgent?.id === MEETING_FACILITATOR_AGENT_ID;
   const cursor = room && selectedAgent ? agentContext[agentContextKey(room.id, selectedAgent.id)] : undefined;
   const unseen = room && selectedAgent ? unseenMessagesForAgent(room, selectedAgent.id, cursor) : [];
 
@@ -136,7 +144,7 @@ export function ActionPanel({ roomId }: { roomId: string }) {
             className={`${tabClass(tab === 'agent')} border-s border-slate-200`}
           >
             <span className="block text-sm font-semibold">🤖 Agent Response</span>
-            <span className={`mt-0.5 block text-xs ${tab === 'agent' ? 'text-blue-600' : 'text-slate-400'}`}>Select an agent and add their response</span>
+            <span className={`mt-0.5 block text-xs ${tab === 'agent' ? 'text-blue-600' : 'text-slate-400'}`}>Facilitator first · then specialist contributions</span>
           </button>
         </div>
 
@@ -184,15 +192,19 @@ export function ActionPanel({ roomId }: { roomId: string }) {
                   <select id="agent-select" value={selectedAgentId} onChange={event => setSelectedAgentId(event.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800">
                     {roomAgents.map(agent => {
                       const role = roles.find(item => item.id === agent.roleId);
-                      return <option key={agent.id} value={agent.id}>{agent.name} · {role?.name ?? 'Specialist'}</option>;
+                      const facilitator = agent.id === MEETING_FACILITATOR_AGENT_ID;
+                      return <option key={agent.id} value={agent.id}>{facilitator ? '★ ' : ''}{agent.name} · {facilitator ? 'Meeting Facilitator' : role?.name ?? 'Specialist'}</option>;
                     })}
                   </select>
                   {selectedAgent && selectedRole && (
-                    <div className="flex items-center gap-3 rounded-lg bg-slate-50 p-2.5">
+                    <div className={`flex items-center gap-3 rounded-lg p-2.5 ${selectedIsFacilitator ? 'border border-violet-200 bg-violet-50' : 'bg-slate-50'}`}>
                       <AgentAvatar agent={selectedAgent} role={selectedRole} size="md" />
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-bold text-slate-900">{selectedAgent.name}</div>
-                        <div className="truncate text-xs text-slate-500">{selectedRole.name}</div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <div className="truncate text-sm font-bold text-slate-900">{selectedAgent.name}</div>
+                          {selectedIsFacilitator ? <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold text-violet-700">FACILITATOR</span> : null}
+                        </div>
+                        <div className="truncate text-xs text-slate-500">{selectedIsFacilitator ? 'Meeting Facilitator · Operations' : selectedRole.name}</div>
                       </div>
                     </div>
                   )}
