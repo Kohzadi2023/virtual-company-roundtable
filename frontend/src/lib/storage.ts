@@ -65,6 +65,9 @@ function snapshotFromState(): StorageSnapshot {
     roles: state.roles,
     agents: state.agents,
     teams: state.teams,
+    projects: state.projects,
+    decisions: state.decisions,
+    actionItems: state.actionItems,
     agentContext: state.agentContext,
     activeRoomId: state.activeRoomId,
     savedAt: Date.now(),
@@ -82,7 +85,7 @@ function legacyRoleId(role: string): string {
 }
 
 function migrateV3(snapshot: SnapshotV3): StorageSnapshot {
-  return { ...snapshot, version: 4, teams: defaultTeams };
+  return { ...snapshot, version: 4, teams: defaultTeams, projects: [], decisions: [], actionItems: [] };
 }
 
 function migrateV2(snapshot: LegacySnapshot): StorageSnapshot {
@@ -167,6 +170,9 @@ function migrateV2(snapshot: LegacySnapshot): StorageSnapshot {
     roles,
     agents,
     teams: defaultTeams,
+    projects: [],
+    decisions: [],
+    actionItems: [],
     agentContext,
     activeRoomId: snapshot.activeRoomId,
     savedAt: snapshot.savedAt,
@@ -265,6 +271,9 @@ export function startPersistence(): void {
       || state.roles !== previous.roles
       || state.agents !== previous.agents
       || state.teams !== previous.teams
+      || state.projects !== previous.projects
+      || state.decisions !== previous.decisions
+      || state.actionItems !== previous.actionItems
       || state.agentContext !== previous.agentContext
       || state.activeRoomId !== previous.activeRoomId;
     if (!state.hydrated || !dataChanged) return;
