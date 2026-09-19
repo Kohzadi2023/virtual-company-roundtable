@@ -10,6 +10,7 @@ export function setRoomLanguage(roomId: string, languageCode: string): void {
 }
 
 export function saveRoomMeetingMinutes(roomId: string, content: string): void {
+  const savedAt = Date.now();
   useWorkspaceStore.setState(state => ({
     rooms: state.rooms.map(room => {
       if (room.id !== roomId) return room;
@@ -18,14 +19,33 @@ export function saveRoomMeetingMinutes(roomId: string, content: string): void {
         const { meetingMinutes, ...rest } = room;
         return meetingMinutes ? rest : room;
       }
+
+      const previous = room.meetingMinutes;
+      const shouldCheckpoint = Boolean(
+        previous
+        && previous.content !== content
+        && savedAt - previous.savedAt > 5000,
+      );
+      const versions = shouldCheckpoint && previous
+        ? [
+            ...(previous.versions ?? []),
+            {
+              content: previous.content,
+              savedAt: previous.savedAt,
+              sourceMessageCount: previous.sourceMessageCount,
+            },
+          ].slice(-20)
+        : previous?.versions ?? [];
+
       return {
         ...room,
         meetingMinutes: {
           content,
-          savedAt: Date.now(),
+          savedAt,
           sourceMessageCount: room.messages.length,
           languageCode: room.languageCode || DEFAULT_ROOM_LANGUAGE,
           source: 'manual-ai' as const,
+          versions,
         },
       };
     }),
