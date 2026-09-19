@@ -21,6 +21,7 @@ function formatMessage(message: Message, index: number): string {
 export function buildMeetingMinutesPrompt(room: Room): string {
   const language = getRoomLanguage(room.languageCode);
   const transcript = room.messages.map(formatMessage).join('\n\n---\n\n');
+  const generatedAt = new Date().toLocaleString();
 
   return [
     'You are an expert executive meeting secretary.',
@@ -42,11 +43,14 @@ export function buildMeetingMinutesPrompt(room: Room): string {
     '9. Keep evidence quotes short. Never alter the meaning of a source message.',
     '10. Return ONLY the final Markdown document. Do not add commentary before or after it.',
     '11. The section labels shown below are structural examples. Translate all headings, labels, table headers, statuses, and “Not specified” into the selected output language while preserving the exact section order and Markdown structure.',
+    '12. Preserve the exact Generated timestamp and Source Messages count provided below; do not recalculate or change them.',
     '',
     'REQUIRED OUTPUT FORMAT',
     '# Meeting Minutes',
     '',
     `**Room:** ${room.name}`,
+    `**Generated:** ${generatedAt}`,
+    `**Source Messages:** ${room.messages.length}`,
     `**Language:** ${language.nativeName}`,
     '',
     '## Participants',
