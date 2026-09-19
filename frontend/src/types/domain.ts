@@ -42,10 +42,10 @@ export interface ProjectDefinition {
   name: string;
   description: string;
   emoji: string;
-  companyId?: string;
-  favorite?: boolean;
-  tags?: string[];
-  lastOpenedAt?: number;
+  companyId?: string | undefined;
+  favorite?: boolean | undefined;
+  tags?: string[] | undefined;
+  lastOpenedAt?: number | undefined;
   createdAt: number;
 }
 
@@ -90,15 +90,15 @@ export interface MessageRevision {
 export interface Message {
   id: string;
   authorType: 'user' | 'agent';
-  authorId?: string;
-  authorNameSnapshot?: string;
-  roleNameSnapshot?: string;
+  authorId?: string | undefined;
+  authorNameSnapshot?: string | undefined;
+  roleNameSnapshot?: string | undefined;
   content: string;
-  pinned?: boolean;
-  tags?: string[];
-  reaction?: MessageReaction;
-  versions?: MessageRevision[];
-  branchRoomId?: string;
+  pinned?: boolean | undefined;
+  tags?: string[] | undefined;
+  reaction?: MessageReaction | undefined;
+  versions?: MessageRevision[] | undefined;
+  branchRoomId?: string | undefined;
   createdAt: number;
 }
 
@@ -114,7 +114,7 @@ export interface SavedMeetingMinutes {
   sourceMessageCount: number;
   languageCode: string;
   source: 'manual-ai';
-  versions?: MeetingMinutesRevision[];
+  versions?: MeetingMinutesRevision[] | undefined;
 }
 
 export interface RoomKnowledgePack {
@@ -147,24 +147,24 @@ export interface Room {
   id: string;
   name: string;
   emoji: string;
-  projectId?: string;
-  companyId?: string;
-  languageCode?: string;
+  projectId?: string | undefined;
+  companyId?: string | undefined;
+  languageCode?: string | undefined;
   agentIds: string[];
-  teamIds?: string[];
-  individualAgentIds?: string[];
-  meetingMinutes?: SavedMeetingMinutes;
-  tags?: string[];
-  favorite?: boolean;
-  archivedAt?: number;
-  lastOpenedAt?: number;
-  agenda?: string[];
-  knowledge?: RoomKnowledgePack;
-  attachments?: RoomAttachment[];
-  votes?: RoomVote[];
-  branchOfRoomId?: string;
-  branchRootMessageId?: string;
-  templateId?: string;
+  teamIds?: string[] | undefined;
+  individualAgentIds?: string[] | undefined;
+  meetingMinutes?: SavedMeetingMinutes | undefined;
+  tags?: string[] | undefined;
+  favorite?: boolean | undefined;
+  archivedAt?: number | undefined;
+  lastOpenedAt?: number | undefined;
+  agenda?: string[] | undefined;
+  knowledge?: RoomKnowledgePack | undefined;
+  attachments?: RoomAttachment[] | undefined;
+  votes?: RoomVote[] | undefined;
+  branchOfRoomId?: string | undefined;
+  branchRootMessageId?: string | undefined;
+  templateId?: string | undefined;
   messages: Message[];
   createdAt: number;
 }
@@ -181,9 +181,9 @@ export interface StorageSnapshot {
   roles: RoleDefinition[];
   agents: Agent[];
   teams: TeamDefinition[];
-  projects?: ProjectDefinition[];
-  decisions?: DecisionRecord[];
-  actionItems?: ActionItem[];
+  projects?: ProjectDefinition[] | undefined;
+  decisions?: DecisionRecord[] | undefined;
+  actionItems?: ActionItem[] | undefined;
   agentContext: Record<string, AgentContextState>;
   activeRoomId: string | null;
   savedAt: number;
