@@ -46,6 +46,28 @@ jobs:
         with:
           targets: x86_64-pc-windows-msvc
 
+      - name: Validate signing helper scripts
+        shell: pwsh
+        run: |
+          $scripts = @(
+            'scripts/import-windows-signing-certificate.ps1',
+            'scripts/sign-windows-file.ps1'
+          )
+          foreach ($script in $scripts) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $script),
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error $_.Message }
+              throw "PowerShell syntax validation failed for $script"
+            }
+            Write-Host "Validated $script" -ForegroundColor Green
+          }
+
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm install
