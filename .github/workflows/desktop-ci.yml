@@ -1,0 +1,80 @@
+name: Desktop CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'scripts/**'
+      - '.github/workflows/desktop-ci.yml'
+      - '.github/workflows/windows-desktop-release.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'scripts/**'
+      - '.github/workflows/desktop-ci.yml'
+      - '.github/workflows/windows-desktop-release.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  windows-installer-smoke:
+    name: Windows desktop build
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install
+
+      - name: Generate desktop icons
+        working-directory: frontend
+        run: npm run tauri -- icon src-tauri/app-icon.svg
+
+      - name: Build FastAPI sidecar
+        shell: pwsh
+        run: ./scripts/build-desktop-backend.ps1 -Python python -TargetTriple x86_64-pc-windows-msvc
+
+      - name: Read application version
+        shell: pwsh
+        run: |
+          $package = Get-Content 'frontend/package.json' -Raw | ConvertFrom-Json
+          "APP_VERSION=$($package.version)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build NSIS installer
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: http://127.0.0.1:8765
+          VITE_APP_VERSION: ${{ env.APP_VERSION }}
+        run: npm run desktop:build -- --target x86_64-pc-windows-msvc
+
+      - name: Upload installer smoke artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VirtualCompany-${{ env.APP_VERSION }}-desktop-smoke
+          path: frontend/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+          if-no-files-found: error
+          retention-days: 7
