@@ -116,12 +116,15 @@ function Stop-RepoFrontendProcesses {
 function Install-FrontendDependencies {
     param([Parameter(Mandatory)] [string]$FrontendPath)
 
-    $hasLockFile = Test-Path (Join-Path $FrontendPath 'package-lock.json')
-    $commandLabel = if ($hasLockFile) { 'npm ci' } else { 'npm install' }
+    $lockPath = Join-Path $FrontendPath 'package-lock.json'
+    $hasLockFile = Test-Path $lockPath
+    $useCleanInstall = $hasLockFile
 
     for ($attempt = 1; $attempt -le 3; $attempt++) {
         Set-Location $FrontendPath
-        if ($hasLockFile) {
+        $commandLabel = if ($useCleanInstall) { 'npm ci' } else { 'npm install' }
+
+        if ($useCleanInstall) {
             npm ci
         }
         else {
@@ -129,14 +132,23 @@ function Install-FrontendDependencies {
         }
 
         if ($LASTEXITCODE -eq 0) {
+            if (-not $useCleanInstall -and (Test-Path $lockPath)) {
+                Write-Host '[OK] Frontend lock file refreshed by npm install.' -ForegroundColor Green
+            }
             return
         }
 
-        if ($attempt -ge 3) {
+        if ($useCleanInstall) {
+            Write-Host '[WARN] npm ci failed. The local package-lock may be stale; falling back to npm install to reconcile dependencies.' -ForegroundColor Yellow
+            $useCleanInstall = $false
+        }
+        elseif ($attempt -ge 3) {
             throw "$commandLabel failed after $attempt attempts."
         }
+        else {
+            Write-Host "[WARN] $commandLabel failed. Releasing frontend file locks and retrying ($attempt/3)..." -ForegroundColor Yellow
+        }
 
-        Write-Host "[WARN] $commandLabel failed. Releasing frontend file locks and retrying ($attempt/3)..." -ForegroundColor Yellow
         Stop-DevPort -Port $FrontendPort
         Stop-RepoFrontendProcesses -FrontendPath $FrontendPath
 
@@ -195,9 +207,6 @@ Write-Host "Python : $(python --version 2>&1)"
 Write-Host "Node   : $(node --version)"
 Write-Host "npm    : $(npm --version)"
 
-# Stop old development processes before git/npm operations. On Windows, Vite's
-# esbuild child keeps node_modules/@esbuild/win32-x64/esbuild.exe locked and
-# causes npm ci to fail with EPERM if we wait until after dependency install.
 Write-Step 'Stopping previous development processes'
 Stop-DevPort -Port $BackendPort
 Stop-DevPort -Port $FrontendPort
