@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { ProjectCenterLauncher } from '@/components/ProjectCenterLauncher';
 import { Toast, type ToastMessage } from '@/components/Toast';
 import { copyText } from '@/lib/clipboard';
 import { buildFullChatText } from '@/lib/fullChat';
@@ -26,6 +27,7 @@ export function TopBar() {
   const teams = useWorkspaceStore(state => state.teams);
   const agents = useWorkspaceStore(state => state.agents);
   const roles = useWorkspaceStore(state => state.roles);
+  const projects = useWorkspaceStore(state => state.projects);
   const activeRoomId = useWorkspaceStore(state => state.activeRoomId);
   const setActiveRoom = useWorkspaceStore(state => state.setActiveRoom);
   const createRoom = useWorkspaceStore(state => state.createRoom);
@@ -33,6 +35,7 @@ export function TopBar() {
   const toggleAgentInRoom = useWorkspaceStore(state => state.toggleAgentInRoom);
 
   const activeRoom = rooms.find(room => room.id === activeRoomId);
+  const activeProject = projects.find(project => project.id === activeRoom?.projectId);
   const roleMap = useMemo(() => new Map(roles.map(role => [role.id, role])), [roles]);
   const teamMap = useMemo(() => new Map(teams.map(team => [team.id, team])), [teams]);
   const [roomMenuOpen, setRoomMenuOpen] = useState(false);
@@ -114,10 +117,15 @@ export function TopBar() {
           <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-violet-50 text-violet-600" aria-hidden="true">▣</div>
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-[17px] font-bold text-[#111b3a]">{activeRoom?.name ?? 'Company Roundtable'}</h1>
-            <p className="truncate text-[13px] text-slate-500">{activeRoom ? `${activeRoom.agentIds.length} specialists in this room` : 'Discuss · Analyze · Challenge · Build Better'}</p>
+            <p className="truncate text-[13px] text-slate-500">
+              {activeRoom
+                ? `${activeProject ? `${activeProject.emoji} ${activeProject.name} · ` : ''}${activeRoom.agentIds.length} specialists in this room`
+                : 'Discuss · Analyze · Challenge · Build Better'}
+            </p>
           </div>
 
           <div className="flex items-center gap-2">
+            <ProjectCenterLauncher />
             <button type="button" onClick={copyFullChat} disabled={!activeRoom || activeRoom.messages.length === 0} className="inline-flex items-center gap-2 rounded-lg border border-blue-500 bg-white px-3 py-2 text-[13px] font-semibold text-blue-600 shadow-sm transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"><span aria-hidden="true">⧉</span> Copy Full Chat</button>
 
             <div ref={roomMenuRef} className="relative">
