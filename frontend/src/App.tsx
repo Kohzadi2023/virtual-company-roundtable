@@ -3,14 +3,16 @@ import { ChatRoom } from '@/components/ChatRoom';
 import { CollapsibleCompanyDirectory } from '@/components/CollapsibleCompanyDirectory';
 import { OtherRoomsPanel } from '@/components/OtherRoomsPanel';
 import { TopBar } from '@/components/TopBar';
+import { ensureMeetingFacilitatorMembership } from '@/lib/roomMembershipActions';
 import { bootstrapPersistence, startPersistence } from '@/lib/storage';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
-const APP_VERSION = import.meta.env.VITE_APP_VERSION?.trim() || '1.9.0';
+const APP_VERSION = import.meta.env.VITE_APP_VERSION?.trim() || '1.10.0';
 
 export default function App() {
   const hydrated = useWorkspaceStore(state => state.hydrated);
   const activeRoomId = useWorkspaceStore(state => state.activeRoomId);
+  const rooms = useWorkspaceStore(state => state.rooms);
   const agents = useWorkspaceStore(state => state.agents);
   const roles = useWorkspaceStore(state => state.roles);
   const teams = useWorkspaceStore(state => state.teams);
@@ -31,6 +33,11 @@ export default function App() {
       cancelled = true;
     };
   }, [seedDefaultCompany]);
+
+  useEffect(() => {
+    if (!hydrated || rooms.length === 0 || agents.length === 0) return;
+    ensureMeetingFacilitatorMembership();
+  }, [hydrated, rooms, agents]);
 
   if (!hydrated) {
     return (
