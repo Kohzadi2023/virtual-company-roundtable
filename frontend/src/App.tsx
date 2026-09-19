@@ -3,12 +3,13 @@ import { AppLockGate } from '@/components/AppLockGate';
 import { ChatRoom } from '@/components/ChatRoom';
 import { CollapsibleCompanyDirectory } from '@/components/CollapsibleCompanyDirectory';
 import { OtherRoomsPanel } from '@/components/OtherRoomsPanel';
+import { SecuritySettingsLauncher } from '@/components/SecuritySettingsLauncher';
 import { TopBar } from '@/components/TopBar';
 import { ensureMeetingFacilitatorMembership } from '@/lib/roomMembershipActions';
 import { bootstrapPersistence, startPersistence } from '@/lib/storage';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
-const APP_VERSION = import.meta.env.VITE_APP_VERSION?.trim() || '2.0.0';
+const APP_VERSION = import.meta.env.VITE_APP_VERSION?.trim() || '2.0.1';
 
 export default function App() {
   const hydrated = useWorkspaceStore(state => state.hydrated);
@@ -64,7 +65,11 @@ export default function App() {
         </div>
 
         <footer className="flex h-8 shrink-0 items-center border-t border-slate-200 bg-white px-4 text-[11px] text-slate-500">
-          <div className="shrink-0">▣ &nbsp; Virtual Company &nbsp; v{APP_VERSION}</div>
+          <div className="flex shrink-0 items-center gap-2">
+            <span>▣ &nbsp; Virtual Company &nbsp; v{APP_VERSION}</span>
+            <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
+            <SecuritySettingsLauncher />
+          </div>
           <div className="flex min-w-0 flex-1 items-center justify-end gap-5 pe-1">
             <span>📁 {projects.length} projects</span>
             <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
