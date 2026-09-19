@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  addAgentMemory,
   loadAutomaticBackups,
   loadWorkspaceSuite,
   recordAudit,
+  relevantAgentMemories,
   saveAutomaticBackup,
+  updateAgentMemory,
   updateWorkspaceSuite,
 } from '@/lib/workspaceSuite';
 import type { StorageSnapshot } from '@/types/domain';
@@ -36,6 +39,7 @@ describe('workspaceSuite', () => {
     expect(suite.companies[0].name).toBe('Virtual Company');
     expect(suite.promptTemplates.some(item => item.id === 'prompt-brainstorm')).toBe(true);
     expect(suite.roomTemplates.some(item => item.id === 'room-template-idea-lab')).toBe(true);
+    expect(suite.agentMemories).toEqual([]);
   });
 
   it('records audit entries newest first', () => {
@@ -56,5 +60,57 @@ describe('workspaceSuite', () => {
     expect(backups).toHaveLength(1);
     expect(backups[0]?.snapshot.savedAt).toBe(123);
     expect(backups[0]?.suite.activeCompanyId).toBe('company-default');
+  });
+
+  it('returns only active memories relevant to the agent and project', () => {
+    const globalId = addAgentMemory({
+      agentId: 'agent-emma',
+      companyId: 'company-default',
+      category: 'constraint',
+      title: 'Manual AI',
+      content: 'Keep the AI workflow manual unless explicitly changed.',
+      status: 'active',
+      importance: 'high',
+    });
+    addAgentMemory({
+      agentId: 'agent-emma',
+      companyId: 'company-default',
+      projectId: 'project-a',
+      category: 'decision',
+      title: 'Desktop shell',
+      content: 'Use Tauri 2 for the desktop shell.',
+      status: 'active',
+      importance: 'medium',
+    });
+    addAgentMemory({
+      agentId: 'agent-emma',
+      companyId: 'company-default',
+      projectId: 'project-b',
+      category: 'decision',
+      title: 'Other project',
+      content: 'This should not appear in project A.',
+      status: 'active',
+      importance: 'medium',
+    });
+
+    expect(globalId).not.toBeNull();
+    const memories = relevantAgentMemories('agent-emma', 'project-a', 'company-default');
+    expect(memories.map(entry => entry.title)).toEqual(['Manual AI', 'Desktop shell']);
+  });
+
+  it('excludes superseded memories from prompt context', () => {
+    const id = addAgentMemory({
+      agentId: 'agent-mike',
+      companyId: 'company-default',
+      category: 'risk',
+      title: 'Old risk',
+      content: 'This risk has been replaced.',
+      status: 'active',
+      importance: 'high',
+    });
+    expect(id).not.toBeNull();
+    updateAgentMemory(id!, { status: 'superseded' });
+
+    expect(relevantAgentMemories('agent-mike', undefined, 'company-default')).toEqual([]);
   });
 });
