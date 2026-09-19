@@ -33,15 +33,12 @@ try {
     FilePath = $tempPfx
     CertStoreLocation = 'Cert:\CurrentUser\My'
     Password = $securePassword
-    Exportable = $false
   }
-  $certificate = Import-PfxCertificate @importArgs
+  $importedCertificates = @(Import-PfxCertificate @importArgs)
+  $certificate = $importedCertificates | Where-Object { $_.HasPrivateKey } | Select-Object -First 1
 
   if (-not $certificate) {
-    throw "The PFX certificate could not be imported."
-  }
-  if (-not $certificate.HasPrivateKey) {
-    throw "The imported certificate does not contain a private key."
+    throw "The PFX certificate could not be imported with a private key."
   }
   if ($certificate.NotAfter -le (Get-Date)) {
     throw "The imported code-signing certificate is expired."
