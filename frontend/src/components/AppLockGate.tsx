@@ -1,12 +1,17 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { loadSecurityPreferences, SECURITY_PREFERENCES_EVENT } from '@/lib/securityPreferences';
 import { appLockEnabled, sessionUnlocked, verifyAppLock } from '@/lib/workspaceSuite';
 
 interface AppLockGateProps {
   children: ReactNode;
 }
 
+function shouldLock(): boolean {
+  return loadSecurityPreferences().appLockEnabled && appLockEnabled() && !sessionUnlocked();
+}
+
 export function AppLockGate({ children }: AppLockGateProps) {
-  const [locked, setLocked] = useState(() => appLockEnabled() && !sessionUnlocked());
+  const [locked, setLocked] = useState(shouldLock);
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [checking, setChecking] = useState(false);
@@ -15,10 +20,22 @@ export function AppLockGate({ children }: AppLockGateProps) {
     const lock = () => {
       setPin('');
       setError('');
-      setLocked(appLockEnabled());
+      const preferenceEnabled = loadSecurityPreferences().appLockEnabled;
+      setLocked(preferenceEnabled && appLockEnabled());
+    };
+    const preferencesChanged = () => {
+      if (!loadSecurityPreferences().appLockEnabled) {
+        setLocked(false);
+        setPin('');
+        setError('');
+      }
     };
     window.addEventListener('virtual-company:lock-now', lock);
-    return () => window.removeEventListener('virtual-company:lock-now', lock);
+    window.addEventListener(SECURITY_PREFERENCES_EVENT, preferencesChanged);
+    return () => {
+      window.removeEventListener('virtual-company:lock-now', lock);
+      window.removeEventListener(SECURITY_PREFERENCES_EVENT, preferencesChanged);
+    };
   }, []);
 
   const unlock = async () => {
@@ -61,7 +78,7 @@ export function AppLockGate({ children }: AppLockGateProps) {
         <button type="button" disabled={!pin || checking} onClick={() => void unlock()} className="mt-4 w-full rounded-xl bg-violet-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40">
           {checking ? 'Checking…' : 'Unlock'}
         </button>
-        <p className="mt-4 text-center text-[10px] leading-5 text-slate-500">The PIN is verified locally. For at-rest protection, use the encrypted backup option in Workspace Suite.</p>
+        <p className="mt-4 text-center text-[10px] leading-5 text-slate-500">App Lock is an optional Settings feature and is verified locally. Encrypted backup is a separate opt-in setting.</p>
       </div>
     </div>
   );
