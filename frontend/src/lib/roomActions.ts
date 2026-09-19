@@ -45,7 +45,13 @@ export function deleteRoom(roomId: string): void {
     const agentContext = Object.fromEntries(
       Object.entries(state.agentContext).filter(([key]) => !key.startsWith(`${roomId}:`)),
     );
+    const decisions = state.decisions.map(decision => (
+      decision.roomId === roomId ? { ...decision, roomId: undefined, updatedAt: Date.now() } : decision
+    ));
+    const actionItems = state.actionItems.map(actionItem => (
+      actionItem.roomId === roomId ? { ...actionItem, roomId: undefined, updatedAt: Date.now() } : actionItem
+    ));
 
-    return { rooms, activeRoomId, agentContext };
+    return { rooms, activeRoomId, agentContext, decisions, actionItems };
   });
 }
