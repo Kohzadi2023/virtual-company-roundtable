@@ -8,7 +8,7 @@ on:
       version:
         description: Version to embed in a manual desktop build
         required: true
-        default: '2.1.0'
+        default: '2.2.0'
 
 permissions:
   contents: write
@@ -195,5 +195,5 @@ jobs:
           $certificatePath = "Cert:\CurrentUser\My\$env:WINDOWS_CERT_THUMBPRINT"
           if (Test-Path $certificatePath) {
             Remove-Item $certificatePath -Force
-            Write-Host 'Removed temporary code-signing certificate from the runner certificate store.'
+            Write-Host 'Removed temporary code-signing certificate from the runner certificate store.' -ForegroundColor Green
           }
