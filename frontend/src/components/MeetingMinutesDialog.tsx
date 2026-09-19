@@ -3,6 +3,7 @@ import { copyText } from '@/lib/clipboard';
 import { getRoomLanguage } from '@/lib/languages';
 import { buildMeetingMinutes } from '@/lib/meetingMinutes';
 import { buildMeetingMinutesPrompt } from '@/lib/meetingMinutesPrompt';
+import { saveRoomMeetingMinutes } from '@/lib/roomActions';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
 interface MeetingMinutesDialogProps {
@@ -22,16 +23,24 @@ export function MeetingMinutesDialog({ roomId, onClose }: MeetingMinutesDialogPr
   const localMinutes = useMemo(() => room ? buildMeetingMinutes(room) : '', [room]);
   const manualPrompt = useMemo(() => room ? buildMeetingMinutesPrompt(room) : '', [room]);
   const activeMinutes = minutesMode === 'manual' ? manualResult.trim() : localMinutes;
+  const savedMinutes = room?.meetingMinutes;
+  const conversationChanged = Boolean(savedMinutes && room && savedMinutes.sourceMessageCount !== room.messages.length);
 
   useEffect(() => {
-    setMinutesMode('local');
-    setManualResult('');
+    const saved = useWorkspaceStore.getState().rooms.find(item => item.id === roomId)?.meetingMinutes?.content ?? '';
+    setMinutesMode(saved ? 'manual' : 'local');
+    setManualResult(saved);
     setCopied(false);
     setPromptCopied(false);
     setPromptCopyError(false);
   }, [roomId]);
 
   if (!roomId || !room) return null;
+
+  const handleManualResultChange = (value: string) => {
+    setManualResult(value);
+    saveRoomMeetingMinutes(room.id, value);
+  };
 
   const handleCopyMinutes = async () => {
     if (!activeMinutes) return;
@@ -78,6 +87,8 @@ export function MeetingMinutesDialog({ roomId, onClose }: MeetingMinutesDialogPr
             <div className="flex items-center gap-2">
               <h2 className="text-base font-bold text-slate-900">Meeting Minutes</h2>
               <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">Manual workflow</span>
+              {savedMinutes ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">Saved</span> : null}
+              {conversationChanged ? <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-700">Conversation changed</span> : null}
             </div>
             <p className="text-xs text-slate-500">{room.name} · {language.nativeName} · No AI API connection</p>
           </div>
@@ -110,7 +121,7 @@ export function MeetingMinutesDialog({ roomId, onClose }: MeetingMinutesDialogPr
                 <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-4">
                   <div className="mb-2 flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">1</div>
                   <h3 className="text-sm font-bold text-slate-900">Copy grounded AI prompt</h3>
-                  <p className="mt-1 text-xs leading-5 text-slate-600">Includes the full room transcript, message evidence IDs, selected language, and strict anti-hallucination rules.</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-600">Includes the full room transcript, Generated timestamp, Source Messages count, evidence IDs, selected language, and strict anti-hallucination rules.</p>
                   <button type="button" onClick={() => void handleCopyPrompt()} className="mt-3 w-full rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-blue-700">
                     {promptCopied ? '✓ Prompt Copied' : '⧉ Copy AI Minutes Prompt'}
                   </button>
@@ -126,7 +137,7 @@ export function MeetingMinutesDialog({ roomId, onClose }: MeetingMinutesDialogPr
                 <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-4">
                   <div className="mb-2 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">3</div>
                   <h3 className="text-sm font-bold text-slate-900">Paste the result back</h3>
-                  <p className="mt-1 text-xs leading-5 text-slate-600">Review it here, then copy or download the final Markdown. The app does not send anything to an AI service.</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-600">The pasted result is auto-saved inside this room. Review it here, then copy or download the final Markdown.</p>
                 </div>
               </div>
 
@@ -136,12 +147,12 @@ export function MeetingMinutesDialog({ roomId, onClose }: MeetingMinutesDialogPr
                     <div className="text-sm font-bold text-slate-900">Paste AI Result</div>
                     <div className="text-[11px] text-slate-500">Expected: grounded Markdown with [M01], [M02]… evidence references</div>
                   </div>
-                  {manualResult.trim() ? <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">Ready</span> : null}
+                  {manualResult.trim() ? <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">Auto-saved</span> : null}
                 </div>
                 <textarea
                   dir={language.dir}
                   value={manualResult}
-                  onChange={event => setManualResult(event.target.value)}
+                  onChange={event => handleManualResultChange(event.target.value)}
                   placeholder="Paste the AI-generated meeting minutes here..."
                   className="min-h-0 flex-1 resize-none bg-transparent p-4 text-start font-mono text-[12px] leading-6 text-slate-700 outline-none placeholder:text-slate-400"
                 />
@@ -152,7 +163,11 @@ export function MeetingMinutesDialog({ roomId, onClose }: MeetingMinutesDialogPr
 
         <div className="flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-5 py-3">
           <span className="text-[11px] text-slate-500">
-            {minutesMode === 'manual' ? 'Manual mode: nothing is sent automatically.' : 'Local deterministic draft — no AI used.'}
+            {minutesMode === 'manual'
+              ? savedMinutes
+                ? `Saved in room · ${savedMinutes.sourceMessageCount} source messages · ${new Date(savedMinutes.savedAt).toLocaleString()}`
+                : 'Manual mode: paste the AI result to save it in this room.'
+              : 'Local deterministic draft — no AI used.'}
           </span>
           <div className="flex items-center gap-2">
             <button type="button" onClick={handleDownload} disabled={!activeMinutes} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">Download .md</button>
