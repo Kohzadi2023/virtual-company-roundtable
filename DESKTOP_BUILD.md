@@ -24,9 +24,11 @@ The browser/web development path still uses relative `/api` requests. Desktop re
 Prerequisites:
 
 - Windows 10/11 with WebView2 available.
-- Python 3.12.
+- Python 3.12+.
 - Node.js 20+.
-- Rust stable with the MSVC toolchain.
+- Microsoft C++ Build Tools / MSVC toolchain required by Tauri/Rust.
+
+`run-desktop.ps1` now bootstraps the Rust toolchain. Before doing the expensive PyInstaller build it checks for `cargo` and `rustup`. If Rust is missing and `winget` is available, the script installs `Rustlang.Rustup`, refreshes the current PowerShell PATH, selects the stable toolchain, and installs the `x86_64-pc-windows-msvc` target.
 
 Start desktop development mode:
 
@@ -40,7 +42,15 @@ Build the Windows installer locally:
 .\scripts\run-desktop.ps1 -Build
 ```
 
-The helper script builds the Python sidecar with the Tauri-required target-triple filename, generates desktop icons from `frontend/src-tauri/app-icon.svg`, and runs the Tauri build.
+To disable automatic Rust installation and fail fast instead:
+
+```powershell
+.\scripts\run-desktop.ps1 -SkipToolchainInstall
+```
+
+If Rustup was installed but Windows does not expose the new PATH to the current process, close PowerShell, open a new PowerShell window, and run the same command again.
+
+The helper script builds the Python sidecar with the Tauri-required target-triple filename, generates desktop icons from `frontend/src-tauri/app-icon.svg`, and runs Tauri explicitly against `x86_64-pc-windows-msvc`.
 
 The NSIS output is under:
 
@@ -60,7 +70,7 @@ Workflow: `.github/workflows/windows-desktop-release.yml`
 
 When a GitHub Release is **published**, the workflow:
 
-1. Reads the release tag (for example `v1.8.0`) and embeds that version into Tauri/Cargo for the build.
+1. Reads the release tag (for example `v1.10.0`) and embeds that version into Tauri/Cargo for the build.
 2. Detects whether Windows Authenticode signing secrets are configured.
 3. If signing is enabled, imports the PFX certificate into the ephemeral GitHub runner certificate store and configures Tauri for SHA-256 + RFC 3161 timestamping.
 4. Installs Python, Node.js, and Rust build dependencies.
@@ -146,7 +156,7 @@ Use the timestamp URL recommended by your certificate provider if it requires a 
 Create and publish a GitHub Release such as:
 
 ```text
-v1.8.0
+v1.10.0
 ```
 
 The release workflow detects the secrets automatically. A signed build reports the certificate subject, expiration date, SHA-256 digest, and timestamp endpoint in the GitHub Actions summary.
@@ -158,18 +168,19 @@ The workflow verifies both the Tauri application executable and the staged Setup
 You can also verify a downloaded Setup locally:
 
 ```powershell
-Get-AuthenticodeSignature .\VirtualCompany_1.8.0_x64-setup.exe | Format-List
+Get-AuthenticodeSignature .\VirtualCompany_1.10.0_x64-setup.exe | Format-List
 ```
 
 For a correctly trusted build, `Status` should be `Valid`.
 
 ## CI coverage
 
-`.github/workflows/desktop-ci.yml` continues to produce an unsigned smoke-build artifact for normal desktop changes. It also parses the signing helper scripts so PowerShell syntax errors are caught even when code-signing secrets are not available to CI.
+`.github/workflows/desktop-ci.yml` continues to produce an unsigned smoke-build artifact for normal desktop changes. It also parses the PowerShell desktop/signing helpers so syntax errors are caught even when code-signing secrets are not available to CI.
 
-The signing helpers are:
+The validated helpers include:
 
 ```text
+scripts/run-desktop.ps1
 scripts/import-windows-signing-certificate.ps1
 scripts/sign-windows-file.ps1
 ```
