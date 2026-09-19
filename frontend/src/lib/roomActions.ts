@@ -15,9 +15,8 @@ export function saveRoomMeetingMinutes(roomId: string, content: string): void {
       if (room.id !== roomId) return room;
       const trimmed = content.trim();
       if (!trimmed) {
-        if (!room.meetingMinutes) return room;
-        const { meetingMinutes: _removed, ...rest } = room;
-        return rest;
+        const { meetingMinutes, ...rest } = room;
+        return meetingMinutes ? rest : room;
       }
       return {
         ...room,
