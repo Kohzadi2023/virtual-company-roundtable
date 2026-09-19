@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ProjectCenterLauncher } from '@/components/ProjectCenterLauncher';
 import { Toast, type ToastMessage } from '@/components/Toast';
 import { copyText } from '@/lib/clipboard';
+import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
 import { buildFullChatText } from '@/lib/fullChat';
+import { addAllCompanyToRoom } from '@/lib/roomMembershipActions';
 import { useClickOutside } from '@/lib/useClickOutside';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
@@ -85,7 +87,7 @@ export function TopBar() {
     setNewRoomTeamId('');
     setNewRoomOpen(false);
     setRoomMenuOpen(false);
-    setToast({ id: Date.now(), text: team ? `Room created with ${team.name}.` : 'Empty room created.', tone: 'success' });
+    setToast({ id: Date.now(), text: team ? `Room created with ${team.name}.` : 'Room created with the meeting facilitator.', tone: 'success' });
   };
 
   const handleTeamToggle = (teamId: string) => {
@@ -101,6 +103,16 @@ export function TopBar() {
       });
     }
   };
+
+  const handleAddAllCompany = () => {
+    if (!activeRoom) return;
+    addAllCompanyToRoom(activeRoom.id);
+    setToast({ id: Date.now(), text: `All ${agents.length} company members added to ${activeRoom.name}.`, tone: 'success' });
+  };
+
+  const allCompanyAdded = activeRoom
+    ? agents.every(agent => activeRoom.agentIds.includes(agent.id))
+    : false;
 
   return (
     <>
@@ -132,7 +144,7 @@ export function TopBar() {
               <button type="button" onClick={() => setRoomMenuOpen(value => !value)} aria-expanded={roomMenuOpen} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[13px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"><span aria-hidden="true">⚙</span> Room Settings</button>
 
               {roomMenuOpen && (
-                <div className="absolute end-0 top-12 w-[430px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
+                <div className="absolute end-0 top-12 w-[460px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
                   <div className="border-b border-slate-200 p-3">
                     <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Rooms</div>
                     <div className="max-h-32 space-y-1 overflow-y-auto">
@@ -149,7 +161,7 @@ export function TopBar() {
                       <div className="mt-2 space-y-2 rounded-lg border border-blue-100 bg-blue-50/50 p-2">
                         <input autoFocus value={newRoomName} onChange={event => setNewRoomName(event.target.value)} placeholder="Room name" className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm" />
                         <select value={newRoomTeamId} onChange={event => setNewRoomTeamId(event.target.value)} className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm">
-                          <option value="">Start empty — add specialists later</option>
+                          <option value="">Start with facilitator only</option>
                           {teams.map(team => <option key={team.id} value={team.id}>{team.emoji} {team.name} ({team.agentIds.length})</option>)}
                         </select>
                         <div className="flex gap-2">
@@ -161,7 +173,7 @@ export function TopBar() {
                   </div>
 
                   {activeRoom && (
-                    <div className="grid max-h-[55vh] grid-cols-2 divide-x divide-slate-200">
+                    <div className="grid max-h-[58vh] grid-cols-2 divide-x divide-slate-200">
                       <div className="p-3">
                         <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Add or remove a team</div>
                         <div className="space-y-1.5">
@@ -183,23 +195,42 @@ export function TopBar() {
                         </div>
                       </div>
                       <div className="p-3">
-                        <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Individual specialists</div>
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Individual specialists</div>
+                          <button
+                            type="button"
+                            onClick={handleAddAllCompany}
+                            disabled={allCompanyAdded}
+                            className="shrink-0 rounded-md border border-violet-200 bg-violet-50 px-2 py-1 text-[10px] font-semibold text-violet-700 transition hover:bg-violet-100 disabled:cursor-default disabled:border-emerald-200 disabled:bg-emerald-50 disabled:text-emerald-700"
+                            title="Add every company member to this room"
+                          >
+                            {allCompanyAdded ? '✓ All Company' : '+ Add All Company'}
+                          </button>
+                        </div>
                         <div className="max-h-72 space-y-1 overflow-y-auto">
                           {agents.map(agent => {
                             const present = activeRoom.agentIds.includes(agent.id);
+                            const isFacilitator = agent.id === MEETING_FACILITATOR_AGENT_ID;
                             const selectedTeamIds = activeRoom.teamIds ?? [];
                             const suppliedByTeam = selectedTeamIds.some(teamId => teamMap.get(teamId)?.agentIds.includes(agent.id));
                             const explicitlySelected = activeRoom.individualAgentIds?.includes(agent.id) ?? false;
                             const lockedByTeam = suppliedByTeam && !explicitlySelected;
+                            const locked = isFacilitator || lockedByTeam;
+                            const title = isFacilitator
+                              ? 'Standing meeting facilitator — included in every room.'
+                              : lockedByTeam
+                                ? 'Included by an active team. Remove the team first to remove this specialist.'
+                                : undefined;
                             return (
                               <label
                                 key={agent.id}
-                                title={lockedByTeam ? 'Included by an active team. Remove the team first to remove this specialist.' : undefined}
-                                className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-xs ${lockedByTeam ? 'cursor-not-allowed bg-emerald-50/50' : 'cursor-pointer hover:bg-slate-50'}`}
+                                title={title}
+                                className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-xs ${locked ? 'cursor-not-allowed bg-emerald-50/50' : 'cursor-pointer hover:bg-slate-50'}`}
                               >
-                                <input type="checkbox" checked={present} disabled={lockedByTeam} onChange={() => toggleAgentInRoom(activeRoom.id, agent.id)} />
+                                <input type="checkbox" checked={present} disabled={locked} onChange={() => toggleAgentInRoom(activeRoom.id, agent.id)} />
                                 <span className="min-w-0 flex-1 truncate font-medium text-slate-700">{agent.name}</span>
-                                {suppliedByTeam ? <span className="rounded bg-emerald-100 px-1 py-0.5 text-[9px] font-semibold text-emerald-700">TEAM</span> : null}
+                                {isFacilitator ? <span className="rounded bg-violet-100 px-1 py-0.5 text-[9px] font-semibold text-violet-700">FACILITATOR</span> : null}
+                                {!isFacilitator && suppliedByTeam ? <span className="rounded bg-emerald-100 px-1 py-0.5 text-[9px] font-semibold text-emerald-700">TEAM</span> : null}
                                 <span className="max-w-24 truncate text-[10px] text-slate-400">{roleMap.get(agent.roleId)?.name}</span>
                               </label>
                             );
