@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { AppLockGate } from '@/components/AppLockGate';
 import { ChatRoom } from '@/components/ChatRoom';
 import { CollapsibleCompanyDirectory } from '@/components/CollapsibleCompanyDirectory';
 import { OtherRoomsPanel } from '@/components/OtherRoomsPanel';
@@ -48,34 +49,36 @@ export default function App() {
   }
 
   return (
-    <main className="flex h-screen min-w-[1180px] flex-col overflow-hidden bg-[#f7f9fc] text-slate-900">
-      <TopBar />
+    <AppLockGate>
+      <main className="flex h-screen min-w-[1180px] flex-col overflow-hidden bg-[#f7f9fc] text-slate-900">
+        <TopBar />
 
-      <div className="flex min-h-0 flex-1">
-        <CollapsibleCompanyDirectory />
-        {activeRoomId ? (
-          <ChatRoom roomId={activeRoomId} />
-        ) : (
-          <div className="grid min-w-0 flex-1 place-items-center text-slate-400">Create a room to start a discussion.</div>
-        )}
-        <OtherRoomsPanel />
-      </div>
-
-      <footer className="flex h-8 shrink-0 items-center border-t border-slate-200 bg-white px-4 text-[11px] text-slate-500">
-        <div className="shrink-0">▣ &nbsp; Virtual Company &nbsp; v{APP_VERSION}</div>
-        <div className="flex min-w-0 flex-1 items-center justify-end gap-5 pe-1">
-          <span>📁 {projects.length} projects</span>
-          <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
-          <span>✓ {actionItems.filter(item => item.status !== 'done').length} open actions</span>
-          <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
-          <span>💡 {agents.length} specialists</span>
-          <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
-          <span>{teams.length} teams</span>
-          <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
-          <span>{roles.length} professional matrices</span>
-          <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" title="System ready" aria-label="System ready" />
+        <div className="flex min-h-0 flex-1">
+          <CollapsibleCompanyDirectory />
+          {activeRoomId ? (
+            <ChatRoom roomId={activeRoomId} />
+          ) : (
+            <div className="grid min-w-0 flex-1 place-items-center text-slate-400">Create a room to start a discussion.</div>
+          )}
+          <OtherRoomsPanel />
         </div>
-      </footer>
-    </main>
+
+        <footer className="flex h-8 shrink-0 items-center border-t border-slate-200 bg-white px-4 text-[11px] text-slate-500">
+          <div className="shrink-0">▣ &nbsp; Virtual Company &nbsp; v{APP_VERSION}</div>
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-5 pe-1">
+            <span>📁 {projects.length} projects</span>
+            <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
+            <span>✓ {actionItems.filter(item => item.status !== 'done').length} open actions</span>
+            <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
+            <span>💡 {agents.length} specialists</span>
+            <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
+            <span>{teams.length} teams</span>
+            <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
+            <span>{roles.length} professional matrices</span>
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" title="System ready" aria-label="System ready" />
+          </div>
+        </footer>
+      </main>
+    </AppLockGate>
   );
 }
