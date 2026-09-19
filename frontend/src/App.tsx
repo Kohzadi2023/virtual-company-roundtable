@@ -6,7 +6,7 @@ import { TopBar } from '@/components/TopBar';
 import { bootstrapPersistence, startPersistence } from '@/lib/storage';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
-const APP_VERSION = import.meta.env.VITE_APP_VERSION?.trim() || '1.8.0';
+const APP_VERSION = import.meta.env.VITE_APP_VERSION?.trim() || '1.9.0';
 
 export default function App() {
   const hydrated = useWorkspaceStore(state => state.hydrated);
@@ -14,6 +14,8 @@ export default function App() {
   const agents = useWorkspaceStore(state => state.agents);
   const roles = useWorkspaceStore(state => state.roles);
   const teams = useWorkspaceStore(state => state.teams);
+  const projects = useWorkspaceStore(state => state.projects);
+  const actionItems = useWorkspaceStore(state => state.actionItems);
   const seedDefaultCompany = useWorkspaceStore(state => state.seedDefaultCompany);
 
   useEffect(() => {
@@ -55,13 +57,15 @@ export default function App() {
       <footer className="flex h-8 shrink-0 items-center border-t border-slate-200 bg-white px-4 text-[11px] text-slate-500">
         <div className="shrink-0">▣ &nbsp; Virtual Company &nbsp; v{APP_VERSION}</div>
         <div className="flex min-w-0 flex-1 items-center justify-end gap-5 pe-1">
+          <span>📁 {projects.length} projects</span>
+          <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
+          <span>✓ {actionItems.filter(item => item.status !== 'done').length} open actions</span>
+          <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
           <span>💡 {agents.length} specialists</span>
           <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
           <span>{teams.length} teams</span>
           <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
           <span>{roles.length} professional matrices</span>
-          <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
-          <span>Build the right team for each room</span>
           <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" title="System ready" aria-label="System ready" />
         </div>
       </footer>
