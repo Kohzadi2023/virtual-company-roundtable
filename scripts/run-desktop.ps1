@@ -8,6 +8,7 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $frontendDir = Join-Path $root "frontend"
 $rustTarget = "x86_64-pc-windows-msvc"
+$rustupInstallerUrl = "https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe"
 
 function Refresh-ProcessPath {
   $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
@@ -21,6 +22,39 @@ function Test-Command([string]$Name) {
   return $null -ne (Get-Command $Name -ErrorAction SilentlyContinue)
 }
 
+function Install-RustupDirect {
+  $installerPath = Join-Path $env:TEMP "rustup-init-x86_64-pc-windows-msvc.exe"
+
+  Write-Host "winget is unavailable. Downloading Rustup directly from the official Rust distribution host..." -ForegroundColor Yellow
+  try {
+    Invoke-WebRequest -Uri $rustupInstallerUrl -OutFile $installerPath -UseBasicParsing
+    if (-not (Test-Path $installerPath)) {
+      throw "Rustup installer download did not produce a file."
+    }
+
+    & $installerPath -y --default-toolchain stable --default-host $rustTarget
+    if ($LASTEXITCODE -ne 0) {
+      throw "rustup-init failed with exit code $LASTEXITCODE."
+    }
+  } finally {
+    Remove-Item $installerPath -Force -ErrorAction SilentlyContinue
+  }
+}
+
+function Install-Rustup {
+  if (Test-Command "winget") {
+    Write-Host "Rust/Cargo was not found. Installing Rustup with winget..." -ForegroundColor Yellow
+    winget install --id Rustlang.Rustup --exact --silent --accept-package-agreements --accept-source-agreements
+    if ($LASTEXITCODE -eq 0) {
+      return
+    }
+
+    Write-Warning "winget could not install Rustup (exit code $LASTEXITCODE). Falling back to the official rustup-init installer."
+  }
+
+  Install-RustupDirect
+}
+
 function Ensure-RustToolchain {
   $cargoBin = Join-Path $env:USERPROFILE ".cargo\bin"
   if ((Test-Path (Join-Path $cargoBin "cargo.exe")) -and -not (Test-Command "cargo")) {
@@ -32,14 +66,7 @@ function Ensure-RustToolchain {
       throw "Rust/Cargo is required for Tauri. Install Rustup, reopen PowerShell, and run this script again."
     }
 
-    if (-not (Test-Command "winget")) {
-      throw "Rust/Cargo is not installed and winget is unavailable. Install Rustup from https://rustup.rs, reopen PowerShell, then run this script again."
-    }
-
-    Write-Host "Rust/Cargo was not found. Installing Rustup..." -ForegroundColor Yellow
-    winget install --id Rustlang.Rustup --exact --silent --accept-package-agreements --accept-source-agreements
-    if ($LASTEXITCODE -ne 0) { throw "Rustup installation failed with exit code $LASTEXITCODE." }
-
+    Install-Rustup
     Refresh-ProcessPath
   }
 
