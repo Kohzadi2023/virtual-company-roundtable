@@ -6,6 +6,8 @@ const BACKUP_KEY = 'virtual-company:auto-backups:v1';
 const UNLOCK_KEY = 'virtual-company:session-unlocked';
 export const WORKSPACE_SUITE_EVENT = 'virtual-company:workspace-suite-changed';
 
+type NonEmptyArray<T> = [T, ...T[]];
+
 export interface CompanyProfile {
   id: string;
   name: string;
@@ -50,7 +52,7 @@ export interface AppLockConfig {
 }
 
 export interface WorkspaceSuiteState {
-  companies: CompanyProfile[];
+  companies: NonEmptyArray<CompanyProfile>;
   activeCompanyId: string;
   promptTemplates: PromptTemplate[];
   roomTemplates: RoomTemplate[];
@@ -196,7 +198,9 @@ export function loadWorkspaceSuite(): WorkspaceSuiteState {
     const raw = localStorage.getItem(SUITE_KEY);
     if (!raw) return fallback;
     const parsed = JSON.parse(raw) as Partial<WorkspaceSuiteState>;
-    const companies = parsed.companies?.length ? parsed.companies : fallback.companies;
+    const companies: NonEmptyArray<CompanyProfile> = parsed.companies?.length
+      ? parsed.companies
+      : fallback.companies;
     const activeCompanyId = companies.some(company => company.id === parsed.activeCompanyId)
       ? parsed.activeCompanyId as string
       : companies[0].id;
@@ -313,6 +317,12 @@ function base64ToBytes(value: string): Uint8Array {
   return bytes;
 }
 
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
+}
+
 async function deriveKey(passphrase: string, salt: Uint8Array, usages: KeyUsage[]): Promise<CryptoKey> {
   const material = await crypto.subtle.importKey(
     'raw',
@@ -322,7 +332,7 @@ async function deriveKey(passphrase: string, salt: Uint8Array, usages: KeyUsage[
     ['deriveKey'],
   );
   return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt, iterations: 180000, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt: toArrayBuffer(salt), iterations: 180000, hash: 'SHA-256' },
     material,
     { name: 'AES-GCM', length: 256 },
     false,
@@ -336,7 +346,11 @@ export async function exportEncryptedWorkspaceBackup(snapshot: StorageSnapshot, 
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const key = await deriveKey(passphrase, salt, ['encrypt']);
   const plaintext = new TextEncoder().encode(JSON.stringify(buildWorkspaceBackup(snapshot)));
-  const encrypted = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext));
+  const encrypted = new Uint8Array(await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: toArrayBuffer(iv) },
+    key,
+    toArrayBuffer(plaintext),
+  ));
   const envelope = {
     format: 'virtual-company-encrypted-backup',
     version: 1,
@@ -366,7 +380,11 @@ export async function parseEncryptedWorkspaceBackup(file: File, passphrase: stri
   const key = await deriveKey(passphrase, salt, ['decrypt']);
   let plaintext: ArrayBuffer;
   try {
-    plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, base64ToBytes(envelope.payload));
+    plaintext = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: toArrayBuffer(iv) },
+      key,
+      toArrayBuffer(base64ToBytes(envelope.payload)),
+    );
   } catch {
     throw new Error('Incorrect passphrase or damaged encrypted backup.');
   }
@@ -377,7 +395,11 @@ export async function parseEncryptedWorkspaceBackup(file: File, passphrase: stri
 
 async function pinVerifier(pin: string, salt: Uint8Array): Promise<string> {
   const material = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveBits']);
-  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: 180000, hash: 'SHA-256' }, material, 256);
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt: toArrayBuffer(salt), iterations: 180000, hash: 'SHA-256' },
+    material,
+    256,
+  );
   return bytesToBase64(new Uint8Array(bits));
 }
 
@@ -401,7 +423,7 @@ export async function verifyAppLock(pin: string): Promise<boolean> {
 
 export function disableAppLock(): void {
   updateWorkspaceSuite(state => {
-    const { appLock, ...rest } = state;
+    const { appLock: _appLock, ...rest } = state;
     return rest as WorkspaceSuiteState;
   });
   sessionStorage.removeItem(UNLOCK_KEY);
