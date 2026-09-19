@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { MarkdownDocument } from '@/components/MarkdownDocument';
 import { copyText } from '@/lib/clipboard';
 import { getRoomLanguage } from '@/lib/languages';
 import { buildMeetingMinutes } from '@/lib/meetingMinutes';
@@ -14,6 +15,7 @@ interface MeetingMinutesDialogProps {
 export function MeetingMinutesDialog({ roomId, onClose }: MeetingMinutesDialogProps) {
   const room = useWorkspaceStore(state => state.rooms.find(item => item.id === roomId));
   const [minutesMode, setMinutesMode] = useState<'local' | 'manual'>('local');
+  const [documentView, setDocumentView] = useState<'preview' | 'edit'>('preview');
   const [manualResult, setManualResult] = useState('');
   const [copied, setCopied] = useState(false);
   const [promptCopied, setPromptCopied] = useState(false);
@@ -29,6 +31,7 @@ export function MeetingMinutesDialog({ roomId, onClose }: MeetingMinutesDialogPr
   useEffect(() => {
     const saved = useWorkspaceStore.getState().rooms.find(item => item.id === roomId)?.meetingMinutes?.content ?? '';
     setMinutesMode(saved ? 'manual' : 'local');
+    setDocumentView(saved ? 'preview' : 'edit');
     setManualResult(saved);
     setCopied(false);
     setPromptCopied(false);
@@ -81,7 +84,7 @@ export function MeetingMinutesDialog({ roomId, onClose }: MeetingMinutesDialogPr
 
   return (
     <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/30 p-6" role="dialog" aria-modal="true" aria-label="Meeting Minutes">
-      <div className="flex max-h-[88vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+      <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
           <div>
             <div className="flex items-center gap-2">
@@ -105,7 +108,10 @@ export function MeetingMinutesDialog({ roomId, onClose }: MeetingMinutesDialogPr
           </button>
           <button
             type="button"
-            onClick={() => setMinutesMode('manual')}
+            onClick={() => {
+              setMinutesMode('manual');
+              setDocumentView(manualResult.trim() ? 'preview' : 'edit');
+            }}
             className={`rounded-lg px-3 py-2 text-xs font-semibold transition ${minutesMode === 'manual' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
           >
             Manual AI · Copy / Paste
@@ -113,7 +119,9 @@ export function MeetingMinutesDialog({ roomId, onClose }: MeetingMinutesDialogPr
         </div>
 
         {minutesMode === 'local' ? (
-          <pre dir={language.dir} className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap px-5 py-4 text-start text-[13px] leading-6 text-slate-700">{localMinutes}</pre>
+          <div className="min-h-0 flex-1 overflow-y-auto bg-white px-5 py-5">
+            <MarkdownDocument content={localMinutes} dir={language.dir} />
+          </div>
         ) : (
           <div className="min-h-0 flex-1 overflow-y-auto p-5">
             <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
@@ -137,25 +145,61 @@ export function MeetingMinutesDialog({ roomId, onClose }: MeetingMinutesDialogPr
                 <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-4">
                   <div className="mb-2 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">3</div>
                   <h3 className="text-sm font-bold text-slate-900">Paste the result back</h3>
-                  <p className="mt-1 text-xs leading-5 text-slate-600">The pasted result is auto-saved inside this room. Review it here, then copy or download the final Markdown.</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-600">The pasted result is auto-saved inside this room. Use Edit for Markdown source and Preview for the formatted document.</p>
                 </div>
               </div>
 
-              <div className="flex min-h-[430px] flex-col rounded-xl border border-slate-200 bg-white">
-                <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+              <div className="flex min-h-[480px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
                   <div>
-                    <div className="text-sm font-bold text-slate-900">Paste AI Result</div>
-                    <div className="text-[11px] text-slate-500">Expected: grounded Markdown with [M01], [M02]… evidence references</div>
+                    <div className="text-sm font-bold text-slate-900">Final Meeting Minutes</div>
+                    <div className="text-[11px] text-slate-500">Rendered Markdown preview with GFM tables, lists, headings, links and RTL support</div>
                   </div>
-                  {manualResult.trim() ? <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">Auto-saved</span> : null}
+                  <div className="flex items-center gap-2">
+                    {manualResult.trim() ? <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">Auto-saved</span> : null}
+                    <div className="flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setDocumentView('preview')}
+                        className={`rounded-md px-2.5 py-1.5 text-[11px] font-semibold transition ${documentView === 'preview' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                      >
+                        Preview
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDocumentView('edit')}
+                        className={`rounded-md px-2.5 py-1.5 text-[11px] font-semibold transition ${documentView === 'edit' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <textarea
-                  dir={language.dir}
-                  value={manualResult}
-                  onChange={event => handleManualResultChange(event.target.value)}
-                  placeholder="Paste the AI-generated meeting minutes here..."
-                  className="min-h-0 flex-1 resize-none bg-transparent p-4 text-start font-mono text-[12px] leading-6 text-slate-700 outline-none placeholder:text-slate-400"
-                />
+
+                {documentView === 'preview' ? (
+                  manualResult.trim() ? (
+                    <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+                      <MarkdownDocument content={manualResult} dir={language.dir} />
+                    </div>
+                  ) : (
+                    <div className="grid min-h-0 flex-1 place-items-center px-6 py-12 text-center">
+                      <div className="max-w-sm">
+                        <div className="text-3xl" aria-hidden="true">▤</div>
+                        <div className="mt-3 text-sm font-bold text-slate-800">No final minutes pasted yet</div>
+                        <p className="mt-1 text-xs leading-5 text-slate-500">Copy the AI prompt, generate the Markdown manually, then paste it in Edit mode.</p>
+                        <button type="button" onClick={() => setDocumentView('edit')} className="mt-4 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Open Editor</button>
+                      </div>
+                    </div>
+                  )
+                ) : (
+                  <textarea
+                    dir={language.dir}
+                    value={manualResult}
+                    onChange={event => handleManualResultChange(event.target.value)}
+                    placeholder="Paste the AI-generated meeting minutes Markdown here..."
+                    className="min-h-0 flex-1 resize-none bg-transparent p-4 text-start font-mono text-[12px] leading-6 text-slate-700 outline-none placeholder:text-slate-400"
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -167,7 +211,7 @@ export function MeetingMinutesDialog({ roomId, onClose }: MeetingMinutesDialogPr
               ? savedMinutes
                 ? `Saved in room · ${savedMinutes.sourceMessageCount} source messages · ${new Date(savedMinutes.savedAt).toLocaleString()}`
                 : 'Manual mode: paste the AI result to save it in this room.'
-              : 'Local deterministic draft — no AI used.'}
+              : 'Local deterministic draft — rendered as Markdown, no AI used.'}
           </span>
           <div className="flex items-center gap-2">
             <button type="button" onClick={handleDownload} disabled={!activeMinutes} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">Download .md</button>
