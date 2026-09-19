@@ -42,6 +42,45 @@ export interface TeamDefinition {
   createdAt: number;
 }
 
+export interface ProjectDefinition {
+  id: string;
+  name: string;
+  description: string;
+  emoji: string;
+  createdAt: number;
+}
+
+export type DecisionStatus = 'proposed' | 'approved' | 'reversed';
+
+export interface DecisionRecord {
+  id: string;
+  projectId: string;
+  roomId?: string;
+  title: string;
+  details: string;
+  evidence?: string;
+  status: DecisionStatus;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type ActionItemStatus = 'todo' | 'in-progress' | 'done';
+export type ActionItemPriority = 'low' | 'medium' | 'high';
+
+export interface ActionItem {
+  id: string;
+  projectId: string;
+  roomId?: string;
+  title: string;
+  owner?: string;
+  deadline?: string;
+  evidence?: string;
+  status: ActionItemStatus;
+  priority: ActionItemPriority;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface Message {
   id: string;
   authorType: 'user' | 'agent';
@@ -69,6 +108,8 @@ export interface Room {
   id: string;
   name: string;
   emoji: string;
+  /** Project/workspace this room belongs to. Legacy rooms are assigned to General. */
+  projectId?: string;
   /** Preferred working language for this room. Legacy rooms default to English. */
   languageCode?: string;
   /** Effective membership used by chat and agent selection. */
@@ -95,6 +136,12 @@ export interface StorageSnapshot {
   roles: RoleDefinition[];
   agents: Agent[];
   teams: TeamDefinition[];
+  /** Optional for snapshots created before Projects were introduced. */
+  projects?: ProjectDefinition[];
+  /** Optional for snapshots created before Decision Register was introduced. */
+  decisions?: DecisionRecord[];
+  /** Optional for snapshots created before Action Items were introduced. */
+  actionItems?: ActionItem[];
   agentContext: Record<string, AgentContextState>;
   activeRoomId: string | null;
   savedAt: number;
