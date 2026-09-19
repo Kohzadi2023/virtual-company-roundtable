@@ -55,10 +55,10 @@ export type DecisionStatus = 'proposed' | 'approved' | 'reversed';
 export interface DecisionRecord {
   id: string;
   projectId: string;
-  roomId?: string;
+  roomId?: string | undefined;
   title: string;
   details: string;
-  evidence?: string;
+  evidence?: string | undefined;
   status: DecisionStatus;
   createdAt: number;
   updatedAt: number;
@@ -70,11 +70,11 @@ export type ActionItemPriority = 'low' | 'medium' | 'high';
 export interface ActionItem {
   id: string;
   projectId: string;
-  roomId?: string;
+  roomId?: string | undefined;
   title: string;
-  owner?: string;
-  deadline?: string;
-  evidence?: string;
+  owner?: string | undefined;
+  deadline?: string | undefined;
+  evidence?: string | undefined;
   status: ActionItemStatus;
   priority: ActionItemPriority;
   createdAt: number;
