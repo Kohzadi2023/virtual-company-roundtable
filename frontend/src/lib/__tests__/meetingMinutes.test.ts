@@ -27,8 +27,10 @@ describe('room languages and meeting minutes', () => {
     );
   });
 
-  it('extracts only explicitly marked decisions and action items', () => {
+  it('extracts only explicitly marked decisions and action items and records source metadata', () => {
     const minutes = buildMeetingMinutes(sampleRoom());
+    expect(minutes).toContain('**Generated:**');
+    expect(minutes).toContain('**Source Messages:** 2');
     expect(minutes).toContain('Launch on Monday.');
     expect(minutes).toContain('Emma will prepare the checklist.');
     expect(minutes).toContain('User: We should validate the launch plan.');
@@ -38,6 +40,7 @@ describe('room languages and meeting minutes', () => {
   it('uses localized headings for supported room languages', () => {
     const minutes = buildMeetingMinutes(sampleRoom('fa'));
     expect(minutes).toContain('# صورتجلسه');
+    expect(minutes).toContain('**تعداد پیام‌های منبع:** 2');
     expect(minutes).toContain('**زبان:** فارسی');
   });
 });
