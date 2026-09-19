@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { AgentMemoryDialogHost } from '@/components/AgentMemoryDialogHost';
+import { AgentMemoryLauncher } from '@/components/AgentMemoryLauncher';
 import { AppLockGate } from '@/components/AppLockGate';
 import { ChatRoom } from '@/components/ChatRoom';
 import { CollapsibleCompanyDirectory } from '@/components/CollapsibleCompanyDirectory';
@@ -68,6 +69,8 @@ export default function App() {
         <footer className="flex h-8 shrink-0 items-center border-t border-slate-200 bg-white px-4 text-[11px] text-slate-500">
           <div className="flex shrink-0 items-center gap-2">
             <span>▣ &nbsp; Virtual Company &nbsp; v{APP_VERSION}</span>
+            <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
+            <AgentMemoryLauncher />
             <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
             <SecuritySettingsLauncher />
           </div>
