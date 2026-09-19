@@ -33,7 +33,7 @@ function sampleRoom(): Room {
 }
 
 describe('manual meeting-minutes AI prompt', () => {
-  it('includes room language, complete transcript, evidence IDs, and anti-hallucination rules', () => {
+  it('includes room language, complete transcript, evidence IDs, metadata, and anti-hallucination rules', () => {
     const prompt = buildMeetingMinutesPrompt(sampleRoom());
 
     expect(prompt).toContain('Persian (فارسی)');
@@ -44,6 +44,9 @@ describe('manual meeting-minutes AI prompt', () => {
     expect(prompt).toContain('Do not invent decisions, owners, deadlines');
     expect(prompt).toContain('Suggestions are NOT decisions');
     expect(prompt).toContain('Never infer it');
+    expect(prompt).toContain('**Generated:**');
+    expect(prompt).toContain('**Source Messages:** 2');
+    expect(prompt).toContain('Preserve the exact Generated timestamp and Source Messages count');
     expect(prompt).toContain('## Executive Summary');
     expect(prompt).toContain('## Action Items');
     expect(prompt).toContain('## Evidence Index');
