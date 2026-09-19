@@ -10,6 +10,7 @@ const VERSION = 4 as const;
 let unsubscribe: (() => void) | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
 const API_KEY = import.meta.env.VITE_API_KEY?.trim();
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL?.trim() ?? '').replace(/\/+$/, '');
 
 type SnapshotV3 = Omit<StorageSnapshot, 'version' | 'teams'> & { version: 3 };
 
@@ -47,6 +48,10 @@ type LegacySnapshot = {
   activeRoomId: string | null;
   savedAt: number;
 };
+
+function apiUrl(path: string): string {
+  return `${API_BASE_URL}${path}`;
+}
 
 function apiHeaders(extra: Record<string, string> = {}): Record<string, string> {
   return { ...extra, ...(API_KEY ? { 'X-API-Key': API_KEY } : {}) };
@@ -196,14 +201,14 @@ function saveLocal(snapshot: StorageSnapshot): void {
 }
 
 async function loadRemote(): Promise<StorageSnapshot | null> {
-  const response = await fetch('/api/snapshot', { headers: apiHeaders() });
+  const response = await fetch(apiUrl('/api/snapshot'), { headers: apiHeaders() });
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`Remote load failed: ${response.status}`);
   return parseSnapshot(await response.json());
 }
 
 async function saveRemote(snapshot: StorageSnapshot): Promise<void> {
-  const response = await fetch('/api/snapshot', {
+  const response = await fetch(apiUrl('/api/snapshot'), {
     method: 'PUT',
     headers: apiHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(snapshot),
