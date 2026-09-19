@@ -6,6 +6,8 @@ import { TopBar } from '@/components/TopBar';
 import { bootstrapPersistence, startPersistence } from '@/lib/storage';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
+const APP_VERSION = import.meta.env.VITE_APP_VERSION?.trim() || '1.8.0';
+
 export default function App() {
   const hydrated = useWorkspaceStore(state => state.hydrated);
   const activeRoomId = useWorkspaceStore(state => state.activeRoomId);
@@ -51,7 +53,7 @@ export default function App() {
       </div>
 
       <footer className="flex h-8 shrink-0 items-center border-t border-slate-200 bg-white px-4 text-[11px] text-slate-500">
-        <div className="shrink-0">▣ &nbsp; Virtual Company &nbsp; v1.7.6</div>
+        <div className="shrink-0">▣ &nbsp; Virtual Company &nbsp; v{APP_VERSION}</div>
         <div className="flex min-w-0 flex-1 items-center justify-end gap-5 pe-1">
           <span>💡 {agents.length} specialists</span>
           <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
