@@ -14,7 +14,7 @@ import { ensureMeetingFacilitatorMembership } from '@/lib/roomMembershipActions'
 import { bootstrapPersistence, startPersistence } from '@/lib/storage';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
-const APP_VERSION = import.meta.env.VITE_APP_VERSION?.trim() || '2.1.0';
+const APP_VERSION = import.meta.env.VITE_APP_VERSION?.trim() || '2.2.0';
 
 export default function App() {
   const hydrated = useWorkspaceStore(state => state.hydrated);
