@@ -8,13 +8,9 @@ export interface RoleDefinition {
   name: string;
   description: string;
   skills: string[];
-  /** Enterprise-grade grouped capabilities for built-in specialists. */
   skillGroups?: SkillGroup[];
-  /** Typical concrete outputs this specialist should produce. */
   deliverables?: string[];
-  /** What this role is expected to own or advise on. */
   scope?: string;
-  /** Explicit boundaries, especially for regulated/high-stakes roles. */
   limitations?: string[];
   systemPrompt: string;
   builtIn: boolean;
@@ -27,7 +23,6 @@ export interface Agent {
   roleId: string;
   emoji: string;
   color: string;
-  /** Local/static URL for built-ins, or an optional user-provided URL for custom employees. */
   avatarUrl?: string;
   createdAt: number;
 }
@@ -47,6 +42,10 @@ export interface ProjectDefinition {
   name: string;
   description: string;
   emoji: string;
+  companyId?: string;
+  favorite?: boolean;
+  tags?: string[];
+  lastOpenedAt?: number;
   createdAt: number;
 }
 
@@ -81,45 +80,91 @@ export interface ActionItem {
   updatedAt: number;
 }
 
+export type MessageReaction = 'agree' | 'disagree' | 'risk' | 'accepted' | 'important';
+
+export interface MessageRevision {
+  content: string;
+  savedAt: number;
+}
+
 export interface Message {
   id: string;
   authorType: 'user' | 'agent';
   authorId?: string;
-  /** Preserve identity in the timeline even if an agent is later removed. */
   authorNameSnapshot?: string;
   roleNameSnapshot?: string;
   content: string;
+  pinned?: boolean;
+  tags?: string[];
+  reaction?: MessageReaction;
+  versions?: MessageRevision[];
+  branchRoomId?: string;
   createdAt: number;
 }
 
-export interface SavedMeetingMinutes {
-  /** Final Markdown pasted back from the manual AI workflow. */
+export interface MeetingMinutesRevision {
   content: string;
-  /** Last local edit/save time. */
   savedAt: number;
-  /** Number of room messages represented when this version was saved. */
   sourceMessageCount: number;
-  /** Room language at the time this version was saved. */
+}
+
+export interface SavedMeetingMinutes {
+  content: string;
+  savedAt: number;
+  sourceMessageCount: number;
   languageCode: string;
   source: 'manual-ai';
+  versions?: MeetingMinutesRevision[];
+}
+
+export interface RoomKnowledgePack {
+  objective: string;
+  background: string;
+  constraints: string;
+  requirements: string;
+  links: string;
+}
+
+export interface RoomAttachment {
+  id: string;
+  name: string;
+  mediaType: string;
+  size: number;
+  dataUrl: string;
+  addedAt: number;
+}
+
+export type VoteChoice = 'agree' | 'concern' | 'disagree' | 'abstain';
+
+export interface RoomVote {
+  id: string;
+  question: string;
+  votes: Record<string, VoteChoice>;
+  createdAt: number;
 }
 
 export interface Room {
   id: string;
   name: string;
   emoji: string;
-  /** Project/workspace this room belongs to. Legacy rooms are assigned to General. */
   projectId?: string;
-  /** Preferred working language for this room. Legacy rooms default to English. */
+  companyId?: string;
   languageCode?: string;
-  /** Effective membership used by chat and agent selection. */
   agentIds: string[];
-  /** Teams explicitly attached to this room. Optional for legacy v4 snapshots. */
   teamIds?: string[];
-  /** Specialists explicitly added outside team membership. Optional for legacy v4 snapshots. */
   individualAgentIds?: string[];
-  /** Persisted final minutes from the manual copy/paste workflow. */
   meetingMinutes?: SavedMeetingMinutes;
+  tags?: string[];
+  favorite?: boolean;
+  archivedAt?: number;
+  lastOpenedAt?: number;
+  agenda?: string[];
+  knowledge?: RoomKnowledgePack;
+  attachments?: RoomAttachment[];
+  votes?: RoomVote[];
+  branchOfRoomId?: string;
+  branchRootMessageId?: string;
+  templateId?: string;
   messages: Message[];
   createdAt: number;
 }
@@ -136,11 +181,8 @@ export interface StorageSnapshot {
   roles: RoleDefinition[];
   agents: Agent[];
   teams: TeamDefinition[];
-  /** Optional for snapshots created before Projects were introduced. */
   projects?: ProjectDefinition[];
-  /** Optional for snapshots created before Decision Register was introduced. */
   decisions?: DecisionRecord[];
-  /** Optional for snapshots created before Action Items were introduced. */
   actionItems?: ActionItem[];
   agentContext: Record<string, AgentContextState>;
   activeRoomId: string | null;
