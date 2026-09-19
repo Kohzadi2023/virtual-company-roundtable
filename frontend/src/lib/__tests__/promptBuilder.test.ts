@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { defaultAgents, defaultRoles } from '@/lib/defaultCompany';
+import { addSharedMemory } from '@/lib/memoryV2';
 import { buildAgentPrompt, buildExternalChatTitleHint } from '@/lib/promptBuilder';
 import { addAgentMemory } from '@/lib/workspaceSuite';
 import { useWorkspaceStore } from '@/store/workspaceStore';
@@ -18,7 +19,7 @@ describe('external chat title hint', () => {
     expect(hint[1]).toContain('Do not add the role, room name, project name, or task');
   });
 
-  it('injects active company and project memory without leaking another project', () => {
+  it('injects company, project and agent memory without leaking another project', () => {
     const agent = defaultAgents.find(item => item.id === 'agent-emma')!;
     const role = defaultRoles.find(item => item.id === agent.roleId)!;
     useWorkspaceStore.setState({
@@ -39,6 +40,35 @@ describe('external chat title hint', () => {
       activeRoomId: 'room-a',
     });
 
+    addSharedMemory({
+      scope: 'company',
+      companyId: 'company-default',
+      category: 'constraint',
+      title: 'Company security principle',
+      content: 'Security controls should default to least privilege.',
+      status: 'active',
+      importance: 'high',
+    });
+    addSharedMemory({
+      scope: 'project',
+      companyId: 'company-default',
+      projectId: 'project-a',
+      category: 'decision',
+      title: 'Project persistence',
+      content: 'Project A uses SQLite for local persistence.',
+      status: 'active',
+      importance: 'high',
+    });
+    addSharedMemory({
+      scope: 'project',
+      companyId: 'company-default',
+      projectId: 'project-b',
+      category: 'decision',
+      title: 'Other project shared secret',
+      content: 'Project B uses a different persistence system.',
+      status: 'active',
+      importance: 'high',
+    });
     addAgentMemory({
       agentId: agent.id,
       companyId: 'company-default',
@@ -70,9 +100,14 @@ describe('external chat title hint', () => {
     });
 
     const prompt = buildAgentPrompt(agent, role, []);
+    expect(prompt).toContain('COMPANY MEMORY');
+    expect(prompt).toContain('PROJECT MEMORY');
     expect(prompt).toContain('PERSISTENT AGENT MEMORY');
+    expect(prompt).toContain('Company security principle');
+    expect(prompt).toContain('Project persistence');
     expect(prompt).toContain('Manual AI policy');
     expect(prompt).toContain('Desktop shell');
+    expect(prompt).not.toContain('Other project shared secret');
     expect(prompt).not.toContain('Other project secret');
   });
 });
