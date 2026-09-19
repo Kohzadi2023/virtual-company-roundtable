@@ -2,14 +2,14 @@ import { getRoomLanguage } from '@/lib/languages';
 import type { Room } from '@/types/domain';
 
 const labels: Record<string, Record<string, string>> = {
-  en: { title: 'Meeting Minutes', room: 'Room', date: 'Generated', language: 'Language', participants: 'Participants', discussion: 'Discussion Highlights', decisions: 'Explicit Decisions', actions: 'Action Items', none: 'None explicitly recorded.' },
-  fa: { title: 'صورتجلسه', room: 'اتاق', date: 'تاریخ تهیه', language: 'زبان', participants: 'شرکت‌کنندگان', discussion: 'خلاصه گفتگو', decisions: 'تصمیم‌های صریح', actions: 'اقدامات', none: 'موردی به‌صورت صریح ثبت نشده است.' },
-  fr: { title: 'Compte rendu de réunion', room: 'Salle', date: 'Généré le', language: 'Langue', participants: 'Participants', discussion: 'Points clés', decisions: 'Décisions explicites', actions: 'Actions', none: 'Aucun élément explicitement enregistré.' },
-  es: { title: 'Acta de reunión', room: 'Sala', date: 'Generado', language: 'Idioma', participants: 'Participantes', discussion: 'Puntos principales', decisions: 'Decisiones explícitas', actions: 'Acciones', none: 'No se registró ninguno explícitamente.' },
-  ar: { title: 'محضر الاجتماع', room: 'الغرفة', date: 'تاريخ الإنشاء', language: 'اللغة', participants: 'المشاركون', discussion: 'أبرز النقاط', decisions: 'القرارات الصريحة', actions: 'بنود العمل', none: 'لم يتم تسجيل أي عنصر بشكل صريح.' },
-  de: { title: 'Besprechungsprotokoll', room: 'Raum', date: 'Erstellt', language: 'Sprache', participants: 'Teilnehmende', discussion: 'Diskussionspunkte', decisions: 'Explizite Entscheidungen', actions: 'Aufgaben', none: 'Keine ausdrücklich erfassten Punkte.' },
-  tr: { title: 'Toplantı Tutanağı', room: 'Oda', date: 'Oluşturulma', language: 'Dil', participants: 'Katılımcılar', discussion: 'Görüşme Özeti', decisions: 'Açık Kararlar', actions: 'Aksiyon Maddeleri', none: 'Açıkça kaydedilmiş bir madde yok.' },
-  it: { title: 'Verbale della riunione', room: 'Stanza', date: 'Generato', language: 'Lingua', participants: 'Partecipanti', discussion: 'Punti principali', decisions: 'Decisioni esplicite', actions: 'Azioni', none: 'Nessun elemento registrato esplicitamente.' },
+  en: { title: 'Meeting Minutes', room: 'Room', date: 'Generated', sourceMessages: 'Source Messages', language: 'Language', participants: 'Participants', discussion: 'Discussion Highlights', decisions: 'Explicit Decisions', actions: 'Action Items', none: 'None explicitly recorded.' },
+  fa: { title: 'صورتجلسه', room: 'اتاق', date: 'تاریخ تهیه', sourceMessages: 'تعداد پیام‌های منبع', language: 'زبان', participants: 'شرکت‌کنندگان', discussion: 'خلاصه گفتگو', decisions: 'تصمیم‌های صریح', actions: 'اقدامات', none: 'موردی به‌صورت صریح ثبت نشده است.' },
+  fr: { title: 'Compte rendu de réunion', room: 'Salle', date: 'Généré le', sourceMessages: 'Messages sources', language: 'Langue', participants: 'Participants', discussion: 'Points clés', decisions: 'Décisions explicites', actions: 'Actions', none: 'Aucun élément explicitement enregistré.' },
+  es: { title: 'Acta de reunión', room: 'Sala', date: 'Generado', sourceMessages: 'Mensajes de origen', language: 'Idioma', participants: 'Participantes', discussion: 'Puntos principales', decisions: 'Decisiones explícitas', actions: 'Acciones', none: 'No se registró ninguno explícitamente.' },
+  ar: { title: 'محضر الاجتماع', room: 'الغرفة', date: 'تاريخ الإنشاء', sourceMessages: 'رسائل المصدر', language: 'اللغة', participants: 'المشاركون', discussion: 'أبرز النقاط', decisions: 'القرارات الصريحة', actions: 'بنود العمل', none: 'لم يتم تسجيل أي عنصر بشكل صريح.' },
+  de: { title: 'Besprechungsprotokoll', room: 'Raum', date: 'Erstellt', sourceMessages: 'Quellnachrichten', language: 'Sprache', participants: 'Teilnehmende', discussion: 'Diskussionspunkte', decisions: 'Explizite Entscheidungen', actions: 'Aufgaben', none: 'Keine ausdrücklich erfassten Punkte.' },
+  tr: { title: 'Toplantı Tutanağı', room: 'Oda', date: 'Oluşturulma', sourceMessages: 'Kaynak Mesajlar', language: 'Dil', participants: 'Katılımcılar', discussion: 'Görüşme Özeti', decisions: 'Açık Kararlar', actions: 'Aksiyon Maddeleri', none: 'Açıkça kaydedilmiş bir madde yok.' },
+  it: { title: 'Verbale della riunione', room: 'Stanza', date: 'Generato', sourceMessages: 'Messaggi sorgente', language: 'Lingua', participants: 'Partecipanti', discussion: 'Punti principali', decisions: 'Decisioni esplicite', actions: 'Azioni', none: 'Nessun elemento registrato esplicitamente.' },
 };
 
 function firstSentence(value: string, max = 240): string {
@@ -48,6 +48,7 @@ export function buildMeetingMinutes(room: Room): string {
     '',
     `**${t.room}:** ${room.name}`,
     `**${t.date}:** ${new Date().toLocaleString()}`,
+    `**${t.sourceMessages}:** ${room.messages.length}`,
     `**${t.language}:** ${language.nativeName}`,
     '',
     `## ${t.participants}`,
