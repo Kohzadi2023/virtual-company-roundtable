@@ -46,12 +46,13 @@ jobs:
         with:
           targets: x86_64-pc-windows-msvc
 
-      - name: Validate signing helper scripts
+      - name: Validate PowerShell helper scripts
         shell: pwsh
         run: |
           $scripts = @(
             'scripts/import-windows-signing-certificate.ps1',
-            'scripts/sign-windows-file.ps1'
+            'scripts/sign-windows-file.ps1',
+            'scripts/run-desktop.ps1'
           )
           foreach ($script in $scripts) {
             $tokens = $null
