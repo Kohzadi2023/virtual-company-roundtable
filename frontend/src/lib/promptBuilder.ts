@@ -33,6 +33,14 @@ function formatProfessionalProfile(role: RoleDefinition): string[] {
   return lines;
 }
 
+export function buildExternalChatTitleHint(agent: Pick<Agent, 'name'>): string[] {
+  return [
+    `CHAT TITLE: ${agent.name}`,
+    `If this service automatically names conversations, use exactly "${agent.name}" as the conversation title. Do not add the role, room name, project name, or task to the title.`,
+    '',
+  ];
+}
+
 export function buildAgentPrompt(agent: Agent, role: RoleDefinition, messages: Message[]): string {
   const context = messages.map(formatMessage).join('\n\n');
   const state = useWorkspaceStore.getState();
@@ -40,6 +48,7 @@ export function buildAgentPrompt(agent: Agent, role: RoleDefinition, messages: M
   const language = getRoomLanguage(activeRoom?.languageCode);
 
   return [
+    ...buildExternalChatTitleHint(agent),
     `You are ${agent.name}, the company's ${role.name}.`,
     ...formatProfessionalProfile(role),
     role.systemPrompt,
