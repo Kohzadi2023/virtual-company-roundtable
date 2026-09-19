@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import {
   captureAgentMemoryHistory,
-  MEMORY_V2_EVENT,
   refreshMemoryConflicts,
   suggestMemoryFromMessage,
   syncOliviaMeetingState,
@@ -41,11 +40,7 @@ export function MemoryV2Runtime() {
       refreshMemoryConflicts();
     };
     window.addEventListener(WORKSPACE_SUITE_EVENT, refresh);
-    window.addEventListener(MEMORY_V2_EVENT, refresh);
-    return () => {
-      window.removeEventListener(WORKSPACE_SUITE_EVENT, refresh);
-      window.removeEventListener(MEMORY_V2_EVENT, refresh);
-    };
+    return () => window.removeEventListener(WORKSPACE_SUITE_EVENT, refresh);
   }, []);
 
   return null;
