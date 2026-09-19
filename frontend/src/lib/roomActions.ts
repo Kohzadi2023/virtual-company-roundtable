@@ -9,6 +9,30 @@ export function setRoomLanguage(roomId: string, languageCode: string): void {
   }));
 }
 
+export function saveRoomMeetingMinutes(roomId: string, content: string): void {
+  useWorkspaceStore.setState(state => ({
+    rooms: state.rooms.map(room => {
+      if (room.id !== roomId) return room;
+      const trimmed = content.trim();
+      if (!trimmed) {
+        if (!room.meetingMinutes) return room;
+        const { meetingMinutes: _removed, ...rest } = room;
+        return rest;
+      }
+      return {
+        ...room,
+        meetingMinutes: {
+          content,
+          savedAt: Date.now(),
+          sourceMessageCount: room.messages.length,
+          languageCode: room.languageCode || DEFAULT_ROOM_LANGUAGE,
+          source: 'manual-ai' as const,
+        },
+      };
+    }),
+  }));
+}
+
 export function deleteRoom(roomId: string): void {
   useWorkspaceStore.setState(state => {
     const index = state.rooms.findIndex(room => room.id === roomId);
