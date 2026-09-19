@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ProjectCenterLauncher } from '@/components/ProjectCenterLauncher';
+import { WorkspaceSuiteLauncher } from '@/components/WorkspaceSuiteLauncher';
 import { Toast, type ToastMessage } from '@/components/Toast';
 import { copyText } from '@/lib/clipboard';
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
@@ -137,6 +138,7 @@ export function TopBar() {
           </div>
 
           <div className="flex items-center gap-2">
+            <WorkspaceSuiteLauncher />
             <ProjectCenterLauncher />
             <button type="button" onClick={copyFullChat} disabled={!activeRoom || activeRoom.messages.length === 0} className="inline-flex items-center gap-2 rounded-lg border border-blue-500 bg-white px-3 py-2 text-[13px] font-semibold text-blue-600 shadow-sm transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"><span aria-hidden="true">⧉</span> Copy Full Chat</button>
 
@@ -148,7 +150,7 @@ export function TopBar() {
                   <div className="border-b border-slate-200 p-3">
                     <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Rooms</div>
                     <div className="max-h-32 space-y-1 overflow-y-auto">
-                      {rooms.map(room => (
+                      {rooms.filter(room => !room.archivedAt).map(room => (
                         <button key={room.id} type="button" onClick={() => setActiveRoom(room.id)} className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-start text-sm ${room.id === activeRoomId ? 'bg-blue-50 font-semibold text-blue-700' : 'text-slate-700 hover:bg-slate-50'}`}>
                           <span className="truncate"><span className="me-2">{room.emoji}</span>{room.name}</span>
                           <span className="text-[11px] text-slate-400">{room.agentIds.length} members</span>
