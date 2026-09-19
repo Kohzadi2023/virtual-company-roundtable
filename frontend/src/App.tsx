@@ -4,6 +4,9 @@ import { AgentMemoryLauncher } from '@/components/AgentMemoryLauncher';
 import { AppLockGate } from '@/components/AppLockGate';
 import { ChatRoom } from '@/components/ChatRoom';
 import { CollapsibleCompanyDirectory } from '@/components/CollapsibleCompanyDirectory';
+import { MemoryCenterDialogHost } from '@/components/MemoryCenterDialogHost';
+import { MemoryCenterLauncher } from '@/components/MemoryCenterLauncher';
+import { MemoryV2Runtime } from '@/components/MemoryV2Runtime';
 import { OtherRoomsPanel } from '@/components/OtherRoomsPanel';
 import { SecuritySettingsLauncher } from '@/components/SecuritySettingsLauncher';
 import { TopBar } from '@/components/TopBar';
@@ -54,6 +57,7 @@ export default function App() {
   return (
     <AppLockGate>
       <main className="flex h-screen min-w-[1180px] flex-col overflow-hidden bg-[#f7f9fc] text-slate-900">
+        <MemoryV2Runtime />
         <TopBar />
 
         <div className="flex min-h-0 flex-1">
@@ -72,6 +76,8 @@ export default function App() {
             <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
             <AgentMemoryLauncher />
             <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
+            <MemoryCenterLauncher />
+            <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
             <SecuritySettingsLauncher />
           </div>
           <div className="flex min-w-0 flex-1 items-center justify-end gap-5 pe-1">
@@ -88,6 +94,7 @@ export default function App() {
           </div>
         </footer>
         <AgentMemoryDialogHost />
+        <MemoryCenterDialogHost />
       </main>
     </AppLockGate>
   );
