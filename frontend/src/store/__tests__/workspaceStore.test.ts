@@ -9,6 +9,9 @@ function reset(): void {
     roles: [],
     agents: [],
     teams: [],
+    projects: [],
+    decisions: [],
+    actionItems: [],
     agentContext: {},
     hydrated: true,
     syncState: 'idle',
@@ -18,13 +21,13 @@ function reset(): void {
 describe('workspaceStore virtual company model', () => {
   beforeEach(reset);
 
-  it('seeds the expanded specialist directory and default teams without auto-staffing the room', () => {
+  it('seeds the expanded specialist directory and default teams without auto-staffing the store room', () => {
     useWorkspaceStore.getState().seedDefaultCompany();
     const state = useWorkspaceStore.getState();
 
     expect(state.agents).toHaveLength(23);
     expect(state.roles).toHaveLength(23);
-    expect(state.teams).toHaveLength(8);
+    expect(state.teams).toHaveLength(9);
     expect(state.agents.map(agent => agent.name)).toEqual([
       'Emma', 'Mike', 'Bob', 'Ava', 'Tom', 'Alex', 'Sarah', 'Adrian',
       'David', 'Sophia', 'Leo', 'Nina', 'Oscar', 'Ella', 'Ryan', 'Laura',
@@ -46,7 +49,11 @@ describe('workspaceStore virtual company model', () => {
       'Legal & Finance',
       'Health & Wellbeing',
       'Education & Immigration',
+      'Idea Lab',
     ]));
+    const ideaLab = state.teams.find(team => team.id === 'team-idea-lab')!;
+    expect(ideaLab.agentIds).toEqual(['agent-sophia', 'agent-adrian', 'agent-alex', 'agent-emma']);
+    expect(ideaLab.agentIds).toHaveLength(4);
     expect(state.rooms[0]?.agentIds).toEqual([]);
   });
 
@@ -91,7 +98,7 @@ describe('workspaceStore virtual company model', () => {
     expect(architect.name).toBe('Software Architect');
     expect(architect.skills.length).toBeGreaterThan(0);
     expect(state.agents).toHaveLength(23);
-    expect(state.teams).toHaveLength(8);
+    expect(state.teams).toHaveLength(9);
     expect(state.rooms[0]?.agentIds).toEqual(['agent-emma']);
   });
 
