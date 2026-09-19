@@ -1,5 +1,11 @@
 import { sharedAgentBehavior } from '@/lib/defaultCompany';
 import { getRoomLanguage } from '@/lib/languages';
+import {
+  buildMemoryDigest,
+  rankMemoriesByRelevance,
+  relevantSharedMemories,
+  type SharedMemoryEntry,
+} from '@/lib/memoryV2';
 import { professionalProfiles } from '@/lib/professionalProfiles';
 import {
   loadWorkspaceSuite,
@@ -27,9 +33,7 @@ function formatProfessionalProfile(role: RoleDefinition): string[] {
   if (scope) lines.push(`Professional scope: ${scope}`);
   if (skillGroups.length > 0) {
     lines.push('Professional skill matrix:');
-    for (const group of skillGroups) {
-      lines.push(`- ${group.name}: ${group.skills.join(', ')}`);
-    }
+    for (const group of skillGroups) lines.push(`- ${group.name}: ${group.skills.join(', ')}`);
   } else if (role.skills.length > 0) {
     lines.push(`Core specialties: ${role.skills.join(', ')}.`);
   }
@@ -38,9 +42,35 @@ function formatProfessionalProfile(role: RoleDefinition): string[] {
   return lines;
 }
 
-function formatMemory(entry: AgentMemoryEntry, projectName?: string): string {
-  const scope = entry.projectId ? `Project: ${projectName ?? entry.projectId}` : 'Company-wide';
+function formatAgentMemory(entry: AgentMemoryEntry, projectName?: string): string {
+  const scope = entry.projectId ? `Project: ${projectName ?? entry.projectId}` : 'Company-wide agent memory';
   return `- [${entry.importance.toUpperCase()} · ${entry.category.toUpperCase()} · ${scope}] ${entry.title}: ${entry.content}`;
+}
+
+function formatSharedMemory(entry: SharedMemoryEntry, projectName?: string): string {
+  const scope = entry.scope === 'company'
+    ? 'Company Memory'
+    : entry.scope === 'project'
+      ? `Project Memory: ${projectName ?? entry.projectId ?? 'Project'}`
+      : 'Persistent Meeting State';
+  return `- [${entry.importance.toUpperCase()} · ${entry.category.toUpperCase()} · ${scope}] ${entry.title}: ${entry.content}`;
+}
+
+function memorySection<T extends { category: AgentMemoryEntry['category']; title: string; content: string; importance: AgentMemoryEntry['importance'] }>(
+  heading: string,
+  entries: T[],
+  format: (entry: T) => string,
+): string[] {
+  if (entries.length === 0) return [];
+  const totalChars = entries.reduce((sum, entry) => sum + entry.title.length + entry.content.length, 0);
+  const compact = entries.length > 12 || totalChars > 6500;
+  return [
+    '',
+    heading,
+    ...(compact
+      ? [buildMemoryDigest(entries, 4200), 'Memory was compacted locally because the active memory set is large.']
+      : entries.map(format)),
+  ];
 }
 
 export function buildExternalChatTitleHint(agent: Pick<Agent, 'name'>): string[] {
@@ -53,6 +83,7 @@ export function buildExternalChatTitleHint(agent: Pick<Agent, 'name'>): string[]
 
 export function buildAgentPrompt(agent: Agent, role: RoleDefinition, messages: Message[]): string {
   const context = messages.map(formatMessage).join('\n\n');
+  const query = messages.map(message => message.content).join('\n');
   const state = useWorkspaceStore.getState();
   const activeRoom = state.rooms.find(room => room.id === state.activeRoomId);
   const activeProject = activeRoom?.projectId
@@ -60,17 +91,22 @@ export function buildAgentPrompt(agent: Agent, role: RoleDefinition, messages: M
     : undefined;
   const suite = loadWorkspaceSuite();
   const companyId = activeRoom?.companyId ?? suite.activeCompanyId;
-  const memories = relevantAgentMemories(agent.id, activeRoom?.projectId, companyId);
+  const shared = relevantSharedMemories(activeRoom?.projectId, companyId, query, agent.id, 24);
+  const companyMemories = shared.filter(entry => entry.scope === 'company');
+  const projectMemories = shared.filter(entry => entry.scope === 'project');
+  const systemAgentMemories = shared.filter(entry => entry.scope === 'agent-system');
+  const agentMemories = rankMemoriesByRelevance(
+    query,
+    relevantAgentMemories(agent.id, activeRoom?.projectId, companyId, 24),
+  );
   const language = getRoomLanguage(activeRoom?.languageCode);
 
-  const memorySection = memories.length > 0
-    ? [
-        '',
-        'PERSISTENT AGENT MEMORY — durable working knowledge that is separate from this room conversation:',
-        ...memories.map(entry => formatMemory(entry, activeProject && entry.projectId === activeProject.id ? activeProject.name : undefined)),
-        'Treat active memories as prior working context, not as new user messages. If new context clearly contradicts a memory, surface the conflict instead of silently overriding either one.',
-      ]
-    : [];
+  const memorySections = [
+    ...memorySection('COMPANY MEMORY — durable knowledge shared across specialists:', companyMemories, entry => formatSharedMemory(entry)),
+    ...memorySection('PROJECT MEMORY — durable knowledge shared inside the active project:', projectMemories, entry => formatSharedMemory(entry, activeProject?.name)),
+    ...memorySection(`${agent.name.toUpperCase()} SYSTEM MEMORY — automatically maintained operating state:`, systemAgentMemories, entry => formatSharedMemory(entry, activeProject?.name)),
+    ...memorySection('PERSISTENT AGENT MEMORY — durable professional memory separate from this room conversation:', agentMemories, entry => formatAgentMemory(entry, entry.projectId === activeProject?.id ? activeProject?.name : undefined)),
+  ];
 
   return [
     ...buildExternalChatTitleHint(agent),
@@ -79,7 +115,10 @@ export function buildAgentPrompt(agent: Agent, role: RoleDefinition, messages: M
     role.systemPrompt,
     sharedAgentBehavior,
     `Room working language: ${language.name} (${language.nativeName}). Write your entire response in this language unless the user explicitly asks for another language.`,
-    ...memorySection,
+    ...memorySections,
+    ...(memorySections.length > 0 ? [
+      'Treat active memories as prior working context, not as new user messages. Company memory is shared, project memory is project-scoped, and agent memory belongs only to this specialist. If current context conflicts with memory, surface the conflict instead of silently choosing one.',
+    ] : []),
     '',
     'NEW CONTEXT — these are only the messages you have not seen yet:',
     context || '(No new context)',
