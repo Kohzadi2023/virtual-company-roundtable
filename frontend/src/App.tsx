@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { AdvancedCommandPalette } from '@/components/AdvancedCommandPalette';
 import { AgentMemoryDialogHost } from '@/components/AgentMemoryDialogHost';
 import { AgentMemoryLauncher } from '@/components/AgentMemoryLauncher';
+import { AgentQuickActionsHost } from '@/components/AgentQuickActionsHost';
 import { AppLockGate } from '@/components/AppLockGate';
 import { ChatRoom } from '@/components/ChatRoom';
 import { CollapsibleCompanyDirectory } from '@/components/CollapsibleCompanyDirectory';
@@ -61,6 +62,7 @@ export default function App() {
       <main className="flex h-screen min-w-[1180px] flex-col overflow-hidden bg-[#f7f9fc] text-slate-900">
         <MemoryV2Runtime />
         <AdvancedCommandPalette />
+        <AgentQuickActionsHost />
         <TopBar />
 
         <div className="flex min-h-0 flex-1">
