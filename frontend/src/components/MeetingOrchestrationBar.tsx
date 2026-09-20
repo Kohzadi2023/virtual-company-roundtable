@@ -14,6 +14,7 @@ import {
   setExternalAgentChat,
   setMeetingPhase,
   setMeetingRound,
+  startNextRound,
   type ExternalChatProvider,
   type MeetingPhase,
   type MeetingRoomState,
@@ -30,6 +31,12 @@ const PHASES: Array<{ value: MeetingPhase; label: string }> = [
   { value: 'actions', label: 'Actions' },
   { value: 'closed', label: 'Closed' },
 ];
+const ROUND_PHASE_INDEX: Partial<Record<MeetingPhase, number>> = {
+  collect: 0,
+  challenge: 1,
+  resolve: 2,
+  decision: 3,
+};
 const PROVIDERS: ExternalChatProvider[] = ['ChatGPT', 'Gemini', 'Claude', 'Copilot', 'DeepSeek', 'Qwen', 'Grok', 'META', 'Other'];
 
 function phaseLabel(value: MeetingPhase): string {
@@ -96,12 +103,23 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
   const specialistResponded = specialistOrder.filter(id => meeting.speakerStatus[id] === 'responded').length;
   const activeAgent = agents.find(agent => agent.id === meeting.activeSpeakerId);
   const currentRound = meeting.rounds[meeting.roundIndex] ?? 'Round';
-  const nextLabel = meeting.roundStage === 'complete' ? '—' : activeAgent?.name ?? '—';
+  const canStartNextRound = meeting.roundStage === 'complete' && meeting.roundIndex < meeting.rounds.length - 1;
+  const finalRoundComplete = meeting.roundStage === 'complete' && meeting.roundIndex >= meeting.rounds.length - 1;
+  const nextLabel = meeting.roundStage === 'complete'
+    ? canStartNextRound ? 'Awaiting next round' : '—'
+    : activeAgent?.name ?? '—';
 
-  const nextPhase = () => {
-    const index = PHASES.findIndex(item => item.value === meeting.phase);
-    const next = PHASES[Math.min(index + 1, PHASES.length - 1)];
-    if (next) setMeetingPhase(room.id, next.value);
+  const handlePhaseSelection = (phase: MeetingPhase) => {
+    const mappedRound = ROUND_PHASE_INDEX[phase];
+    if (mappedRound !== undefined && mappedRound < meeting.rounds.length) {
+      setMeetingRound(room.id, mappedRound);
+      return;
+    }
+    setMeetingPhase(room.id, phase);
+  };
+
+  const handleStartNextRound = () => {
+    startNextRound(room.id);
   };
 
   const handleResetRound = () => {
@@ -133,8 +151,10 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
         <span className="text-slate-400">·</span>
         <span className="font-medium text-slate-600">Next: <strong className={meeting.roundStage === 'synthesis' ? 'text-violet-700' : 'text-slate-800'}>{nextLabel}</strong></span>
         <span className="ms-auto text-slate-400">{specialistResponded}/{specialistOrder.length} specialists responded</span>
+        {canStartNextRound ? <button type="button" onClick={handleStartNextRound} className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 font-bold text-emerald-700 hover:bg-emerald-100">Start Round {meeting.roundIndex + 2} →</button> : null}
         {meeting.roundStage === 'complete' ? <button type="button" onClick={handleResetRound} className="rounded-md border border-blue-200 bg-blue-50 px-2 py-1 font-semibold text-blue-700 hover:bg-blue-100">↻ Reset Round</button> : null}
-        {meeting.phase !== 'closed' ? <button type="button" onClick={nextPhase} className="rounded-md border border-slate-200 px-2 py-1 font-semibold text-slate-600 hover:bg-slate-50">Next phase →</button> : null}
+        {finalRoundComplete && meeting.phase === 'decision' ? <button type="button" onClick={() => setMeetingPhase(room.id, 'actions')} className="rounded-md border border-slate-200 px-2 py-1 font-semibold text-slate-600 hover:bg-slate-50">Actions →</button> : null}
+        {meeting.phase === 'actions' ? <button type="button" onClick={() => setMeetingPhase(room.id, 'closed')} className="rounded-md border border-slate-200 px-2 py-1 font-semibold text-slate-600 hover:bg-slate-50">Close meeting</button> : null}
       </div>
 
       {open ? (
@@ -149,21 +169,25 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
               <div className="min-h-0 overflow-y-auto p-5">
                 <div className="rounded-xl border border-violet-100 bg-violet-50 p-3 text-xs leading-5 text-violet-800">
                   <strong>{roundStageLabel(meeting.roundStage)}</strong><br />
-                  {meeting.roundStage === 'opening' ? 'Olivia opens the round, then the queue moves to the specialists.' : null}
+                  {meeting.roundStage === 'opening' ? 'Olivia opens this round. Only after her opening does the speaking queue move to the specialists.' : null}
                   {meeting.roundStage === 'specialists' ? 'Specialists contribute in queue order. After the final specialist, Olivia becomes next automatically.' : null}
-                  {meeting.roundStage === 'synthesis' ? 'All specialist turns are complete. Copy Olivia context now so she can synthesize the round and direct the next step.' : null}
-                  {meeting.roundStage === 'complete' ? 'The final Olivia synthesis is complete. Reset this round to run it again, or restart the meeting from Round 1.' : null}
+                  {meeting.roundStage === 'synthesis' ? 'All specialist turns are complete. Copy Olivia context so she can synthesize this round.' : null}
+                  {meeting.roundStage === 'complete' && canStartNextRound ? `Round ${meeting.roundIndex + 1} is complete. Review Olivia's synthesis, then explicitly start Round ${meeting.roundIndex + 2}.` : null}
+                  {meeting.roundStage === 'complete' && !canStartNextRound ? 'The final round is complete. Move to Actions when the decision is ready.' : null}
                 </div>
 
                 <h3 className="mt-5 text-xs font-bold uppercase tracking-wide text-slate-400">Meeting flow</h3>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {PHASES.map(item => <button key={item.value} type="button" onClick={() => setMeetingPhase(room.id, item.value)} className={`rounded-lg border px-3 py-2 text-xs font-semibold ${meeting.phase === item.value ? 'border-violet-300 bg-violet-50 text-violet-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>{item.label}</button>)}
+                  {PHASES.map(item => <button key={item.value} type="button" onClick={() => handlePhaseSelection(item.value)} className={`rounded-lg border px-3 py-2 text-xs font-semibold ${meeting.phase === item.value ? 'border-violet-300 bg-violet-50 text-violet-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>{item.label}</button>)}
                 </div>
+                <p className="mt-1.5 text-[10px] leading-4 text-slate-400">Collect Opinions = Round 1 · Challenge = Round 2 · Resolve = Round 3 · Decision = Round 4. Selecting one of these phases starts that round with Olivia.</p>
 
-                <div className="mt-6 flex items-center justify-between"><h3 className="text-xs font-bold uppercase tracking-wide text-slate-400">Rounds</h3><span className="text-[10px] text-slate-400">Manual round selection starts with Olivia again.</span></div>
+                <div className="mt-6 flex items-center justify-between"><h3 className="text-xs font-bold uppercase tracking-wide text-slate-400">Rounds</h3><span className="text-[10px] text-slate-400">A completed round never starts the next one automatically.</span></div>
                 <div className="mt-2 space-y-2">
                   {meeting.rounds.map((round, index) => <div key={`${index}-${round}`} className={`flex items-center gap-2 rounded-lg border p-2 ${meeting.roundIndex === index ? 'border-blue-200 bg-blue-50' : 'border-slate-200'}`}><button type="button" onClick={() => setMeetingRound(room.id, index)} className="grid h-7 w-7 place-items-center rounded-full bg-white text-xs font-bold text-slate-600 shadow-sm">{index + 1}</button><input value={round} onChange={event => renameMeetingRound(room.id, index, event.target.value)} className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-slate-700 outline-none" /></div>)}
                 </div>
+
+                {canStartNextRound ? <button type="button" onClick={handleStartNextRound} className="mt-3 w-full rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100">Start Next Round · Round {meeting.roundIndex + 2}: {meeting.rounds[meeting.roundIndex + 1]} →</button> : null}
 
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <button type="button" onClick={handleResetRound} className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100">↻ Reset Current Round</button>
@@ -171,7 +195,7 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
                 </div>
                 <p className="mt-1.5 text-[10px] leading-4 text-slate-400">Resetting orchestration never deletes room messages, decisions, actions, minutes or memories.</p>
 
-                <div className="mt-6 flex items-center justify-between"><h3 className="text-xs font-bold uppercase tracking-wide text-slate-400">Speaking queue</h3><span className="text-[10px] text-slate-400">Olivia is automatically re-queued for synthesis.</span></div>
+                <div className="mt-6 flex items-center justify-between"><h3 className="text-xs font-bold uppercase tracking-wide text-slate-400">Speaking queue</h3><span className="text-[10px] text-slate-400">Each new round starts with Olivia.</span></div>
                 <div className="mt-2 space-y-2">
                   {roomAgents.map(agent => {
                     const role = roles.find(item => item.id === agent.roleId);
