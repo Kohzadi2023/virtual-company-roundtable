@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
+import { openOrFocusExternalChat } from '@/lib/externalChatWindow';
 import {
   ensureMeetingRoom,
   getExternalAgentChat,
@@ -171,10 +172,10 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
                 <select value={chatProvider} onChange={event => setChatProvider(event.target.value as ExternalChatProvider)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs">{PROVIDERS.map(provider => <option key={provider} value={provider}>{provider}</option>)}</select>
                 <label className="mt-3 block text-[10px] font-bold uppercase tracking-wide text-slate-400">Conversation URL</label>
                 <input value={chatUrl} onChange={event => setChatUrl(event.target.value)} placeholder="https://..." className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs" />
-                <div className="mt-3 flex gap-2"><button type="button" onClick={saveChat} className="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700">Save Link</button><button type="button" disabled={!validExternalUrl(chatUrl)} onClick={() => window.open(chatUrl, '_blank', 'noopener,noreferrer')} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-600 disabled:opacity-40">Open ↗</button></div>
+                <div className="mt-3 flex gap-2"><button type="button" onClick={saveChat} className="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700">Save Link</button><button type="button" disabled={!validExternalUrl(chatUrl)} onClick={() => openOrFocusExternalChat(chatAgentId, chatUrl)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-600 disabled:opacity-40">Open / Focus ↗</button></div>
 
                 <div className="mt-6 space-y-2">
-                  {roomAgents.map(agent => { const chat = getExternalAgentChat(agent.id); return <div key={agent.id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-2.5"><div className="min-w-0"><div className="truncate text-xs font-bold text-slate-700">{agent.name}</div><div className="truncate text-[10px] text-slate-400">{chat ? `${chat.provider} · linked` : 'No external chat saved'}</div></div>{chat && validExternalUrl(chat.url) ? <button type="button" onClick={() => window.open(chat.url, '_blank', 'noopener,noreferrer')} className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600 hover:bg-slate-200">Open ↗</button> : null}</div>; })}
+                  {roomAgents.map(agent => { const chat = getExternalAgentChat(agent.id); return <div key={agent.id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-2.5"><div className="min-w-0"><div className="truncate text-xs font-bold text-slate-700">{agent.name}</div><div className="truncate text-[10px] text-slate-400">{chat ? `${chat.provider} · linked` : 'No external chat saved'}</div></div>{chat && validExternalUrl(chat.url) ? <button type="button" onClick={() => openOrFocusExternalChat(agent.id, chat.url)} className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600 hover:bg-slate-200">Open / Focus ↗</button> : null}</div>; })}
                 </div>
               </div>
             </div>
