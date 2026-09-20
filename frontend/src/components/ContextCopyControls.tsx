@@ -7,6 +7,7 @@ import {
   messagesForContextMode,
   type ContextCopyMode,
 } from '@/lib/contextModes';
+import { openOrFocusExternalChat } from '@/lib/externalChatWindow';
 import { getExternalAgentChat } from '@/lib/meetingOrchestration';
 import { buildAgentPrompt } from '@/lib/promptBuilder';
 import { useWorkspaceStore } from '@/store/workspaceStore';
@@ -79,7 +80,7 @@ export function ContextCopyControls({ room, agent, role, cursor, onNotify }: Con
           <button type="button" onClick={() => setPreviewOpen(true)} disabled={disabled} className="rounded-lg border border-slate-300 bg-white px-2 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40">Preview / Select</button>
           <button type="button" onClick={copy} disabled={disabled} className="rounded-lg border border-blue-500 bg-blue-50 px-2 py-2 text-[11px] font-bold text-blue-600 hover:bg-blue-100 disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400">⧉ Copy</button>
         </div>
-        {externalChat && externalChatUrl ? <button type="button" onClick={() => window.open(externalChatUrl, '_blank', 'noopener,noreferrer')} className="w-full rounded-lg border border-violet-200 bg-violet-50 px-2 py-2 text-[11px] font-bold text-violet-700 hover:bg-violet-100">Open {externalChat.provider} Chat ↗</button> : null}
+        {externalChat && externalChatUrl ? <button type="button" onClick={() => openOrFocusExternalChat(agent.id, externalChatUrl)} className="w-full rounded-lg border border-violet-200 bg-violet-50 px-2 py-2 text-[11px] font-bold text-violet-700 hover:bg-violet-100">Open / Focus {externalChat.provider} Chat ↗</button> : null}
       </div>
 
       {previewOpen ? (
