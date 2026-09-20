@@ -13,7 +13,7 @@ export function CompanyPanel() {
   const addAgent = useWorkspaceStore(state => state.addAgent);
   const addTeam = useWorkspaceStore(state => state.addTeam);
   const removeTeam = useWorkspaceStore(state => state.removeTeam);
-  const addTeamToRoom = useWorkspaceStore(state => state.addTeamToRoom);
+  const toggleTeamInRoom = useWorkspaceStore(state => state.toggleTeamInRoom);
   const toggleAgentInRoom = useWorkspaceStore(state => state.toggleAgentInRoom);
 
   const room = rooms.find(item => item.id === activeRoomId);
@@ -155,7 +155,7 @@ export function CompanyPanel() {
           );
         }) : visibleTeams.map(team => {
           const inRoomCount = room ? team.agentIds.filter(id => room.agentIds.includes(id)).length : 0;
-          const allInRoom = team.agentIds.length > 0 && inRoomCount === team.agentIds.length;
+          const selectedInRoom = room?.teamIds?.includes(team.id) ?? false;
           return (
             <div key={team.id} className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
               <div className="flex items-start justify-between gap-2">
@@ -169,8 +169,14 @@ export function CompanyPanel() {
                 {team.agentIds.slice(0, 5).map(id => <span key={id} className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-600">{agentMap.get(id)?.name ?? 'Member'}</span>)}
                 {team.agentIds.length > 5 && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">+{team.agentIds.length - 5}</span>}
               </div>
-              <button type="button" disabled={!room || allInRoom} onClick={() => room && addTeamToRoom(room.id, team.id)} className="mt-2 w-full rounded-md border border-blue-200 bg-blue-50 px-2 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 disabled:cursor-default disabled:border-emerald-100 disabled:bg-emerald-50 disabled:text-emerald-700">
-                {allInRoom ? '✓ Team in room' : `+ Add team to room${inRoomCount ? ` (${inRoomCount}/${team.agentIds.length})` : ''}`}
+              <button
+                type="button"
+                disabled={!room}
+                onClick={() => room && toggleTeamInRoom(room.id, team.id)}
+                title={selectedInRoom ? 'Remove team from room' : 'Add team to room'}
+                className={`mt-2 w-full rounded-md border px-2 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${selectedInRoom ? 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100' : 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'}`}
+              >
+                {selectedInRoom ? '− Remove team from room' : `+ Add team to room${inRoomCount ? ` (${inRoomCount}/${team.agentIds.length} members already present)` : ''}`}
               </button>
             </div>
           );
