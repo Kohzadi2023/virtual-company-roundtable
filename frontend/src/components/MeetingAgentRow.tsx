@@ -131,7 +131,11 @@ export function MeetingAgentRow({ data, onActivate, onToggleSkip, onSaveChat, on
                 onChange={event => setDraftUrl(event.target.value)}
                 onKeyDown={event => {
                   if (event.key === 'Enter') void save();
-                  if (event.key === 'Escape') cancelEditing();
+                  if (event.key === 'Escape') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    cancelEditing();
+                  }
                 }}
                 disabled={editState === 'saving'}
                 placeholder="chatgpt.com/c/..."
