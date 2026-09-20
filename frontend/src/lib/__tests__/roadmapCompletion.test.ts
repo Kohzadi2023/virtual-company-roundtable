@@ -50,7 +50,7 @@ describe('roadmap completion utilities', () => {
     expect(actionReminderState(action({ deadline: '2026-09-19', status: 'done' }), now, 24)).toBeNull();
   });
 
-  it('builds dependency depth and flags children of reversed decisions', () => {
+  it('builds dependency depth and propagates reversed-ancestor impact', () => {
     const decisions = [decision('a', 'reversed', 1), decision('b', 'approved', 2), decision('c', 'proposed', 3)];
     const graph = buildDecisionGraph(decisions, [
       { id: 'ab', decisionId: 'b', dependsOnDecisionId: 'a', createdAt: 1 },
@@ -60,6 +60,7 @@ describe('roadmap completion utilities', () => {
     expect(graph.find(node => node.decision.id === 'b')?.depth).toBe(1);
     expect(graph.find(node => node.decision.id === 'b')?.impactedByReversal).toBe(true);
     expect(graph.find(node => node.decision.id === 'c')?.depth).toBe(2);
+    expect(graph.find(node => node.decision.id === 'c')?.impactedByReversal).toBe(true);
   });
 
   it('persists reminder preferences with safe bounds', () => {
