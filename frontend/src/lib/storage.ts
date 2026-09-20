@@ -1,5 +1,10 @@
 import { defaultRoles, defaultTeams } from '@/lib/defaultCompany';
 import { agentContextKey } from '@/lib/id';
+import {
+  restoreWorkspaceExtensions,
+  withWorkspaceExtensions,
+  WORKSPACE_EXTENSION_EVENTS,
+} from '@/lib/workspaceExtensions';
 import type { Agent, AgentContextState, RoleDefinition, Room, StorageSnapshot } from '@/types/domain';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
@@ -8,6 +13,7 @@ const LEGACY_V3_KEY = 'ai-team-chat:snapshot:v3';
 const LEGACY_V2_KEY = 'ai-team-chat:snapshot:v2';
 const VERSION = 4 as const;
 let unsubscribe: (() => void) | null = null;
+let extensionListener: (() => void) | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
 const API_KEY = import.meta.env.VITE_API_KEY?.trim();
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL?.trim() ?? '').replace(/\/+$/, '');
@@ -59,7 +65,7 @@ function apiHeaders(extra: Record<string, string> = {}): Record<string, string> 
 
 function snapshotFromState(): StorageSnapshot {
   const state = useWorkspaceStore.getState();
-  return {
+  return withWorkspaceExtensions({
     version: VERSION,
     rooms: state.rooms,
     roles: state.roles,
@@ -71,7 +77,7 @@ function snapshotFromState(): StorageSnapshot {
     agentContext: state.agentContext,
     activeRoomId: state.activeRoomId,
     savedAt: Date.now(),
-  };
+  });
 }
 
 function legacyRoleId(role: string): string {
@@ -233,11 +239,14 @@ export async function bootstrapPersistence(): Promise<void> {
   }
 
   const chosen = remote && (!local || remote.savedAt > local.savedAt) ? remote : local;
+  if (chosen?.extensions) restoreWorkspaceExtensions(chosen.extensions);
   useWorkspaceStore.getState().hydrate(chosen);
 
   if (chosen) {
     try {
-      saveLocal(chosen);
+      // Old v4 snapshots did not contain extension state. Preserve the existing
+      // local feature stores once, then fold them into the canonical snapshot.
+      saveLocal(withWorkspaceExtensions(chosen));
     } catch {
       useWorkspaceStore.getState().setSyncState('error');
       return;
@@ -264,6 +273,11 @@ async function persistNow(): Promise<void> {
   }
 }
 
+function schedulePersist(): void {
+  if (timer) clearTimeout(timer);
+  timer = setTimeout(() => void persistNow(), 350);
+}
+
 export function startPersistence(): void {
   if (unsubscribe) return;
   unsubscribe = useWorkspaceStore.subscribe((state, previous) => {
@@ -277,14 +291,27 @@ export function startPersistence(): void {
       || state.agentContext !== previous.agentContext
       || state.activeRoomId !== previous.activeRoomId;
     if (!state.hydrated || !dataChanged) return;
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => void persistNow(), 350);
+    schedulePersist();
   });
+
+  extensionListener = () => {
+    if (!useWorkspaceStore.getState().hydrated) return;
+    schedulePersist();
+  };
+  for (const eventName of WORKSPACE_EXTENSION_EVENTS) {
+    window.addEventListener(eventName, extensionListener);
+  }
 }
 
 export function stopPersistence(): void {
   unsubscribe?.();
   unsubscribe = null;
+  if (extensionListener) {
+    for (const eventName of WORKSPACE_EXTENSION_EVENTS) {
+      window.removeEventListener(eventName, extensionListener);
+    }
+  }
+  extensionListener = null;
   if (timer) clearTimeout(timer);
   timer = null;
 }
