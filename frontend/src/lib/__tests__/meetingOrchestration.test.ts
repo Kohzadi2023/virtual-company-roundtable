@@ -10,6 +10,7 @@ import {
   setExternalAgentChat,
   setMeetingPhase,
   setMeetingRound,
+  startNextRound,
 } from '@/lib/meetingOrchestration';
 
 const OLIVIA = MEETING_FACILITATOR_AGENT_ID;
@@ -35,6 +36,7 @@ describe('meeting orchestration', () => {
     ensureMeetingRoom('room-a', [OLIVIA, EMMA, MIKE]);
 
     markSpeakerStatus('room-a', OLIVIA, 'responded');
+    expect(loadMeetingOrchestration().rooms['room-a']?.phase).toBe('collect');
     expect(loadMeetingOrchestration().rooms['room-a']?.roundStage).toBe('specialists');
     expect(loadMeetingOrchestration().rooms['room-a']?.activeSpeakerId).toBe(EMMA);
 
@@ -48,20 +50,44 @@ describe('meeting orchestration', () => {
     expect(synthesis?.speakerStatus[OLIVIA]).toBe('waiting');
   });
 
-  it('uses Olivia synthesis to open the next round without a second consecutive Olivia turn', () => {
+  it('stops on round complete after Olivia synthesis instead of restarting the queue', () => {
     ensureMeetingRoom('room-a', [OLIVIA, EMMA, MIKE]);
     markSpeakerStatus('room-a', OLIVIA, 'responded');
     markSpeakerStatus('room-a', EMMA, 'responded');
     markSpeakerStatus('room-a', MIKE, 'responded');
     markSpeakerStatus('room-a', OLIVIA, 'responded');
 
+    const completed = loadMeetingOrchestration().rooms['room-a'];
+    expect(completed?.roundIndex).toBe(0);
+    expect(completed?.phase).toBe('collect');
+    expect(completed?.roundStage).toBe('complete');
+    expect(completed?.activeSpeakerId).toBeUndefined();
+    expect(completed?.speakerStatus[EMMA]).toBe('responded');
+    expect(completed?.speakerStatus[MIKE]).toBe('responded');
+  });
+
+  it('starts the next round only on explicit request and begins with Olivia', () => {
+    ensureMeetingRoom('room-a', [OLIVIA, EMMA, MIKE]);
+    markSpeakerStatus('room-a', OLIVIA, 'responded');
+    markSpeakerStatus('room-a', EMMA, 'responded');
+    markSpeakerStatus('room-a', MIKE, 'responded');
+    markSpeakerStatus('room-a', OLIVIA, 'responded');
+
+    expect(startNextRound('room-a')).toBe(true);
     const next = loadMeetingOrchestration().rooms['room-a'];
     expect(next?.roundIndex).toBe(1);
-    expect(next?.roundStage).toBe('specialists');
-    expect(next?.activeSpeakerId).toBe(EMMA);
-    expect(next?.speakerStatus[OLIVIA]).toBe('responded');
+    expect(next?.phase).toBe('challenge');
+    expect(next?.roundStage).toBe('opening');
+    expect(next?.activeSpeakerId).toBe(OLIVIA);
+    expect(next?.speakerStatus[OLIVIA]).toBe('waiting');
     expect(next?.speakerStatus[EMMA]).toBe('waiting');
     expect(next?.speakerStatus[MIKE]).toBe('waiting');
+  });
+
+  it('does not start a next round before the current round is complete', () => {
+    ensureMeetingRoom('room-a', [OLIVIA, EMMA]);
+    expect(startNextRound('room-a')).toBe(false);
+    expect(loadMeetingOrchestration().rooms['room-a']?.roundIndex).toBe(0);
   });
 
   it('keeps Olivia next when a specialist response is pasted before the opening turn', () => {
@@ -73,13 +99,14 @@ describe('meeting orchestration', () => {
     expect(state?.activeSpeakerId).toBe(OLIVIA);
   });
 
-  it('resets the queue when a round is selected manually', () => {
+  it('resets the queue and synchronizes the phase when a round is selected manually', () => {
     ensureMeetingRoom('room-a', [OLIVIA, EMMA]);
     markSpeakerStatus('room-a', OLIVIA, 'responded');
 
     setMeetingRound('room-a', 1);
     const next = loadMeetingOrchestration().rooms['room-a'];
     expect(next?.roundIndex).toBe(1);
+    expect(next?.phase).toBe('challenge');
     expect(next?.roundStage).toBe('opening');
     expect(next?.speakerStatus[OLIVIA]).toBe('waiting');
     expect(next?.activeSpeakerId).toBe(OLIVIA);
@@ -96,6 +123,7 @@ describe('meeting orchestration', () => {
     resetCurrentRound('room-a');
     const reset = loadMeetingOrchestration().rooms['room-a'];
     expect(reset?.roundIndex).toBe(3);
+    expect(reset?.phase).toBe('decision');
     expect(reset?.roundStage).toBe('opening');
     expect(reset?.activeSpeakerId).toBe(OLIVIA);
     expect(reset?.speakerStatus[OLIVIA]).toBe('waiting');
