@@ -9,6 +9,11 @@ import {
   MEETING_ORCHESTRATION_EVENT,
 } from '@/lib/meetingOrchestration';
 import {
+  hasLocalStorageHeadroom,
+  prepareMemoryV2Storage,
+  runWithMemoryV2StorageRecovery,
+} from '@/lib/memoryV2Storage';
+import {
   captureAgentMemoryHistory,
   MEMORY_V2_EVENT,
   refreshMemoryConflicts,
@@ -17,12 +22,31 @@ import {
 import { loadWorkspaceSuite, WORKSPACE_SUITE_EVENT } from '@/lib/workspaceSuite';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
+function captureAgentHistoryWhenSafe(): void {
+  const suite = loadWorkspaceSuite();
+  // The current Memory V2 cache stores fingerprints derived from full memory text,
+  // so conservatively budget roughly one extra serialized copy before rebuilding it.
+  const anticipatedCacheCharacters = JSON.stringify(suite.agentMemories).length;
+  if (!hasLocalStorageHeadroom(anticipatedCacheCharacters)) {
+    console.warn('[MemoryV2] Skipping derived agent-memory history cache rebuild because local storage headroom is low.');
+    return;
+  }
+  runWithMemoryV2StorageRecovery(() => captureAgentMemoryHistory(), 'agent-memory history capture');
+}
+
 export function MemoryV2Runtime() {
   const rooms = useWorkspaceStore(state => state.rooms);
   const activeRoomId = useWorkspaceStore(state => state.activeRoomId);
   const decisions = useWorkspaceStore(state => state.decisions);
   const actionItems = useWorkspaceStore(state => state.actionItems);
   const [meetingVersion, setMeetingVersion] = useState(0);
+
+  // Recover storage pressure before any of the message/round effects below can
+  // attempt another Memory V2 write. This only removes derived/old metadata;
+  // active shared memories and graph relationships are preserved.
+  useEffect(() => {
+    prepareMemoryV2Storage();
+  }, []);
 
   useEffect(() => {
     const refreshMeeting = () => setMeetingVersion(value => value + 1);
@@ -39,12 +63,12 @@ export function MemoryV2Runtime() {
       const latest = room.messages[room.messages.length - 1];
       if (!latest) continue;
       const meeting = meetingState.rooms[room.id];
-      queueMemoryCandidate(
+      runWithMemoryV2StorageRecovery(() => queueMemoryCandidate(
         room,
         latest,
         room.companyId ?? suite.activeCompanyId,
         meeting ? { roundIndex: meeting.roundIndex, rounds: meeting.rounds } : undefined,
-      );
+      ), 'memory candidate queue');
     }
   }, [meetingVersion, rooms]);
 
@@ -56,7 +80,10 @@ export function MemoryV2Runtime() {
     for (const room of rooms) {
       const meeting = meetingState.rooms[room.id];
       if (!meeting || meeting.roundStage !== 'complete') continue;
-      consolidateRoundMemory(room, meeting);
+      runWithMemoryV2StorageRecovery(
+        () => consolidateRoundMemory(room, meeting),
+        `round memory consolidation (${room.id})`,
+      );
     }
   }, [meetingVersion, rooms]);
 
@@ -64,20 +91,27 @@ export function MemoryV2Runtime() {
     const room = rooms.find(item => item.id === activeRoomId);
     if (!room) return;
     const suite = loadWorkspaceSuite();
-    syncOliviaMeetingState(room, decisions, actionItems, room.companyId ?? suite.activeCompanyId);
+    runWithMemoryV2StorageRecovery(
+      () => syncOliviaMeetingState(room, decisions, actionItems, room.companyId ?? suite.activeCompanyId),
+      'Olivia meeting-state memory sync',
+    );
   }, [activeRoomId, actionItems, decisions, rooms]);
 
   useEffect(() => {
-    captureAgentMemoryHistory();
-    refreshMemoryConflicts();
-    reconcileSuggestedMemoryMetadata();
+    prepareMemoryV2Storage();
+    captureAgentHistoryWhenSafe();
+    runWithMemoryV2StorageRecovery(() => refreshMemoryConflicts(), 'memory conflict refresh');
+    runWithMemoryV2StorageRecovery(() => reconcileSuggestedMemoryMetadata(), 'memory suggestion reconciliation');
 
     const refreshWorkspace = () => {
-      captureAgentMemoryHistory();
-      refreshMemoryConflicts();
-      reconcileSuggestedMemoryMetadata();
+      prepareMemoryV2Storage();
+      captureAgentHistoryWhenSafe();
+      runWithMemoryV2StorageRecovery(() => refreshMemoryConflicts(), 'memory conflict refresh');
+      runWithMemoryV2StorageRecovery(() => reconcileSuggestedMemoryMetadata(), 'memory suggestion reconciliation');
     };
-    const reconcileMemory = () => reconcileSuggestedMemoryMetadata();
+    const reconcileMemory = () => {
+      runWithMemoryV2StorageRecovery(() => reconcileSuggestedMemoryMetadata(), 'memory suggestion reconciliation');
+    };
 
     window.addEventListener(WORKSPACE_SUITE_EVENT, refreshWorkspace);
     window.addEventListener(MEMORY_V2_EVENT, reconcileMemory);
