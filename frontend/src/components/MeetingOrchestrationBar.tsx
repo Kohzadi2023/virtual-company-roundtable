@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
 import { openOrFocusExternalChat } from '@/lib/externalChatWindow';
 import {
   ensureMeetingRoom,
   getExternalAgentChat,
+  hasMeetingStarted,
   inferExternalChatProvider,
   loadMeetingOrchestration,
   markSpeakerStatus,
@@ -59,9 +60,15 @@ function roundStageLabel(value: RoundStage): string {
   }
 }
 
+function normalizeExternalUrl(value: string): string {
+  const clean = value.trim();
+  if (!clean) return '';
+  return /^[a-z][a-z0-9+.-]*:\/\//iu.test(clean) ? clean : `https://${clean}`;
+}
+
 function validExternalUrl(value: string): boolean {
   try {
-    const url = new URL(value);
+    const url = new URL(normalizeExternalUrl(value));
     return url.protocol === 'https:' || url.protocol === 'http:';
   } catch {
     return false;
@@ -83,11 +90,16 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
   const [open, setOpen] = useState(false);
   const [chatAgentId, setChatAgentId] = useState('');
   const [chatUrl, setChatUrl] = useState('');
+  const [chatRevision, setChatRevision] = useState(0);
+  const chatUrlInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!room) return;
     setMeeting(ensureMeetingRoom(room.id, room.agentIds));
-    const refresh = () => setMeeting(loadMeetingOrchestration().rooms[room.id] ?? ensureMeetingRoom(room.id, room.agentIds));
+    const refresh = () => {
+      setMeeting(loadMeetingOrchestration().rooms[room.id] ?? ensureMeetingRoom(room.id, room.agentIds));
+      setChatRevision(value => value + 1);
+    };
     window.addEventListener(MEETING_ORCHESTRATION_EVENT, refresh);
     return () => window.removeEventListener(MEETING_ORCHESTRATION_EVENT, refresh);
   }, [room]);
@@ -113,11 +125,12 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
     if (!chatAgentId) return;
     const saved = getExternalAgentChat(chatAgentId);
     setChatUrl(saved?.url ?? '');
-  }, [chatAgentId]);
+  }, [chatAgentId, chatRevision]);
 
   if (!room || !meeting) return null;
 
   const readiness = assessMeetingReadiness({ roomId: room.id, meeting, operations, decisions, actionItems });
+  const meetingStarted = hasMeetingStarted(meeting);
   const specialistOrder = meeting.speakerOrder.filter(id => id !== MEETING_FACILITATOR_AGENT_ID);
   const specialistResponded = specialistOrder.filter(id => meeting.speakerStatus[id] === 'responded').length;
   const activeAgent = agents.find(agent => agent.id === meeting.activeSpeakerId);
@@ -127,7 +140,8 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
   const nextLabel = meeting.roundStage === 'complete'
     ? canStartNextRound ? 'Awaiting next round' : '—'
     : activeAgent?.name ?? '—';
-  const detectedProvider = validExternalUrl(chatUrl) ? inferExternalChatProvider(chatUrl) : null;
+  const normalizedChatUrl = normalizeExternalUrl(chatUrl);
+  const detectedProvider = validExternalUrl(chatUrl) ? inferExternalChatProvider(normalizedChatUrl) : null;
 
   const handleRoundSelection = (roundIndex: number) => {
     if (phaseForRound(roundIndex) === 'decision' && !readiness.decisionReady) {
@@ -181,12 +195,25 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
     setMeetingPhase(room.id, 'closed');
   };
 
+  const selectChatAgent = (agentId: string) => {
+    setChatAgentId(agentId);
+    setChatUrl(getExternalAgentChat(agentId)?.url ?? '');
+    window.requestAnimationFrame(() => chatUrlInputRef.current?.focus());
+  };
+
   const saveChat = () => {
-    if (chatUrl.trim() && !validExternalUrl(chatUrl.trim())) {
-      window.alert('Enter a valid http:// or https:// conversation URL.');
+    if (!chatAgentId) {
+      window.alert('Select an agent before saving an external chat link.');
       return;
     }
-    setExternalAgentChat(chatAgentId, chatUrl);
+    if (chatUrl.trim() && !validExternalUrl(chatUrl)) {
+      window.alert('Enter a valid external conversation URL. You may paste it with or without https://.');
+      return;
+    }
+    const clean = normalizeExternalUrl(chatUrl);
+    setExternalAgentChat(chatAgentId, clean);
+    setChatUrl(clean);
+    setChatRevision(value => value + 1);
   };
 
   return (
@@ -202,7 +229,7 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
         <span className="font-medium text-slate-600">Next: <strong className={meeting.roundStage === 'synthesis' ? 'text-violet-700' : 'text-slate-800'}>{nextLabel}</strong></span>
         <span className="ms-auto text-slate-400">{specialistResponded}/{specialistOrder.length} specialists responded</span>
         {canStartNextRound ? <button type="button" onClick={handleStartNextRound} className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 font-bold text-emerald-700 hover:bg-emerald-100">Start Round {meeting.roundIndex + 2} →</button> : null}
-        {meeting.roundStage === 'complete' ? <button type="button" onClick={handleResetRound} className="rounded-md border border-blue-200 bg-blue-50 px-2 py-1 font-semibold text-blue-700 hover:bg-blue-100">↻ Reset Round</button> : null}
+        {meetingStarted && meeting.roundStage === 'complete' ? <button type="button" onClick={handleResetRound} className="rounded-md border border-blue-200 bg-blue-50 px-2 py-1 font-semibold text-blue-700 hover:bg-blue-100">↻ Reset Round</button> : null}
         {finalRoundComplete && meeting.phase === 'decision' ? <button type="button" onClick={() => setMeetingPhase(room.id, 'actions')} className="rounded-md border border-slate-200 px-2 py-1 font-semibold text-slate-600 hover:bg-slate-50">Actions →</button> : null}
         {meeting.phase === 'actions' ? <button type="button" onClick={handleCloseMeeting} className={`rounded-md border px-2 py-1 font-semibold ${readiness.closeReady ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'}`}>{readiness.closeReady ? 'Close meeting' : 'Close blocked'}</button> : null}
       </div>
@@ -254,11 +281,15 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
 
                 {canStartNextRound ? <button type="button" onClick={handleStartNextRound} className={`mt-3 w-full rounded-lg border px-3 py-2.5 text-xs font-bold ${phaseForRound(meeting.roundIndex + 1) === 'decision' && !readiness.decisionReady ? 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100' : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`}>Start Next Round · Round {meeting.roundIndex + 2}: {meeting.rounds[meeting.roundIndex + 1]} →</button> : null}
 
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <button type="button" onClick={handleResetRound} className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100">↻ Reset Current Round</button>
-                  <button type="button" onClick={handleRestartMeeting} className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100">↻ Restart Meeting</button>
-                </div>
-                <p className="mt-1.5 text-[10px] leading-4 text-slate-400">Resetting orchestration never deletes the meeting brief, room messages, decisions, actions, minutes or memories.</p>
+                {meetingStarted ? (
+                  <>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <button type="button" onClick={handleResetRound} className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100">↻ Reset Current Round</button>
+                      <button type="button" onClick={handleRestartMeeting} className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100">↻ Restart Meeting</button>
+                    </div>
+                    <p className="mt-1.5 text-[10px] leading-4 text-slate-400">Resetting orchestration never deletes the meeting brief, room messages, decisions, actions, minutes or memories.</p>
+                  </>
+                ) : null}
 
                 <div className="mt-6 flex items-center justify-between"><h3 className="text-xs font-bold uppercase tracking-wide text-slate-400">Speaking queue</h3><span className="text-[10px] text-slate-400">Each new round starts with Olivia.</span></div>
                 <div className="mt-2 space-y-2">
@@ -273,19 +304,36 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
 
               <div className="min-h-0 overflow-y-auto bg-slate-50 p-5">
                 <h3 className="text-xs font-bold uppercase tracking-wide text-slate-400">Agent Chat Registry</h3>
-                <p className="mt-1 text-xs leading-5 text-slate-500">Save each specialist's external AI conversation URL. The provider is detected automatically from the URL; there is nothing to select manually. Virtual Company stays manual-AI and stores only the navigation link.</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">Save each specialist's external AI conversation URL. Choose an agent below or use Set link / Edit link on that agent's row. Links may be pasted with or without https://.</p>
                 <label className="mt-4 block text-[10px] font-bold uppercase tracking-wide text-slate-400">Agent</label>
-                <select value={chatAgentId} onChange={event => setChatAgentId(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs">{roomAgents.map(agent => <option key={agent.id} value={agent.id}>{agent.name}</option>)}</select>
+                <select value={chatAgentId} onChange={event => selectChatAgent(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs">{roomAgents.map(agent => <option key={agent.id} value={agent.id}>{agent.name}</option>)}</select>
                 <label className="mt-3 block text-[10px] font-bold uppercase tracking-wide text-slate-400">Conversation URL</label>
-                <input value={chatUrl} onChange={event => setChatUrl(event.target.value)} placeholder="https://chatgpt.com/c/..." className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs" />
+                <input ref={chatUrlInputRef} value={chatUrl} onChange={event => setChatUrl(event.target.value)} placeholder="https://chatgpt.com/c/..." className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs" />
                 <div className="mt-2 flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px]">
                   <span className="font-semibold uppercase tracking-wide text-slate-400">Detected provider</span>
                   <span className={`font-bold ${detectedProvider && detectedProvider !== 'Other' ? 'text-violet-700' : 'text-slate-500'}`}>{detectedProvider ?? 'Waiting for valid URL'}</span>
                 </div>
-                <div className="mt-3 flex gap-2"><button type="button" onClick={saveChat} className="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700">Save Link</button><button type="button" disabled={!validExternalUrl(chatUrl)} onClick={() => openOrFocusExternalChat(chatAgentId, chatUrl)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-600 disabled:opacity-40">Open / Focus ↗</button></div>
+                <div className="mt-3 flex gap-2">
+                  <button type="button" disabled={!chatAgentId} onClick={saveChat} className="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-40">Save Link</button>
+                  <button type="button" disabled={!validExternalUrl(chatUrl)} onClick={() => openOrFocusExternalChat(chatAgentId, normalizedChatUrl)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-600 disabled:opacity-40">Open / Focus ↗</button>
+                </div>
 
                 <div className="mt-6 space-y-2">
-                  {roomAgents.map(agent => { const chat = getExternalAgentChat(agent.id); return <div key={agent.id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-2.5"><div className="min-w-0"><div className="truncate text-xs font-bold text-slate-700">{agent.name}</div><div className="truncate text-[10px] text-slate-400">{chat ? `${chat.provider} · linked` : 'No external chat saved'}</div></div>{chat && validExternalUrl(chat.url) ? <button type="button" onClick={() => openOrFocusExternalChat(agent.id, chat.url)} className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600 hover:bg-slate-200">Open / Focus ↗</button> : null}</div>; })}
+                  {roomAgents.map(agent => {
+                    const chat = getExternalAgentChat(agent.id);
+                    return (
+                      <div key={`${agent.id}-${chatRevision}`} className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white p-2.5">
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-xs font-bold text-slate-700">{agent.name}</div>
+                          <div className="truncate text-[10px] text-slate-400">{chat ? `${chat.provider} · linked` : 'No external chat saved'}</div>
+                        </div>
+                        <div className="flex shrink-0 gap-1.5">
+                          <button type="button" onClick={() => selectChatAgent(agent.id)} className="rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-700 hover:bg-blue-100">{chat ? 'Edit link' : 'Set link'}</button>
+                          {chat && validExternalUrl(chat.url) ? <button type="button" onClick={() => openOrFocusExternalChat(agent.id, normalizeExternalUrl(chat.url))} className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600 hover:bg-slate-200">Open / Focus ↗</button> : null}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>

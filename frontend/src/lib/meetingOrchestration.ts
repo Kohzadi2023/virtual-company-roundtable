@@ -120,6 +120,16 @@ export function phaseForRound(roundIndex: number): MeetingPhase {
   return ROUND_PHASES[Math.max(0, Math.min(roundIndex, ROUND_PHASES.length - 1))] ?? 'collect';
 }
 
+export function hasMeetingStarted(
+  room: Pick<MeetingRoomState, 'phase' | 'roundIndex' | 'roundStage' | 'speakerOrder' | 'speakerStatus' | 'startedAt'>,
+): boolean {
+  if (room.startedAt !== undefined) return true;
+  if (room.phase !== 'open' || room.roundIndex > 0) return true;
+  const initialStage: RoundStage = room.speakerOrder.includes(MEETING_FACILITATOR_AGENT_ID) ? 'opening' : 'specialists';
+  if (room.roundStage !== initialStage) return true;
+  return Object.values(room.speakerStatus).some(status => status !== 'waiting');
+}
+
 function freshRoundState(order: string[]): Pick<MeetingRoomState, 'roundStage' | 'speakerStatus' | 'activeSpeakerId'> {
   const speakerStatus = statuses(order);
   const hasFacilitator = order.includes(MEETING_FACILITATOR_AGENT_ID);
@@ -271,16 +281,17 @@ export function startNextRound(roomId: string): boolean {
   return true;
 }
 
-export function resetCurrentRound(roomId: string): void {
+export function resetCurrentRound(roomId: string): boolean {
   const current = loadMeetingOrchestration().rooms[roomId];
-  if (!current) return;
+  if (!current || !hasMeetingStarted(current)) return false;
   setMeetingRound(roomId, current.roundIndex);
+  return true;
 }
 
-export function restartMeeting(roomId: string): void {
+export function restartMeeting(roomId: string): boolean {
   const state = loadMeetingOrchestration();
   const current = state.rooms[roomId];
-  if (!current) return;
+  if (!current || !hasMeetingStarted(current)) return false;
   const fresh = freshRoundState(current.speakerOrder);
   saveMeetingOrchestration({
     ...state,
@@ -297,6 +308,7 @@ export function restartMeeting(roomId: string): void {
       },
     },
   });
+  return true;
 }
 
 export function renameMeetingRound(roomId: string, roundIndex: number, name: string): void {
@@ -321,6 +333,7 @@ export function markSpeakerStatus(roomId: string, agentId: string, status: Speak
   const specialists = specialistIds(current.speakerOrder);
   const hasFacilitator = current.speakerOrder.includes(MEETING_FACILITATOR_AGENT_ID);
   const completedTurn = status === 'responded' || status === 'skipped';
+  const stamp = Date.now();
 
   if (agentId === MEETING_FACILITATOR_AGENT_ID && completedTurn) {
     if (roundStage === 'opening') {
@@ -372,7 +385,8 @@ export function markSpeakerStatus(roomId: string, agentId: string, status: Speak
         roundStage,
         speakerStatus,
         activeSpeakerId,
-        updatedAt: Date.now(),
+        ...(completedTurn && !hasMeetingStarted(current) ? { startedAt: stamp } : {}),
+        updatedAt: stamp,
       },
     },
   });
