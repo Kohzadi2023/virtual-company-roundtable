@@ -4,6 +4,7 @@ import { openOrFocusExternalChat } from '@/lib/externalChatWindow';
 import {
   ensureMeetingRoom,
   getExternalAgentChat,
+  hasMeetingStarted,
   inferExternalChatProvider,
   loadMeetingOrchestration,
   markSpeakerStatus,
@@ -118,6 +119,7 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
   if (!room || !meeting) return null;
 
   const readiness = assessMeetingReadiness({ roomId: room.id, meeting, operations, decisions, actionItems });
+  const meetingStarted = hasMeetingStarted(meeting);
   const specialistOrder = meeting.speakerOrder.filter(id => id !== MEETING_FACILITATOR_AGENT_ID);
   const specialistResponded = specialistOrder.filter(id => meeting.speakerStatus[id] === 'responded').length;
   const activeAgent = agents.find(agent => agent.id === meeting.activeSpeakerId);
@@ -202,7 +204,7 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
         <span className="font-medium text-slate-600">Next: <strong className={meeting.roundStage === 'synthesis' ? 'text-violet-700' : 'text-slate-800'}>{nextLabel}</strong></span>
         <span className="ms-auto text-slate-400">{specialistResponded}/{specialistOrder.length} specialists responded</span>
         {canStartNextRound ? <button type="button" onClick={handleStartNextRound} className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 font-bold text-emerald-700 hover:bg-emerald-100">Start Round {meeting.roundIndex + 2} →</button> : null}
-        {meeting.roundStage === 'complete' ? <button type="button" onClick={handleResetRound} className="rounded-md border border-blue-200 bg-blue-50 px-2 py-1 font-semibold text-blue-700 hover:bg-blue-100">↻ Reset Round</button> : null}
+        {meetingStarted && meeting.roundStage === 'complete' ? <button type="button" onClick={handleResetRound} className="rounded-md border border-blue-200 bg-blue-50 px-2 py-1 font-semibold text-blue-700 hover:bg-blue-100">↻ Reset Round</button> : null}
         {finalRoundComplete && meeting.phase === 'decision' ? <button type="button" onClick={() => setMeetingPhase(room.id, 'actions')} className="rounded-md border border-slate-200 px-2 py-1 font-semibold text-slate-600 hover:bg-slate-50">Actions →</button> : null}
         {meeting.phase === 'actions' ? <button type="button" onClick={handleCloseMeeting} className={`rounded-md border px-2 py-1 font-semibold ${readiness.closeReady ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'}`}>{readiness.closeReady ? 'Close meeting' : 'Close blocked'}</button> : null}
       </div>
@@ -254,11 +256,15 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
 
                 {canStartNextRound ? <button type="button" onClick={handleStartNextRound} className={`mt-3 w-full rounded-lg border px-3 py-2.5 text-xs font-bold ${phaseForRound(meeting.roundIndex + 1) === 'decision' && !readiness.decisionReady ? 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100' : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`}>Start Next Round · Round {meeting.roundIndex + 2}: {meeting.rounds[meeting.roundIndex + 1]} →</button> : null}
 
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <button type="button" onClick={handleResetRound} className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100">↻ Reset Current Round</button>
-                  <button type="button" onClick={handleRestartMeeting} className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100">↻ Restart Meeting</button>
-                </div>
-                <p className="mt-1.5 text-[10px] leading-4 text-slate-400">Resetting orchestration never deletes the meeting brief, room messages, decisions, actions, minutes or memories.</p>
+                {meetingStarted ? (
+                  <>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <button type="button" onClick={handleResetRound} className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100">↻ Reset Current Round</button>
+                      <button type="button" onClick={handleRestartMeeting} className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100">↻ Restart Meeting</button>
+                    </div>
+                    <p className="mt-1.5 text-[10px] leading-4 text-slate-400">Resetting orchestration never deletes the meeting brief, room messages, decisions, actions, minutes or memories.</p>
+                  </>
+                ) : null}
 
                 <div className="mt-6 flex items-center justify-between"><h3 className="text-xs font-bold uppercase tracking-wide text-slate-400">Speaking queue</h3><span className="text-[10px] text-slate-400">Each new round starts with Olivia.</span></div>
                 <div className="mt-2 space-y-2">
