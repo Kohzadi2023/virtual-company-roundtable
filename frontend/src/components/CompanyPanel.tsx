@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { SyncBadge } from '@/components/SyncBadge';
+import { getAgentRoomMembership } from '@/lib/roomMembership';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
 export function CompanyPanel() {
@@ -133,23 +134,58 @@ export function CompanyPanel() {
       <div className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2.5 pb-2">
         {directoryTab === 'members' ? visibleAgents.map(agent => {
           const role = roleMap.get(agent.roleId);
-          const present = room?.agentIds.includes(agent.id) ?? false;
+          const membership = getAgentRoomMembership(room, agent.id, teams);
+          const present = membership.present;
           const selected = selectedMemberId === agent.id;
+          const teamLabel = membership.teamNames.join(', ');
+          const membershipLabel = membership.kind === 'direct-and-team'
+            ? `Direct + ${teamLabel}`
+            : membership.kind === 'team'
+              ? `Via ${teamLabel}`
+              : membership.kind === 'direct'
+                ? 'Direct'
+                : 'Not in room';
+          const actionTitle = !room
+            ? 'Select a room first'
+            : membership.kind === 'team'
+              ? `Included via ${teamLabel}. Manage this membership from Teams.`
+              : membership.kind === 'direct-and-team'
+                ? `Remove direct membership; ${agent.name} will remain via ${teamLabel}.`
+                : membership.kind === 'direct'
+                  ? 'Remove direct membership from room'
+                  : 'Add directly to room';
+          const handleMembershipAction = () => {
+            if (!room) return;
+            if (membership.kind === 'team') {
+              setDirectoryTab('teams');
+              setSearch(membership.teamNames[0] ?? '');
+              return;
+            }
+            toggleAgentInRoom(room.id, agent.id);
+          };
           return (
             <div key={agent.id} className={`relative flex w-full items-center justify-between rounded-lg border px-2.5 py-1.5 transition ${selected ? 'border-blue-300 bg-blue-50 shadow-sm' : 'border-transparent bg-white/70 hover:bg-slate-50'}`}>
               {selected && <span className="absolute inset-y-0 start-0 w-0.5 rounded-full bg-blue-600" />}
               <button type="button" onClick={() => setSelectedMemberId(agent.id)} className="flex min-w-0 flex-1 items-center gap-2.5 text-start">
                 <span className="relative shrink-0">
                   <AgentAvatar agent={agent} role={role} size="md" />
-                  <span className={`absolute -bottom-0.5 -end-0.5 h-3.5 w-3.5 rounded-full border-2 border-white ${present ? 'bg-emerald-500' : 'bg-slate-300'}`} aria-label={present ? 'In room' : 'Not in room'} />
+                  <span className={`absolute -bottom-0.5 -end-0.5 h-3.5 w-3.5 rounded-full border-2 border-white ${present ? 'bg-emerald-500' : 'bg-slate-300'}`} aria-label={membershipLabel} />
                 </span>
                 <span className="min-w-0">
                   <span className="block truncate text-[13px] font-bold text-[#111b3a]">{agent.name}</span>
                   <span className="block truncate text-[12px] text-slate-500">{role?.name ?? 'Specialist'}</span>
+                  <span className={`block truncate text-[10px] font-semibold ${membership.kind === 'team' ? 'text-violet-600' : membership.kind === 'direct-and-team' ? 'text-emerald-600' : membership.kind === 'direct' ? 'text-blue-600' : 'text-slate-400'}`}>{membershipLabel}</span>
                 </span>
               </button>
-              <button type="button" disabled={!room} onClick={() => room && toggleAgentInRoom(room.id, agent.id)} title={present ? 'Remove from room' : 'Add to room'} className={`ms-2 grid h-7 w-7 shrink-0 place-items-center rounded-md text-sm font-bold transition ${present ? 'bg-emerald-50 text-emerald-700 hover:bg-red-50 hover:text-red-600' : 'bg-slate-100 text-slate-500 hover:bg-blue-50 hover:text-blue-600'}`}>
-                {present ? '✓' : '+'}
+              <button
+                type="button"
+                disabled={!room}
+                onClick={handleMembershipAction}
+                title={actionTitle}
+                aria-label={actionTitle}
+                className={`ms-2 grid h-7 w-7 shrink-0 place-items-center rounded-md text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${membership.kind === 'team' ? 'bg-violet-50 text-violet-700 hover:bg-violet-100' : membership.direct ? 'bg-emerald-50 text-emerald-700 hover:bg-red-50 hover:text-red-600' : 'bg-slate-100 text-slate-500 hover:bg-blue-50 hover:text-blue-600'}`}
+              >
+                {membership.kind === 'team' ? '👥' : membership.direct ? '−' : '+'}
               </button>
             </div>
           );
