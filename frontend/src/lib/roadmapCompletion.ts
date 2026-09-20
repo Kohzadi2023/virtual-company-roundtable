@@ -109,31 +109,48 @@ export function buildDecisionGraph(decisions: DecisionRecord[], dependencies: De
     children.get(dependency.dependsOnDecisionId)?.add(dependency.decisionId);
   }
 
-  const memo = new Map<string, number>();
+  const depthMemo = new Map<string, number>();
   const depthFor = (id: string, visiting = new Set<string>()): number => {
-    const cached = memo.get(id);
+    const cached = depthMemo.get(id);
     if (cached !== undefined) return cached;
     if (visiting.has(id)) return 0;
     const parentIds = [...(parents.get(id) ?? [])];
     if (parentIds.length === 0) {
-      memo.set(id, 0);
+      depthMemo.set(id, 0);
       return 0;
     }
     const nextVisiting = new Set(visiting).add(id);
     const depth = 1 + Math.max(...parentIds.map(parentId => depthFor(parentId, nextVisiting)));
-    memo.set(id, depth);
+    depthMemo.set(id, depth);
     return depth;
+  };
+
+  const reversalMemo = new Map<string, boolean>();
+  const hasReversedAncestor = (id: string, visiting = new Set<string>()): boolean => {
+    const cached = reversalMemo.get(id);
+    if (cached !== undefined) return cached;
+    if (visiting.has(id)) return false;
+    const parentIds = [...(parents.get(id) ?? [])];
+    if (parentIds.length === 0) {
+      reversalMemo.set(id, false);
+      return false;
+    }
+    const nextVisiting = new Set(visiting).add(id);
+    const impacted = parentIds.some(parentId =>
+      decisionById.get(parentId)?.status === 'reversed' || hasReversedAncestor(parentId, nextVisiting),
+    );
+    reversalMemo.set(id, impacted);
+    return impacted;
   };
 
   return decisions.map(decision => {
     const parentIds = [...(parents.get(decision.id) ?? [])];
-    const parentReversed = parentIds.some(parentId => decisionById.get(parentId)?.status === 'reversed');
     return {
       decision,
       depth: depthFor(decision.id),
       parentIds,
       childIds: [...(children.get(decision.id) ?? [])],
-      impactedByReversal: parentReversed,
+      impactedByReversal: hasReversedAncestor(decision.id),
     };
   }).sort((left, right) => left.depth - right.depth || left.decision.createdAt - right.decision.createdAt);
 }
