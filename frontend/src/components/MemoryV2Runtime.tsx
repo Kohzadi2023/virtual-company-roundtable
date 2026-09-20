@@ -1,8 +1,17 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
+import {
+  consolidateRoundMemory,
+  queueMemoryCandidate,
+  reconcileSuggestedMemoryMetadata,
+} from '@/lib/memoryIntelligence';
+import {
+  loadMeetingOrchestration,
+  MEETING_ORCHESTRATION_EVENT,
+} from '@/lib/meetingOrchestration';
 import {
   captureAgentMemoryHistory,
+  MEMORY_V2_EVENT,
   refreshMemoryConflicts,
-  suggestMemoryFromMessage,
   syncOliviaMeetingState,
 } from '@/lib/memoryV2';
 import { loadWorkspaceSuite, WORKSPACE_SUITE_EVENT } from '@/lib/workspaceSuite';
@@ -13,17 +22,43 @@ export function MemoryV2Runtime() {
   const activeRoomId = useWorkspaceStore(state => state.activeRoomId);
   const decisions = useWorkspaceStore(state => state.decisions);
   const actionItems = useWorkspaceStore(state => state.actionItems);
-  const processedMessages = useRef(new Set<string>());
+  const [meetingVersion, setMeetingVersion] = useState(0);
 
   useEffect(() => {
+    const refreshMeeting = () => setMeetingVersion(value => value + 1);
+    window.addEventListener(MEETING_ORCHESTRATION_EVENT, refreshMeeting);
+    return () => window.removeEventListener(MEETING_ORCHESTRATION_EVENT, refreshMeeting);
+  }, []);
+
+  // Stage 1: every new discussion message is evaluated locally and deterministically.
+  // Nothing is auto-saved here; high-confidence candidates wait for round consolidation.
+  useEffect(() => {
+    const meetingState = loadMeetingOrchestration();
+    const suite = loadWorkspaceSuite();
     for (const room of rooms) {
       const latest = room.messages[room.messages.length - 1];
-      if (!latest || processedMessages.current.has(latest.id)) continue;
-      processedMessages.current.add(latest.id);
-      const suite = loadWorkspaceSuite();
-      suggestMemoryFromMessage(room, latest, room.companyId ?? suite.activeCompanyId);
+      if (!latest) continue;
+      const meeting = meetingState.rooms[room.id];
+      queueMemoryCandidate(
+        room,
+        latest,
+        room.companyId ?? suite.activeCompanyId,
+        meeting ? { roundIndex: meeting.roundIndex, rounds: meeting.rounds } : undefined,
+      );
     }
-  }, [rooms]);
+  }, [meetingVersion, rooms]);
+
+  // Stage 2: Olivia finishing a round is the consolidation boundary. Strong,
+  // non-conflicting candidates are persisted automatically; medium/conflicting
+  // candidates go to Memory Center for human review.
+  useEffect(() => {
+    const meetingState = loadMeetingOrchestration();
+    for (const room of rooms) {
+      const meeting = meetingState.rooms[room.id];
+      if (!meeting || meeting.roundStage !== 'complete') continue;
+      consolidateRoundMemory(room, meeting);
+    }
+  }, [meetingVersion, rooms]);
 
   useEffect(() => {
     const room = rooms.find(item => item.id === activeRoomId);
@@ -35,12 +70,21 @@ export function MemoryV2Runtime() {
   useEffect(() => {
     captureAgentMemoryHistory();
     refreshMemoryConflicts();
-    const refresh = () => {
+    reconcileSuggestedMemoryMetadata();
+
+    const refreshWorkspace = () => {
       captureAgentMemoryHistory();
       refreshMemoryConflicts();
+      reconcileSuggestedMemoryMetadata();
     };
-    window.addEventListener(WORKSPACE_SUITE_EVENT, refresh);
-    return () => window.removeEventListener(WORKSPACE_SUITE_EVENT, refresh);
+    const reconcileMemory = () => reconcileSuggestedMemoryMetadata();
+
+    window.addEventListener(WORKSPACE_SUITE_EVENT, refreshWorkspace);
+    window.addEventListener(MEMORY_V2_EVENT, reconcileMemory);
+    return () => {
+      window.removeEventListener(WORKSPACE_SUITE_EVENT, refreshWorkspace);
+      window.removeEventListener(MEMORY_V2_EVENT, reconcileMemory);
+    };
   }, []);
 
   return null;
