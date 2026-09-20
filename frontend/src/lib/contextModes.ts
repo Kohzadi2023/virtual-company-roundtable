@@ -1,5 +1,5 @@
 import { unseenMessagesForAgent } from '@/lib/contextDelta';
-import type { AgentContextCursor, Message, Room } from '@/types/domain';
+import type { AgentContextState, Message, Room } from '@/types/domain';
 
 export type ContextCopyMode = 'continue' | 'new-chat' | 'full' | 'compact' | 'decision' | 'challenge';
 
@@ -34,7 +34,7 @@ function compactMessages(room: Room, agentId: string): Message[] {
 export function messagesForContextMode(
   room: Room,
   agentId: string,
-  cursor: AgentContextCursor | undefined,
+  cursor: AgentContextState | undefined,
   mode: ContextCopyMode,
 ): Message[] {
   if (mode === 'continue') return unseenMessagesForAgent(room, agentId, cursor);
