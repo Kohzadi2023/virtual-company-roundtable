@@ -5,6 +5,8 @@ import {
   getExternalAgentChat,
   loadMeetingOrchestration,
   markSpeakerStatus,
+  resetCurrentRound,
+  restartMeeting,
   setExternalAgentChat,
   setMeetingPhase,
   setMeetingRound,
@@ -81,6 +83,43 @@ describe('meeting orchestration', () => {
     expect(next?.roundStage).toBe('opening');
     expect(next?.speakerStatus[OLIVIA]).toBe('waiting');
     expect(next?.activeSpeakerId).toBe(OLIVIA);
+  });
+
+  it('resets the current completed round and makes Olivia next again', () => {
+    ensureMeetingRoom('room-a', [OLIVIA, EMMA]);
+    setMeetingRound('room-a', 3);
+    markSpeakerStatus('room-a', OLIVIA, 'responded');
+    markSpeakerStatus('room-a', EMMA, 'responded');
+    markSpeakerStatus('room-a', OLIVIA, 'responded');
+    expect(loadMeetingOrchestration().rooms['room-a']?.roundStage).toBe('complete');
+
+    resetCurrentRound('room-a');
+    const reset = loadMeetingOrchestration().rooms['room-a'];
+    expect(reset?.roundIndex).toBe(3);
+    expect(reset?.roundStage).toBe('opening');
+    expect(reset?.activeSpeakerId).toBe(OLIVIA);
+    expect(reset?.speakerStatus[OLIVIA]).toBe('waiting');
+    expect(reset?.speakerStatus[EMMA]).toBe('waiting');
+  });
+
+  it('restarts the whole meeting at round one without changing the round definitions', () => {
+    ensureMeetingRoom('room-a', [OLIVIA, EMMA, MIKE]);
+    setMeetingPhase('room-a', 'closed');
+    setMeetingRound('room-a', 2);
+    const before = loadMeetingOrchestration().rooms['room-a'];
+
+    restartMeeting('room-a');
+    const restarted = loadMeetingOrchestration().rooms['room-a'];
+    expect(restarted?.phase).toBe('open');
+    expect(restarted?.roundIndex).toBe(0);
+    expect(restarted?.roundStage).toBe('opening');
+    expect(restarted?.activeSpeakerId).toBe(OLIVIA);
+    expect(restarted?.speakerStatus[OLIVIA]).toBe('waiting');
+    expect(restarted?.speakerStatus[EMMA]).toBe('waiting');
+    expect(restarted?.speakerStatus[MIKE]).toBe('waiting');
+    expect(restarted?.rounds).toEqual(before?.rounds);
+    expect(restarted?.startedAt).toBeUndefined();
+    expect(restarted?.closedAt).toBeUndefined();
   });
 
   it('tracks meeting phase and expanded external chat providers', () => {
