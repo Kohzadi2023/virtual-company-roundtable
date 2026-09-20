@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { MarkdownMessage } from '@/components/MarkdownMessage';
+import { MessageReviewActions } from '@/components/MessageReviewActions';
 import { openAgentMemory } from '@/lib/agentMemory';
 import { copyText } from '@/lib/clipboard';
 import { formatTimestamp } from '@/lib/format';
@@ -236,6 +237,7 @@ export function TimelineMessage({ roomId, message, isLast = false }: TimelineMes
           <div className="mt-1.5 flex flex-wrap items-center justify-end gap-1 text-[10px] text-slate-500" aria-label="Message collaboration actions">
             <button type="button" onClick={togglePin} className="rounded-md px-2 py-1 font-medium hover:bg-amber-50 hover:text-amber-700">{message.pinned ? 'Unpin' : '📌 Pin'}</button>
             <button type="button" onClick={rememberMessage} className="rounded-md px-2 py-1 font-medium hover:bg-violet-50 hover:text-violet-700">🧠 Remember</button>
+            <MessageReviewActions roomId={roomId} message={message} />
             <div className="relative">
               <button type="button" onClick={() => setReactionOpen(value => !value)} className="rounded-md px-2 py-1 font-medium hover:bg-slate-100">{reaction ? `${reaction.icon} ${reaction.label}` : 'React'}</button>
               {reactionOpen ? <div className="absolute bottom-7 end-0 z-20 flex gap-1 rounded-lg border border-slate-200 bg-white p-1.5 shadow-xl">{REACTIONS.map(item => <button key={item.value} type="button" onClick={() => setReaction(item.value)} title={item.label} className="grid h-7 w-7 place-items-center rounded hover:bg-slate-100">{item.icon}</button>)}</div> : null}
