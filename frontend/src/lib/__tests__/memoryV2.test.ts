@@ -3,13 +3,16 @@ import {
   acceptMemorySuggestion,
   addSharedMemory,
   buildMemoryDigest,
+  captureAgentMemoryHistory,
   loadMemoryV2,
   relevantSharedMemories,
   suggestMemoryFromMessage,
   syncOliviaMeetingState,
 } from '@/lib/memoryV2';
-import { loadWorkspaceSuite } from '@/lib/workspaceSuite';
+import { addAgentMemory, loadWorkspaceSuite, updateAgentMemory } from '@/lib/workspaceSuite';
 import type { Room } from '@/types/domain';
+
+const MEMORY_V2_KEY = 'virtual-company:memory-v2:v1';
 
 function room(): Room {
   return {
@@ -89,6 +92,82 @@ describe('memory v2', () => {
     expect(memoryId).not.toBeNull();
     expect(loadWorkspaceSuite().agentMemories.some(item => item.id === memoryId && item.agentId === 'agent-emma')).toBe(true);
     expect(loadMemoryV2().suggestions.find(item => item.id === suggestionId)?.status).toBe('accepted');
+  });
+
+  it('stores compact agent-memory fingerprints instead of duplicating memory content', () => {
+    const content = `Long memory payload ${'x'.repeat(5000)}`;
+    const memoryId = addAgentMemory({
+      agentId: 'agent-emma',
+      companyId: 'company-default',
+      projectId: 'project-a',
+      category: 'decision',
+      title: 'Large durable memory',
+      content,
+      status: 'active',
+      importance: 'high',
+    });
+
+    expect(memoryId).not.toBeNull();
+    captureAgentMemoryHistory();
+
+    const cached = loadMemoryV2().agentMemoryCache[memoryId!];
+    expect(cached?.fingerprint).toMatch(/^h1:[0-9a-f]{16}$/);
+    expect(cached?.fingerprint).not.toContain(content.slice(0, 32));
+    expect(JSON.stringify(cached).length).toBeLessThan(200);
+  });
+
+  it('migrates legacy raw fingerprints without creating a false change event', () => {
+    const memoryId = addAgentMemory({
+      agentId: 'agent-emma',
+      companyId: 'company-default',
+      projectId: 'project-a',
+      category: 'decision',
+      title: 'Legacy cache entry',
+      content: 'Use the legacy cache entry only to verify migration behavior.',
+      status: 'active',
+      importance: 'medium',
+    });
+    const entry = loadWorkspaceSuite().agentMemories.find(item => item.id === memoryId)!;
+    const legacyFingerprint = [entry.title, entry.content, entry.status, entry.importance, entry.projectId ?? '', entry.updatedAt].join('|');
+
+    localStorage.setItem(MEMORY_V2_KEY, JSON.stringify({
+      version: 1,
+      sharedMemories: [],
+      suggestions: [],
+      relations: [],
+      conflicts: [],
+      history: [],
+      agentMemoryCache: {
+        [entry.id]: { fingerprint: legacyFingerprint, title: entry.title },
+      },
+    }));
+
+    captureAgentMemoryHistory();
+
+    const state = loadMemoryV2();
+    expect(state.agentMemoryCache[entry.id]?.fingerprint).toMatch(/^h1:[0-9a-f]{16}$/);
+    expect(state.history.some(event => event.action === 'agent-memory.changed')).toBe(false);
+  });
+
+  it('still records a real agent-memory change after compact fingerprints are stored', () => {
+    const memoryId = addAgentMemory({
+      agentId: 'agent-emma',
+      companyId: 'company-default',
+      projectId: 'project-a',
+      category: 'decision',
+      title: 'Change detection',
+      content: 'Original durable memory content.',
+      status: 'active',
+      importance: 'medium',
+    });
+
+    expect(memoryId).not.toBeNull();
+    captureAgentMemoryHistory();
+    updateAgentMemory(memoryId!, { content: 'Updated durable memory content.' });
+    captureAgentMemoryHistory();
+
+    const changes = loadMemoryV2().history.filter(event => event.action === 'agent-memory.changed' && event.memoryRef === `agent:${memoryId}`);
+    expect(changes).toHaveLength(1);
   });
 
   it('detects potential conflicts in overlapping active memory', () => {

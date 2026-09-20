@@ -152,8 +152,32 @@ function overlapScore(left: string, right: string): number {
   return (2 * common) / (a.size + b.size);
 }
 
-function fingerprintAgentMemory(entry: AgentMemoryEntry): string {
+function legacyAgentMemoryFingerprint(entry: AgentMemoryEntry): string {
   return [entry.title, entry.content, entry.status, entry.importance, entry.projectId ?? '', entry.updatedAt].join('|');
+}
+
+function compactFingerprint(value: string): string {
+  let left = 0x811c9dc5;
+  let right = 0x9e3779b9;
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    left ^= code;
+    left = Math.imul(left, 0x01000193);
+    right ^= code + index;
+    right = Math.imul(right, 0x85ebca6b);
+  }
+  const a = (left >>> 0).toString(16).padStart(8, '0');
+  const b = (right >>> 0).toString(16).padStart(8, '0');
+  return `h1:${a}${b}`;
+}
+
+function fingerprintAgentMemory(entry: AgentMemoryEntry): string {
+  return compactFingerprint(legacyAgentMemoryFingerprint(entry));
+}
+
+function matchesAgentMemoryFingerprint(entry: AgentMemoryEntry, fingerprint: string): boolean {
+  if (fingerprint === fingerprintAgentMemory(entry)) return true;
+  return !fingerprint.startsWith('h1:') && fingerprint === legacyAgentMemoryFingerprint(entry);
 }
 
 function appendHistory(state: MemoryV2State, event: Omit<MemoryHistoryEvent, 'id' | 'createdAt'>): MemoryV2State {
@@ -546,7 +570,7 @@ export function captureAgentMemoryHistory(): void {
     const fingerprint = fingerprintAgentMemory(entry);
     nextCache[entry.id] = { fingerprint, title: entry.title };
     const prior = state.agentMemoryCache[entry.id];
-    if (prior && prior.fingerprint !== fingerprint) {
+    if (prior && !matchesAgentMemoryFingerprint(entry, prior.fingerprint)) {
       events.push({ action: 'agent-memory.changed', label: `Agent memory changed: ${entry.title}`, memoryRef: `agent:${entry.id}` });
     }
   }
