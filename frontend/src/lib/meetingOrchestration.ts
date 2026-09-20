@@ -41,12 +41,45 @@ function defaults(): MeetingOrchestrationState {
   return { rooms: {}, chats: {} };
 }
 
+function hostnameMatches(hostname: string, domain: string): boolean {
+  return hostname === domain || hostname.endsWith(`.${domain}`);
+}
+
+export function inferExternalChatProvider(value: string): ExternalChatProvider {
+  try {
+    const url = new URL(value.trim());
+    const hostname = url.hostname.toLocaleLowerCase().replace(/^www\./, '');
+    const pathname = url.pathname.toLocaleLowerCase();
+
+    if (hostnameMatches(hostname, 'chatgpt.com') || hostname === 'chat.openai.com') return 'ChatGPT';
+    if (hostname === 'gemini.google.com') return 'Gemini';
+    if (hostnameMatches(hostname, 'claude.ai')) return 'Claude';
+    if (hostnameMatches(hostname, 'copilot.microsoft.com') || hostnameMatches(hostname, 'copilot.cloud.microsoft') || hostnameMatches(hostname, 'm365.cloud.microsoft')) return 'Copilot';
+    if (hostnameMatches(hostname, 'deepseek.com')) return 'DeepSeek';
+    if (hostnameMatches(hostname, 'qwen.ai') || hostname === 'tongyi.aliyun.com') return 'Qwen';
+    if (hostnameMatches(hostname, 'grok.com') || (hostnameMatches(hostname, 'x.com') && pathname.startsWith('/i/grok'))) return 'Grok';
+    if (hostnameMatches(hostname, 'meta.ai')) return 'META';
+    return 'Other';
+  } catch {
+    return 'Other';
+  }
+}
+
 export function loadMeetingOrchestration(): MeetingOrchestrationState {
   try {
     const parsed = JSON.parse(localStorage.getItem(KEY) ?? '') as Partial<MeetingOrchestrationState>;
+    const savedChats = parsed.chats ?? {};
+    const chats = Object.fromEntries(Object.entries(savedChats).map(([agentId, chat]) => [
+      agentId,
+      {
+        ...chat,
+        agentId,
+        provider: inferExternalChatProvider(chat.url),
+      },
+    ])) as Record<string, ExternalAgentChat>;
     return {
       rooms: parsed.rooms ?? {},
-      chats: parsed.chats ?? {},
+      chats,
     };
   } catch {
     return defaults();
@@ -324,7 +357,7 @@ export function setActiveSpeaker(roomId: string, agentId: string): void {
   saveMeetingOrchestration({ ...state, rooms: { ...state.rooms, [roomId]: { ...current, activeSpeakerId: agentId, updatedAt: Date.now() } } });
 }
 
-export function setExternalAgentChat(agentId: string, provider: ExternalChatProvider, url: string): void {
+export function setExternalAgentChat(agentId: string, url: string): void {
   const state = loadMeetingOrchestration();
   const clean = url.trim();
   if (!clean) {
@@ -335,7 +368,15 @@ export function setExternalAgentChat(agentId: string, provider: ExternalChatProv
   }
   saveMeetingOrchestration({
     ...state,
-    chats: { ...state.chats, [agentId]: { agentId, provider, url: clean, updatedAt: Date.now() } },
+    chats: {
+      ...state.chats,
+      [agentId]: {
+        agentId,
+        provider: inferExternalChatProvider(clean),
+        url: clean,
+        updatedAt: Date.now(),
+      },
+    },
   });
 }
 
