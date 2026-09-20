@@ -34,6 +34,37 @@ describe('room team membership', () => {
     for (const agentId of team.agentIds) expect(room.agentIds).not.toContain(agentId);
   });
 
+  it('toggles a team in and back out using the same room action', () => {
+    const state = useWorkspaceStore.getState();
+    const roomId = state.rooms[0]!.id;
+    const team = state.teams.find(item => item.id === 'team-sales-growth')!;
+
+    useWorkspaceStore.getState().toggleTeamInRoom(roomId, team.id);
+    let room = useWorkspaceStore.getState().rooms.find(item => item.id === roomId)!;
+    expect(room.teamIds).toContain(team.id);
+    expect(room.agentIds).toEqual(expect.arrayContaining(team.agentIds));
+
+    useWorkspaceStore.getState().toggleTeamInRoom(roomId, team.id);
+    room = useWorkspaceStore.getState().rooms.find(item => item.id === roomId)!;
+    expect(room.teamIds).not.toContain(team.id);
+    for (const agentId of team.agentIds) expect(room.agentIds).not.toContain(agentId);
+  });
+
+  it('does not infer selected team membership merely because all members were added individually', () => {
+    const state = useWorkspaceStore.getState();
+    const roomId = state.rooms[0]!.id;
+    const team = state.teams.find(item => item.id === 'team-sales-growth')!;
+
+    for (const agentId of team.agentIds) {
+      useWorkspaceStore.getState().toggleAgentInRoom(roomId, agentId);
+    }
+
+    const room = useWorkspaceStore.getState().rooms.find(item => item.id === roomId)!;
+    expect(room.agentIds).toEqual(expect.arrayContaining(team.agentIds));
+    expect(room.individualAgentIds).toEqual(expect.arrayContaining(team.agentIds));
+    expect(room.teamIds).not.toContain(team.id);
+  });
+
   it('keeps a specialist who was also added individually when the team is removed', () => {
     const state = useWorkspaceStore.getState();
     const roomId = state.rooms[0]!.id;
