@@ -52,14 +52,31 @@ describe('workspaceSuite', () => {
     expect(suite.auditLog[1]?.action).toBe('room.archived');
   });
 
-  it('creates a rolling local backup when enabled', () => {
+  it('creates a rolling local backup when enabled and includes extension state', () => {
     updateWorkspaceSuite(state => ({ ...state, autoBackupEnabled: true }));
+    localStorage.setItem('virtual-company:memory-v2:v1', JSON.stringify({
+      version: 1,
+      sharedMemories: [{ id: 'memory-1', title: 'Preserve me' }],
+    }));
+    localStorage.setItem('virtual-company:meeting-orchestration:v1', JSON.stringify({
+      rooms: { 'room-a': { roundIndex: 2, roundStage: 'complete' } },
+      chats: { 'agent-emma': { provider: 'ChatGPT', url: 'https://chatgpt.com/c/example' } },
+    }));
+
     saveAutomaticBackup(emptySnapshot(123));
 
     const backups = loadAutomaticBackups();
     expect(backups).toHaveLength(1);
     expect(backups[0]?.snapshot.savedAt).toBe(123);
     expect(backups[0]?.suite.activeCompanyId).toBe('company-default');
+    expect(backups[0]?.snapshot.extensions?.memoryV2).toEqual({
+      version: 1,
+      sharedMemories: [{ id: 'memory-1', title: 'Preserve me' }],
+    });
+    expect(backups[0]?.snapshot.extensions?.meetingOrchestration).toEqual({
+      rooms: { 'room-a': { roundIndex: 2, roundStage: 'complete' } },
+      chats: { 'agent-emma': { provider: 'ChatGPT', url: 'https://chatgpt.com/c/example' } },
+    });
   });
 
   it('returns only active memories relevant to the agent and project', () => {
