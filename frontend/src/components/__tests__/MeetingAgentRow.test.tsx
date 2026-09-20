@@ -60,4 +60,14 @@ describe('MeetingAgentRow', () => {
     expect(html).toContain('Edit');
     expect(html).toContain('Remove');
   });
+
+  it('uses a stacked mobile layout without forcing the old desktop minimum width', () => {
+    const html = renderToStaticMarkup(<MeetingAgentRow data={baseData} {...callbacks} />);
+
+    expect(html).toContain('Meeting Status');
+    expect(html).toContain('External Chat');
+    expect(html).toContain('grid-cols-1');
+    expect(html).toContain('lg:grid-cols-');
+    expect(html).not.toContain('min-w-[820px]');
+  });
 });
