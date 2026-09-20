@@ -6,6 +6,7 @@ import { AgentQuickActionsHost } from '@/components/AgentQuickActionsHost';
 import { AppLockGate } from '@/components/AppLockGate';
 import { ChatRoom } from '@/components/ChatRoom';
 import { CollapsibleCompanyDirectory } from '@/components/CollapsibleCompanyDirectory';
+import { IdeaMergeLauncher } from '@/components/IdeaMergeLauncher';
 import { MemoryCenterDialogHost } from '@/components/MemoryCenterDialogHost';
 import { MemoryCenterLauncher } from '@/components/MemoryCenterLauncher';
 import { MemoryV2Runtime } from '@/components/MemoryV2Runtime';
@@ -84,6 +85,8 @@ export default function App() {
             <MemoryCenterLauncher />
             <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
             <OperationsCenterLauncher />
+            <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
+            <IdeaMergeLauncher />
             <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
             <SecuritySettingsLauncher />
           </div>
