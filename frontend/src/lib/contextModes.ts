@@ -13,22 +13,42 @@ export const CONTEXT_MODES: ContextModeDefinition[] = [
   { value: 'continue', label: 'Continue Existing Chat', description: 'Only new context since the last copy.' },
   { value: 'new-chat', label: 'New Chat', description: 'Re-establish the discussion from complete room context.' },
   { value: 'full', label: 'Full Context', description: 'All relevant room messages for exhaustive reference.' },
-  { value: 'compact', label: 'Compact Context', description: 'Pinned messages plus the most recent relevant discussion.' },
-  { value: 'decision', label: 'Decision Review', description: 'Compact context with a decision-ready review instruction.' },
-  { value: 'challenge', label: 'Challenge Consensus', description: 'Compact context with a devil’s-advocate instruction.' },
+  { value: 'compact', label: 'Smart Compact', description: 'Compresses older discussion, preserves important items, and keeps recent messages in full.' },
+  { value: 'decision', label: 'Decision Review', description: 'Smart compact context with a decision-ready review instruction.' },
+  { value: 'challenge', label: 'Challenge Consensus', description: 'Smart compact context with a devil’s-advocate instruction.' },
 ];
 
 function withoutAgentOwnMessages(room: Room, agentId: string): Message[] {
   return room.messages.filter(message => !(message.authorType === 'agent' && message.authorId === agentId));
 }
 
+function summaryLine(message: Message): string {
+  const author = message.authorNameSnapshot ?? (message.authorType === 'user' ? 'User' : 'Agent');
+  const clean = message.content.replace(/\s+/g, ' ').trim();
+  const excerpt = clean.length > 180 ? `${clean.slice(0, 177)}…` : clean;
+  const marker = message.reaction ? ` [${message.reaction}]` : message.pinned ? ' [pinned]' : '';
+  return `- ${author}${marker}: ${excerpt}`;
+}
+
 function compactMessages(room: Room, agentId: string): Message[] {
   const relevant = withoutAgentOwnMessages(room, agentId);
-  const pinned = relevant.filter(message => message.pinned);
+  if (relevant.length <= 12) return relevant;
+
+  const anchors = relevant.filter(message => message.pinned || message.reaction === 'accepted' || message.reaction === 'important' || message.reaction === 'risk');
   const recent = relevant.slice(-12);
-  const byId = new Map<string, Message>();
-  for (const message of [...pinned, ...recent]) byId.set(message.id, message);
-  return relevant.filter(message => byId.has(message.id));
+  const selectedIds = new Set([...anchors, ...recent].map(message => message.id));
+  const older = relevant.filter(message => !selectedIds.has(message.id));
+  const selected = relevant.filter(message => selectedIds.has(message.id));
+
+  if (older.length === 0) return selected;
+  const summary: Message = {
+    id: `smart-compact-summary:${room.id}:${agentId}`,
+    authorType: 'user',
+    authorNameSnapshot: 'Context Compressor',
+    content: `## Compressed earlier discussion\n\nThe following older messages are summarized deterministically; important/pinned items and recent messages are supplied separately in full.\n\n${older.slice(-24).map(summaryLine).join('\n')}${older.length > 24 ? `\n- … ${older.length - 24} older messages omitted from the compact digest.` : ''}`,
+    createdAt: older[0]?.createdAt ?? room.createdAt,
+  };
+  return [summary, ...selected];
 }
 
 export function messagesForContextMode(
@@ -49,7 +69,7 @@ export function contextModeInstruction(mode: ContextCopyMode): string | null {
     case 'full':
       return 'Use the supplied full room context as exhaustive reference. Focus your response on the latest unresolved work rather than repeating the transcript.';
     case 'compact':
-      return 'The supplied context is intentionally compact: pinned items plus recent discussion. Preserve documented decisions and clearly flag anything that cannot be inferred from the compact context.';
+      return 'The supplied context uses deterministic smart compression: older discussion is summarized, important items are preserved, and recent discussion remains in full. Treat the compact digest as a navigation aid rather than a verbatim record.';
     case 'decision':
       return 'DECISION REVIEW MODE: identify the decision to be made, options already discussed, evidence, constraints, unresolved risks, dependencies, and reversible versus irreversible consequences. Do not invent a decision that has not been approved.';
     case 'challenge':
