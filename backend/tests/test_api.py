@@ -32,6 +32,28 @@ def test_snapshot_round_trip(tmp_path: Path) -> None:
     assert get.json() == payload
 
 
+def test_v4_preserves_extension_state(tmp_path: Path) -> None:
+    client = TestClient(create_app(tmp_path / "test.db"))
+    payload = sample_snapshot(456)
+    payload["extensions"] = {
+        "version": 1,
+        "workspaceSuite": {"activeCompanyId": "company-default"},
+        "memoryV2": {"version": 1, "sharedMemories": [{"id": "memory-1"}]},
+        "memoryIntelligence": {"version": 1, "candidates": [{"id": "candidate-1"}]},
+        "meetingOrchestration": {"rooms": {"room-a": {"roundIndex": 2}}, "chats": {}},
+        "operationsSuite": {"version": 1, "risks": [{"id": "risk-1"}]},
+        "securityPreferences": {"appLockEnabled": True},
+    }
+
+    put = client.put("/api/snapshot", json=payload)
+    assert put.status_code == 200
+    assert put.json()["extensions"] == payload["extensions"]
+
+    get = client.get("/api/snapshot")
+    assert get.status_code == 200
+    assert get.json()["extensions"] == payload["extensions"]
+
+
 def test_delete_snapshot(tmp_path: Path) -> None:
     client = TestClient(create_app(tmp_path / "test.db"))
     client.put("/api/snapshot", json=sample_snapshot())
