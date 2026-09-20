@@ -5,6 +5,7 @@ export const MEETING_ORCHESTRATION_EVENT = 'virtual-company:meeting-orchestratio
 
 export type MeetingPhase = 'open' | 'collect' | 'challenge' | 'resolve' | 'decision' | 'actions' | 'closed';
 export type SpeakerStatus = 'waiting' | 'responded' | 'skipped';
+export type RoundStage = 'opening' | 'specialists' | 'synthesis' | 'complete';
 export type ExternalChatProvider = 'ChatGPT' | 'Gemini' | 'Claude' | 'Copilot' | 'DeepSeek' | 'Qwen' | 'Grok' | 'META' | 'Other';
 
 export interface ExternalAgentChat {
@@ -19,11 +20,12 @@ export interface MeetingRoomState {
   phase: MeetingPhase;
   rounds: string[];
   roundIndex: number;
+  roundStage: RoundStage;
   speakerOrder: string[];
   speakerStatus: Record<string, SpeakerStatus>;
-  activeSpeakerId?: string;
-  startedAt?: number;
-  closedAt?: number;
+  activeSpeakerId?: string | undefined;
+  startedAt?: number | undefined;
+  closedAt?: number | undefined;
   updatedAt: number;
 }
 
@@ -67,18 +69,31 @@ function statuses(agentIds: string[], current?: Record<string, SpeakerStatus>): 
   return Object.fromEntries(agentIds.map(id => [id, current?.[id] ?? 'waiting'])) as Record<string, SpeakerStatus>;
 }
 
+function specialistIds(order: string[]): string[] {
+  return order.filter(id => id !== MEETING_FACILITATOR_AGENT_ID);
+}
+
+function inferRoundStage(room: Pick<MeetingRoomState, 'speakerOrder' | 'speakerStatus'>): RoundStage {
+  const hasFacilitator = room.speakerOrder.includes(MEETING_FACILITATOR_AGENT_ID);
+  if (hasFacilitator && room.speakerStatus[MEETING_FACILITATOR_AGENT_ID] !== 'responded') return 'opening';
+  if (specialistIds(room.speakerOrder).some(id => room.speakerStatus[id] === 'waiting')) return 'specialists';
+  return hasFacilitator ? 'synthesis' : 'complete';
+}
+
 export function ensureMeetingRoom(roomId: string, agentIds: string[]): MeetingRoomState {
   const state = loadMeetingOrchestration();
   const order = orderedAgents(agentIds);
   const existing = state.rooms[roomId];
+  const fallbackStage: RoundStage = order.includes(MEETING_FACILITATOR_AGENT_ID) ? 'opening' : 'specialists';
   const next: MeetingRoomState = existing
     ? {
         ...existing,
+        roundStage: existing.roundStage ?? inferRoundStage(existing),
         speakerOrder: order,
         speakerStatus: statuses(order, existing.speakerStatus),
         ...(existing.activeSpeakerId && order.includes(existing.activeSpeakerId)
           ? { activeSpeakerId: existing.activeSpeakerId }
-          : order[0] ? { activeSpeakerId: order[0] } : {}),
+          : order[0] ? { activeSpeakerId: order[0] } : { activeSpeakerId: undefined }),
         updatedAt: Date.now(),
       }
     : {
@@ -86,9 +101,10 @@ export function ensureMeetingRoom(roomId: string, agentIds: string[]): MeetingRo
         phase: 'open',
         rounds: [...DEFAULT_ROUNDS],
         roundIndex: 0,
+        roundStage: fallbackStage,
         speakerOrder: order,
         speakerStatus: statuses(order),
-        ...(order[0] ? { activeSpeakerId: order[0] } : {}),
+        ...(order[0] ? { activeSpeakerId: order[0] } : { activeSpeakerId: undefined }),
         updatedAt: Date.now(),
       };
   saveMeetingOrchestration({ ...state, rooms: { ...state.rooms, [roomId]: next } });
@@ -120,7 +136,9 @@ export function setMeetingRound(roomId: string, roundIndex: number): void {
   const current = state.rooms[roomId];
   if (!current) return;
   const index = Math.max(0, Math.min(roundIndex, current.rounds.length - 1));
-  const status = statuses(current.speakerOrder);
+  const speakerStatus = statuses(current.speakerOrder);
+  const hasFacilitator = current.speakerOrder.includes(MEETING_FACILITATOR_AGENT_ID);
+  const first = hasFacilitator ? MEETING_FACILITATOR_AGENT_ID : specialistIds(current.speakerOrder)[0];
   saveMeetingOrchestration({
     ...state,
     rooms: {
@@ -128,8 +146,9 @@ export function setMeetingRound(roomId: string, roundIndex: number): void {
       [roomId]: {
         ...current,
         roundIndex: index,
-        speakerStatus: status,
-        ...(current.speakerOrder[0] ? { activeSpeakerId: current.speakerOrder[0] } : {}),
+        roundStage: hasFacilitator ? 'opening' : 'specialists',
+        speakerStatus,
+        activeSpeakerId: first,
         updatedAt: Date.now(),
       },
     },
@@ -150,16 +169,83 @@ export function markSpeakerStatus(roomId: string, agentId: string, status: Speak
   const state = loadMeetingOrchestration();
   const current = state.rooms[roomId];
   if (!current || !current.speakerOrder.includes(agentId)) return;
-  const speakerStatus = { ...current.speakerStatus, [agentId]: status };
-  const nextWaiting = current.speakerOrder.find(id => speakerStatus[id] === 'waiting');
+
+  let roundIndex = current.roundIndex;
+  let roundStage = current.roundStage ?? inferRoundStage(current);
+  let speakerStatus = { ...current.speakerStatus, [agentId]: status };
+  let activeSpeakerId = current.activeSpeakerId;
+  const specialists = specialistIds(current.speakerOrder);
+  const hasFacilitator = current.speakerOrder.includes(MEETING_FACILITATOR_AGENT_ID);
+  const completedTurn = status === 'responded' || status === 'skipped';
+
+  if (agentId === MEETING_FACILITATOR_AGENT_ID && completedTurn) {
+    if (roundStage === 'opening') {
+      const nextSpecialist = specialists.find(id => speakerStatus[id] === 'waiting');
+      if (nextSpecialist) {
+        roundStage = 'specialists';
+        activeSpeakerId = nextSpecialist;
+      } else {
+        // Everyone else already contributed. Olivia should synthesize before advancing.
+        speakerStatus = { ...speakerStatus, [MEETING_FACILITATOR_AGENT_ID]: 'waiting' };
+        roundStage = 'synthesis';
+        activeSpeakerId = MEETING_FACILITATOR_AGENT_ID;
+      }
+    } else if (roundStage === 'synthesis') {
+      if (roundIndex < current.rounds.length - 1) {
+        // Olivia's synthesis also opens the next round, so do not require a second
+        // consecutive facilitator copy/paste before the specialists can continue.
+        roundIndex += 1;
+        speakerStatus = statuses(current.speakerOrder);
+        speakerStatus[MEETING_FACILITATOR_AGENT_ID] = 'responded';
+        const nextSpecialist = specialists[0];
+        if (nextSpecialist) {
+          roundStage = 'specialists';
+          activeSpeakerId = nextSpecialist;
+        } else {
+          roundStage = 'synthesis';
+          speakerStatus[MEETING_FACILITATOR_AGENT_ID] = 'waiting';
+          activeSpeakerId = MEETING_FACILITATOR_AGENT_ID;
+        }
+      } else {
+        roundStage = 'complete';
+        activeSpeakerId = undefined;
+      }
+    }
+  } else if (agentId !== MEETING_FACILITATOR_AGENT_ID) {
+    // If a specialist is pasted out of order before Olivia opens the round, record
+    // the contribution but keep Olivia as the required next speaker.
+    if (roundStage === 'opening' && hasFacilitator) {
+      activeSpeakerId = MEETING_FACILITATOR_AGENT_ID;
+    } else if (completedTurn) {
+      const nextSpecialist = specialists.find(id => speakerStatus[id] === 'waiting');
+      if (nextSpecialist) {
+        roundStage = 'specialists';
+        activeSpeakerId = nextSpecialist;
+      } else if (hasFacilitator) {
+        // Core orchestration rule: after the last specialist, Olivia is next.
+        speakerStatus = { ...speakerStatus, [MEETING_FACILITATOR_AGENT_ID]: 'waiting' };
+        roundStage = 'synthesis';
+        activeSpeakerId = MEETING_FACILITATOR_AGENT_ID;
+      } else {
+        roundStage = 'complete';
+        activeSpeakerId = undefined;
+      }
+    } else {
+      roundStage = 'specialists';
+      activeSpeakerId = specialists.find(id => speakerStatus[id] === 'waiting');
+    }
+  }
+
   saveMeetingOrchestration({
     ...state,
     rooms: {
       ...state.rooms,
       [roomId]: {
         ...current,
+        roundIndex,
+        roundStage,
         speakerStatus,
-        ...(nextWaiting ? { activeSpeakerId: nextWaiting } : {}),
+        activeSpeakerId,
         updatedAt: Date.now(),
       },
     },
