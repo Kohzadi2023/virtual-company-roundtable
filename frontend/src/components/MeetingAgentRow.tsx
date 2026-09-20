@@ -22,7 +22,7 @@ interface MeetingAgentRowProps {
   onOpenChat: (agentId: string, url: string) => void;
 }
 
-type EditState = 'idle' | 'editing' | 'saving';
+type EditState = 'idle' | 'editing' | 'saving' | 'removing';
 
 function statusClasses(status: SpeakerStatus): string {
   if (status === 'responded') return 'bg-emerald-100 text-emerald-700 ring-emerald-200';
@@ -79,6 +79,18 @@ export function MeetingAgentRow({ data, onActivate, onToggleSkip, onSaveChat, on
     setEditState('idle');
   };
 
+  const remove = async () => {
+    if (!data.chatUrl) return;
+    const confirmed = window.confirm(`Remove the saved external chat link for ${data.agent.name}?`);
+    if (!confirmed) return;
+
+    setValidationError('');
+    setEditState('removing');
+    await Promise.resolve(onSaveChat(data.agent.id, ''));
+    setDraftUrl('');
+    setEditState('idle');
+  };
+
   return (
     <div
       className={`grid min-w-[820px] grid-cols-[minmax(250px,1.2fr)_minmax(220px,0.9fr)_minmax(340px,1.4fr)] items-center gap-4 border-b border-slate-200 px-4 py-3 transition ${data.active ? 'bg-emerald-50/60' : 'bg-white hover:bg-slate-50/70'}`}
@@ -108,7 +120,9 @@ export function MeetingAgentRow({ data, onActivate, onToggleSkip, onSaveChat, on
       </div>
 
       <div className="min-w-0">
-        {editState === 'editing' || editState === 'saving' ? (
+        {editState === 'removing' ? (
+          <span className="text-xs font-semibold text-slate-500">Removing chat link…</span>
+        ) : editState === 'editing' || editState === 'saving' ? (
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               <input
@@ -136,6 +150,7 @@ export function MeetingAgentRow({ data, onActivate, onToggleSkip, onSaveChat, on
             <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ring-1 ring-inset ${providerClasses(data.provider)}`}>{data.provider ?? 'Other'}</span>
             <button type="button" onClick={() => onOpenChat(data.agent.id, data.chatUrl!)} className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50">Open / Focus ↗</button>
             <button type="button" onClick={beginEditing} className="rounded-md px-2 py-1.5 text-[11px] font-semibold text-blue-600 hover:bg-blue-50">Edit</button>
+            <button type="button" onClick={() => void remove()} className="rounded-md px-2 py-1.5 text-[11px] font-semibold text-red-600 hover:bg-red-50">Remove</button>
           </div>
         ) : (
           <button type="button" onClick={beginEditing} className="rounded-md border border-dashed border-blue-300 bg-blue-50/40 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:border-blue-400 hover:bg-blue-50">+ Add Chat Link</button>

@@ -42,9 +42,10 @@ describe('MeetingAgentRow', () => {
     expect(html).toContain('Skip');
     expect(html).toContain('+ Add Chat Link');
     expect(html).not.toContain('No external chat saved');
+    expect(html).not.toContain('Remove');
   });
 
-  it('renders provider and open action when a chat link exists', () => {
+  it('renders provider, open, edit and remove actions when a chat link exists', () => {
     const data: MeetingAgentRowData = {
       ...baseData,
       status: 'responded',
@@ -57,5 +58,6 @@ describe('MeetingAgentRow', () => {
     expect(html).toContain('ChatGPT');
     expect(html).toContain('Open / Focus');
     expect(html).toContain('Edit');
+    expect(html).toContain('Remove');
   });
 });
