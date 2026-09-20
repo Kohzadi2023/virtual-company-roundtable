@@ -176,6 +176,16 @@ export interface AgentContextState {
   copiedAt: number | null;
 }
 
+export interface WorkspaceExtensionSnapshot {
+  version: 1;
+  workspaceSuite?: unknown | null;
+  memoryV2?: unknown | null;
+  memoryIntelligence?: unknown | null;
+  meetingOrchestration?: unknown | null;
+  operationsSuite?: unknown | null;
+  securityPreferences?: unknown | null;
+}
+
 export interface StorageSnapshot {
   version: 4;
   rooms: Room[];
@@ -187,5 +197,6 @@ export interface StorageSnapshot {
   actionItems?: ActionItem[] | undefined;
   agentContext: Record<string, AgentContextState>;
   activeRoomId: string | null;
+  extensions?: WorkspaceExtensionSnapshot | undefined;
   savedAt: number;
 }
