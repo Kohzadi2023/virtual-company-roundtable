@@ -95,10 +95,9 @@ export function buildAgentPrompt(agent: Agent, role: RoleDefinition, messages: M
   const companyMemories = shared.filter(entry => entry.scope === 'company');
   const projectMemories = shared.filter(entry => entry.scope === 'project');
   const systemAgentMemories = shared.filter(entry => entry.scope === 'agent-system');
-  const agentMemories = rankMemoriesByRelevance(
-    query,
-    relevantAgentMemories(agent.id, activeRoom?.projectId, companyId, 24),
-  );
+  const scopedAgentMemories = relevantAgentMemories(agent.id, activeRoom?.projectId, companyId, 24)
+    .filter(entry => !entry.companyId || entry.companyId === companyId);
+  const agentMemories = rankMemoriesByRelevance(query, scopedAgentMemories);
   const language = getRoomLanguage(activeRoom?.languageCode);
 
   const memorySections = [
