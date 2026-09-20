@@ -89,7 +89,7 @@ describe('memory intelligence', () => {
   });
 
   it('sends medium-confidence candidates to Memory Center review instead of auto-saving', () => {
-    const message = agentMessage('m5', 'Should we keep the current retry budget for the next release, or is more evidence required?');
+    const message = agentMessage('m5', 'What evidence is still missing before we settle the retry budget for the next release?');
     const currentRoom = room([message]);
     queueMemoryCandidate(currentRoom, message, 'company-default', round);
     const result = consolidateRoundMemory(currentRoom, { ...round, roundStage: 'complete' });
