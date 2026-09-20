@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AgentAvatar } from '@/components/AgentAvatar';
+import { ContextCopyControls } from '@/components/ContextCopyControls';
 import { Toast, type ToastMessage } from '@/components/Toast';
-import { copyText } from '@/lib/clipboard';
-import { unseenMessagesForAgent } from '@/lib/contextDelta';
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
 import { agentContextKey } from '@/lib/id';
-import { buildAgentPrompt } from '@/lib/promptBuilder';
+import { loadMeetingOrchestration, markSpeakerStatus } from '@/lib/meetingOrchestration';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
 function useAutoResize(value: string) {
@@ -37,7 +36,6 @@ export function ActionPanel({ roomId }: { roomId: string }) {
   const agents = useWorkspaceStore(state => state.agents);
   const roles = useWorkspaceStore(state => state.roles);
   const agentContext = useWorkspaceStore(state => state.agentContext);
-  const markAgentContextCopied = useWorkspaceStore(state => state.markAgentContextCopied);
   const addAgentMessage = useWorkspaceStore(state => state.addAgentMessage);
   const addUserMessage = useWorkspaceStore(state => state.addUserMessage);
 
@@ -72,7 +70,6 @@ export function ActionPanel({ roomId }: { roomId: string }) {
   const selectedRole = selectedAgent ? roles.find(role => role.id === selectedAgent.roleId) : undefined;
   const selectedIsFacilitator = selectedAgent?.id === MEETING_FACILITATOR_AGENT_ID;
   const cursor = room && selectedAgent ? agentContext[agentContextKey(room.id, selectedAgent.id)] : undefined;
-  const unseen = room && selectedAgent ? unseenMessagesForAgent(room, selectedAgent.id, cursor) : [];
 
   if (!room) return null;
 
@@ -88,22 +85,14 @@ export function ActionPanel({ roomId }: { roomId: string }) {
     }
   };
 
-  const copyNewContext = async () => {
-    if (!selectedAgent || !selectedRole || unseen.length === 0) return;
-    try {
-      await copyText(buildAgentPrompt(selectedAgent, selectedRole, unseen));
-      markAgentContextCopied(room.id, selectedAgent.id);
-      notify(`${unseen.length} new message${unseen.length === 1 ? '' : 's'} copied for ${selectedAgent.name}.`);
-    } catch {
-      notify('Could not copy to clipboard.', 'error');
-    }
-  };
-
   const submitAgent = () => {
     if (!selectedAgent || !agentResponse.trim()) return;
     if (addAgentMessage(room.id, selectedAgent.id, agentResponse)) {
       setAgentResponse('');
-      notify(`${selectedAgent.name}'s response added.`);
+      markSpeakerStatus(room.id, selectedAgent.id, 'responded');
+      const nextSpeaker = loadMeetingOrchestration().rooms[room.id]?.activeSpeakerId;
+      if (nextSpeaker && room.agentIds.includes(nextSpeaker)) setSelectedAgentId(nextSpeaker);
+      notify(`${selectedAgent.name}'s response added and speaking queue advanced.`);
     }
   };
 
@@ -187,7 +176,7 @@ export function ActionPanel({ roomId }: { roomId: string }) {
             {roomAgents.length === 0 ? (
               <div className="rounded-lg border border-dashed border-slate-300 p-5 text-center text-sm text-slate-500">No specialists are in this room.</div>
             ) : (
-              <div className="grid gap-3 xl:grid-cols-[280px_1fr_165px]">
+              <div className="grid gap-3 xl:grid-cols-[280px_1fr_230px]">
                 <div className="space-y-2">
                   <select id="agent-select" value={selectedAgentId} onChange={event => setSelectedAgentId(event.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800">
                     {roomAgents.map(agent => {
@@ -227,9 +216,7 @@ export function ActionPanel({ roomId }: { roomId: string }) {
                 />
 
                 <div className="flex flex-col justify-center gap-2">
-                  <button type="button" onClick={copyNewContext} disabled={!selectedAgent || unseen.length === 0} className="rounded-lg border border-blue-500 bg-blue-50 px-3 py-2.5 text-sm font-bold text-blue-600 hover:bg-blue-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400">
-                    {unseen.length > 0 ? `⧉ Copy Context (${unseen.length})` : '✓ Up to date'}
-                  </button>
+                  {selectedAgent && selectedRole ? <ContextCopyControls room={room} agent={selectedAgent} role={selectedRole} cursor={cursor} onNotify={notify} /> : null}
                   <button type="button" onClick={submitAgent} disabled={!selectedAgent || !agentResponse.trim()} className="rounded-lg bg-emerald-600 px-3 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">Add Response</button>
                   <span className="text-center text-[11px] text-slate-400">Ctrl + Enter</span>
                 </div>
