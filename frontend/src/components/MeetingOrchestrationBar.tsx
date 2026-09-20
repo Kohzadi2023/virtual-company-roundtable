@@ -4,6 +4,7 @@ import { openOrFocusExternalChat } from '@/lib/externalChatWindow';
 import {
   ensureMeetingRoom,
   getExternalAgentChat,
+  inferExternalChatProvider,
   loadMeetingOrchestration,
   markSpeakerStatus,
   MEETING_ORCHESTRATION_EVENT,
@@ -15,7 +16,6 @@ import {
   setMeetingPhase,
   setMeetingRound,
   startNextRound,
-  type ExternalChatProvider,
   type MeetingPhase,
   type MeetingRoomState,
   type RoundStage,
@@ -37,7 +37,6 @@ const ROUND_PHASE_INDEX: Partial<Record<MeetingPhase, number>> = {
   resolve: 2,
   decision: 3,
 };
-const PROVIDERS: ExternalChatProvider[] = ['ChatGPT', 'Gemini', 'Claude', 'Copilot', 'DeepSeek', 'Qwen', 'Grok', 'META', 'Other'];
 
 function phaseLabel(value: MeetingPhase): string {
   return PHASES.find(item => item.value === value)?.label ?? value;
@@ -68,7 +67,6 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
   const [meeting, setMeeting] = useState<MeetingRoomState | null>(null);
   const [open, setOpen] = useState(false);
   const [chatAgentId, setChatAgentId] = useState('');
-  const [chatProvider, setChatProvider] = useState<ExternalChatProvider>('ChatGPT');
   const [chatUrl, setChatUrl] = useState('');
 
   useEffect(() => {
@@ -93,7 +91,6 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
   useEffect(() => {
     if (!chatAgentId) return;
     const saved = getExternalAgentChat(chatAgentId);
-    setChatProvider(saved?.provider ?? 'ChatGPT');
     setChatUrl(saved?.url ?? '');
   }, [chatAgentId]);
 
@@ -108,6 +105,7 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
   const nextLabel = meeting.roundStage === 'complete'
     ? canStartNextRound ? 'Awaiting next round' : '—'
     : activeAgent?.name ?? '—';
+  const detectedProvider = validExternalUrl(chatUrl) ? inferExternalChatProvider(chatUrl) : null;
 
   const handlePhaseSelection = (phase: MeetingPhase) => {
     const mappedRound = ROUND_PHASE_INDEX[phase];
@@ -137,7 +135,7 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
       window.alert('Enter a valid http:// or https:// conversation URL.');
       return;
     }
-    setExternalAgentChat(chatAgentId, chatProvider, chatUrl);
+    setExternalAgentChat(chatAgentId, chatUrl);
   };
 
   return (
@@ -208,13 +206,15 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
 
               <div className="min-h-0 overflow-y-auto bg-slate-50 p-5">
                 <h3 className="text-xs font-bold uppercase tracking-wide text-slate-400">Agent Chat Registry</h3>
-                <p className="mt-1 text-xs leading-5 text-slate-500">Save the external AI conversation URL for each specialist. Supported providers include ChatGPT, Gemini, Claude, Copilot, DeepSeek, Qwen, Grok and META. Virtual Company stays manual-AI; this only stores navigation links.</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">Save each specialist's external AI conversation URL. The provider is detected automatically from the URL; there is nothing to select manually. Virtual Company stays manual-AI and stores only the navigation link.</p>
                 <label className="mt-4 block text-[10px] font-bold uppercase tracking-wide text-slate-400">Agent</label>
                 <select value={chatAgentId} onChange={event => setChatAgentId(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs">{roomAgents.map(agent => <option key={agent.id} value={agent.id}>{agent.name}</option>)}</select>
-                <label className="mt-3 block text-[10px] font-bold uppercase tracking-wide text-slate-400">Provider</label>
-                <select value={chatProvider} onChange={event => setChatProvider(event.target.value as ExternalChatProvider)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs">{PROVIDERS.map(provider => <option key={provider} value={provider}>{provider}</option>)}</select>
                 <label className="mt-3 block text-[10px] font-bold uppercase tracking-wide text-slate-400">Conversation URL</label>
-                <input value={chatUrl} onChange={event => setChatUrl(event.target.value)} placeholder="https://..." className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs" />
+                <input value={chatUrl} onChange={event => setChatUrl(event.target.value)} placeholder="https://chatgpt.com/c/..." className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs" />
+                <div className="mt-2 flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px]">
+                  <span className="font-semibold uppercase tracking-wide text-slate-400">Detected provider</span>
+                  <span className={`font-bold ${detectedProvider && detectedProvider !== 'Other' ? 'text-violet-700' : 'text-slate-500'}`}>{detectedProvider ?? 'Waiting for valid URL'}</span>
+                </div>
                 <div className="mt-3 flex gap-2"><button type="button" onClick={saveChat} className="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700">Save Link</button><button type="button" disabled={!validExternalUrl(chatUrl)} onClick={() => openOrFocusExternalChat(chatAgentId, chatUrl)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-600 disabled:opacity-40">Open / Focus ↗</button></div>
 
                 <div className="mt-6 space-y-2">
