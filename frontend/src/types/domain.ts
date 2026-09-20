@@ -63,7 +63,7 @@ export interface DecisionRecord {
   updatedAt: number;
 }
 
-export type ActionItemStatus = 'todo' | 'in-progress' | 'blocked' | 'review' | 'done';
+export type ActionItemStatus = 'todo' | 'in-progress' | 'done';
 export type ActionItemPriority = 'low' | 'medium' | 'high';
 
 export interface ActionItem {
