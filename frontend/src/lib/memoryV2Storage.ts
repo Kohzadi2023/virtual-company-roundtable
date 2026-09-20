@@ -2,6 +2,7 @@ const MEMORY_V2_STORAGE_KEY = 'virtual-company:memory-v2:v1';
 const HISTORY_LIMIT = 250;
 const RESOLVED_SUGGESTION_LIMIT = 60;
 const RESOLVED_CONFLICT_LIMIT = 60;
+const DERIVED_CACHE_COMPACTION_THRESHOLD = 750_000;
 const DEFAULT_SAFE_STORAGE_CHAR_LIMIT = 2_000_000;
 
 interface LooseSuggestion {
@@ -100,9 +101,10 @@ export function prepareMemoryV2Storage(): boolean {
       && parsed.suggestions.filter(item => item.status !== 'pending').length > RESOLVED_SUGGESTION_LIMIT;
     const hasOversizedResolvedConflicts = Array.isArray(parsed.conflicts)
       && parsed.conflicts.filter(item => item.status !== 'open').length > RESOLVED_CONFLICT_LIMIT;
-    const hasDerivedCache = Boolean(parsed.agentMemoryCache && Object.keys(parsed.agentMemoryCache).length > 0);
+    const hasLargeDerivedCache = raw.length > DERIVED_CACHE_COMPACTION_THRESHOLD
+      && Boolean(parsed.agentMemoryCache && Object.keys(parsed.agentMemoryCache).length > 0);
 
-    if (!hasOversizedHistory && !hasOversizedResolvedSuggestions && !hasOversizedResolvedConflicts && !hasDerivedCache) {
+    if (!hasOversizedHistory && !hasOversizedResolvedSuggestions && !hasOversizedResolvedConflicts && !hasLargeDerivedCache) {
       return false;
     }
     return compactMemoryV2Storage();
