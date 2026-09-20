@@ -1,5 +1,4 @@
 const MEMORY_V2_KEY = 'virtual-company:memory-v2:v1';
-const MEMORY_V2_EVENT = 'virtual-company:memory-v2-changed';
 
 interface RecoverableMemoryV2State {
   version?: number;
@@ -75,7 +74,6 @@ export function recoverMemoryV2Storage(): boolean {
     const serialized = JSON.stringify(compacted);
     if (serialized.length >= raw.length) return false;
     localStorage.setItem(MEMORY_V2_KEY, serialized);
-    window.dispatchEvent(new CustomEvent(MEMORY_V2_EVENT));
     return true;
   } catch (error) {
     console.warn('[Memory V2] Storage recovery could not compact persisted memory.', error);
