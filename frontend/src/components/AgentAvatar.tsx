@@ -56,6 +56,7 @@ export function AgentAvatar({
     <>
       <span
         ref={rootRef}
+        data-agent-id={agent.id}
         className="relative inline-flex shrink-0"
         tabIndex={showHoverCard ? 0 : -1}
         onMouseEnter={showProfile}
