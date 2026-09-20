@@ -70,6 +70,7 @@ export interface ActionItem {
   id: string;
   projectId: string;
   roomId?: string | undefined;
+  sourceDecisionId?: string | undefined;
   title: string;
   owner?: string | undefined;
   deadline?: string | undefined;
