@@ -5,7 +5,7 @@ export const MEETING_ORCHESTRATION_EVENT = 'virtual-company:meeting-orchestratio
 
 export type MeetingPhase = 'open' | 'collect' | 'challenge' | 'resolve' | 'decision' | 'actions' | 'closed';
 export type SpeakerStatus = 'waiting' | 'responded' | 'skipped';
-export type ExternalChatProvider = 'ChatGPT' | 'Gemini' | 'Claude' | 'Copilot' | 'Other';
+export type ExternalChatProvider = 'ChatGPT' | 'Gemini' | 'Claude' | 'Copilot' | 'DeepSeek' | 'Qwen' | 'Grok' | 'META' | 'Other';
 
 export interface ExternalAgentChat {
   agentId: string;
