@@ -1,4 +1,5 @@
 import { newId } from '@/lib/id';
+import { withWorkspaceExtensions } from '@/lib/workspaceExtensions';
 import type { StorageSnapshot } from '@/types/domain';
 
 const SUITE_KEY = 'virtual-company:workspace-suite:v1';
@@ -351,8 +352,9 @@ export function saveAutomaticBackup(snapshot: StorageSnapshot): void {
   const existing = loadAutomaticBackups();
   const last = existing[0];
   if (last && now() - last.createdAt < 5 * 60 * 1000) return;
+  const snapshotWithExtensions = withWorkspaceExtensions(snapshot);
   const next: AutomaticBackup[] = [
-    { id: newId(), createdAt: now(), snapshot, suite },
+    { id: newId(), createdAt: now(), snapshot: snapshotWithExtensions, suite },
     ...existing,
   ].slice(0, 10);
   try {
@@ -371,7 +373,7 @@ export function buildWorkspaceBackup(snapshot: StorageSnapshot): WorkspaceBackup
     format: 'virtual-company-backup',
     version: 1,
     createdAt: now(),
-    snapshot,
+    snapshot: withWorkspaceExtensions(snapshot),
     suite: loadWorkspaceSuite(),
   };
 }
