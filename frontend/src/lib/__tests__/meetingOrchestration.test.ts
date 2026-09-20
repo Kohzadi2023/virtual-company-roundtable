@@ -3,6 +3,7 @@ import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
 import {
   ensureMeetingRoom,
   getExternalAgentChat,
+  hasMeetingStarted,
   inferExternalChatProvider,
   loadMeetingOrchestration,
   markSpeakerStatus,
@@ -24,13 +25,40 @@ describe('meeting orchestration', () => {
     sessionStorage.clear();
   });
 
-  it('puts Olivia first and initializes four rounds', () => {
+  it('puts Olivia first and initializes four rounds without marking the meeting started', () => {
     const meeting = ensureMeetingRoom('room-a', [EMMA, OLIVIA, MIKE]);
     expect(meeting.speakerOrder[0]).toBe(OLIVIA);
     expect(meeting.rounds).toHaveLength(4);
     expect(meeting.phase).toBe('open');
     expect(meeting.roundStage).toBe('opening');
     expect(meeting.activeSpeakerId).toBe(OLIVIA);
+    expect(meeting.startedAt).toBeUndefined();
+    expect(hasMeetingStarted(meeting)).toBe(false);
+  });
+
+  it('does not reset or restart a meeting that has not started', () => {
+    const initial = ensureMeetingRoom('room-a', [OLIVIA, EMMA]);
+
+    expect(resetCurrentRound('room-a')).toBe(false);
+    expect(restartMeeting('room-a')).toBe(false);
+
+    const unchanged = loadMeetingOrchestration().rooms['room-a'];
+    expect(unchanged?.phase).toBe('open');
+    expect(unchanged?.roundIndex).toBe(0);
+    expect(unchanged?.roundStage).toBe('opening');
+    expect(unchanged?.startedAt).toBeUndefined();
+    expect(unchanged?.updatedAt).toBe(initial.updatedAt);
+  });
+
+  it('marks the meeting started when the first meeting turn is completed', () => {
+    const meeting = ensureMeetingRoom('room-a', [OLIVIA, EMMA]);
+    expect(hasMeetingStarted(meeting)).toBe(false);
+
+    markSpeakerStatus('room-a', OLIVIA, 'responded');
+    const started = loadMeetingOrchestration().rooms['room-a'];
+
+    expect(started?.startedAt).toEqual(expect.any(Number));
+    expect(started && hasMeetingStarted(started)).toBe(true);
   });
 
   it('routes the completed specialist round back to Olivia for synthesis', () => {
@@ -121,7 +149,7 @@ describe('meeting orchestration', () => {
     markSpeakerStatus('room-a', OLIVIA, 'responded');
     expect(loadMeetingOrchestration().rooms['room-a']?.roundStage).toBe('complete');
 
-    resetCurrentRound('room-a');
+    expect(resetCurrentRound('room-a')).toBe(true);
     const reset = loadMeetingOrchestration().rooms['room-a'];
     expect(reset?.roundIndex).toBe(3);
     expect(reset?.phase).toBe('decision');
@@ -137,7 +165,7 @@ describe('meeting orchestration', () => {
     setMeetingRound('room-a', 2);
     const before = loadMeetingOrchestration().rooms['room-a'];
 
-    restartMeeting('room-a');
+    expect(restartMeeting('room-a')).toBe(true);
     const restarted = loadMeetingOrchestration().rooms['room-a'];
     expect(restarted?.phase).toBe('open');
     expect(restarted?.roundIndex).toBe(0);
