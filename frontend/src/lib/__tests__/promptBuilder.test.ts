@@ -19,7 +19,7 @@ describe('external chat title hint', () => {
     expect(hint[1]).toContain('Do not add the role, room name, project name, or task');
   });
 
-  it('injects company, project and agent memory without leaking another project', () => {
+  it('injects company, project and agent memory without leaking another project or company', () => {
     const agent = defaultAgents.find(item => item.id === 'agent-emma')!;
     const role = defaultRoles.find(item => item.id === agent.roleId)!;
     useWorkspaceStore.setState({
@@ -98,6 +98,15 @@ describe('external chat title hint', () => {
       status: 'active',
       importance: 'high',
     });
+    addAgentMemory({
+      agentId: agent.id,
+      companyId: 'company-other',
+      category: 'constraint',
+      title: 'Other company secret',
+      content: 'This belongs to a different company workspace.',
+      status: 'active',
+      importance: 'high',
+    });
 
     const prompt = buildAgentPrompt(agent, role, []);
     expect(prompt).toContain('COMPANY MEMORY');
@@ -109,5 +118,6 @@ describe('external chat title hint', () => {
     expect(prompt).toContain('Desktop shell');
     expect(prompt).not.toContain('Other project shared secret');
     expect(prompt).not.toContain('Other project secret');
+    expect(prompt).not.toContain('Other company secret');
   });
 });
