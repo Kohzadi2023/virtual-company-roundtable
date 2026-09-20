@@ -23,6 +23,9 @@ export interface MeetingRoomState {
   roundStage: RoundStage;
   speakerOrder: string[];
   speakerStatus: Record<string, SpeakerStatus>;
+  objective?: string | undefined;
+  expectedOutcome?: string | undefined;
+  decisionQuestion?: string | undefined;
   activeSpeakerId?: string | undefined;
   startedAt?: number | undefined;
   closedAt?: number | undefined;
@@ -32,6 +35,12 @@ export interface MeetingRoomState {
 export interface MeetingOrchestrationState {
   rooms: Record<string, MeetingRoomState>;
   chats: Record<string, ExternalAgentChat>;
+}
+
+export interface MeetingBriefPatch {
+  objective?: string | undefined;
+  expectedOutcome?: string | undefined;
+  decisionQuestion?: string | undefined;
 }
 
 const DEFAULT_ROUNDS = ['Initial opinions', 'Critique', 'Revised proposals', 'Final decision'];
@@ -172,6 +181,25 @@ export function ensureMeetingRoom(roomId: string, agentIds: string[]): MeetingRo
       };
   saveMeetingOrchestration({ ...state, rooms: { ...state.rooms, [roomId]: next } });
   return next;
+}
+
+export function setMeetingBrief(roomId: string, patch: MeetingBriefPatch): void {
+  const state = loadMeetingOrchestration();
+  const current = state.rooms[roomId];
+  if (!current) return;
+  saveMeetingOrchestration({
+    ...state,
+    rooms: {
+      ...state.rooms,
+      [roomId]: {
+        ...current,
+        ...(patch.objective !== undefined ? { objective: patch.objective } : {}),
+        ...(patch.expectedOutcome !== undefined ? { expectedOutcome: patch.expectedOutcome } : {}),
+        ...(patch.decisionQuestion !== undefined ? { decisionQuestion: patch.decisionQuestion } : {}),
+        updatedAt: Date.now(),
+      },
+    },
+  });
 }
 
 export function setMeetingPhase(roomId: string, phase: MeetingPhase): void {
