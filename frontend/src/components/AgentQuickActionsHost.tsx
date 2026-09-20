@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { openAgentMemory } from '@/lib/agentMemory';
 import { copyText } from '@/lib/clipboard';
 import { unseenMessagesForAgent } from '@/lib/contextDelta';
+import { openOrFocusExternalChat } from '@/lib/externalChatWindow';
 import { agentContextKey } from '@/lib/id';
 import { getExternalAgentChat, setActiveSpeaker } from '@/lib/meetingOrchestration';
 import { buildAgentPrompt } from '@/lib/promptBuilder';
@@ -80,7 +81,7 @@ export function AgentQuickActionsHost() {
     <div className="fixed z-[260] w-60 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-2xl" style={{ left: menu.x, top: menu.y }} onClick={event => event.stopPropagation()}>
       <div className="border-b border-slate-100 px-3 py-2"><div className="text-xs font-bold text-slate-800">{agent.name}</div><div className="text-[10px] text-slate-400">{role?.name ?? 'Specialist'} · Quick Actions</div></div>
       <button type="button" onClick={() => void copyContext().finally(() => setMenu(null))} disabled={!room || !role} className="block w-full px-3 py-2 text-start text-xs text-slate-700 hover:bg-blue-50 disabled:opacity-40">⧉ Copy Context</button>
-      <button type="button" onClick={() => { if (chat?.url) window.open(chat.url, '_blank', 'noopener,noreferrer'); setMenu(null); }} disabled={!chat?.url} className="block w-full px-3 py-2 text-start text-xs text-slate-700 hover:bg-violet-50 disabled:opacity-40">↗ Open external chat</button>
+      <button type="button" onClick={() => { if (chat?.url) openOrFocusExternalChat(agent.id, chat.url); setMenu(null); }} disabled={!chat?.url} className="block w-full px-3 py-2 text-start text-xs text-slate-700 hover:bg-violet-50 disabled:opacity-40">↗ Open / Focus external chat</button>
       <button type="button" onClick={() => { openAgentMemory({ agentId: agent.id }); setMenu(null); }} className="block w-full px-3 py-2 text-start text-xs text-slate-700 hover:bg-violet-50">🧠 View memory</button>
       <button type="button" onClick={() => { assignTask(); setMenu(null); }} disabled={!room?.projectId} className="block w-full px-3 py-2 text-start text-xs text-slate-700 hover:bg-emerald-50 disabled:opacity-40">✓ Assign task</button>
       <button type="button" onClick={() => { if (room) toggleAgentInRoom(room.id, agent.id); setMenu(null); }} disabled={!room} className="block w-full px-3 py-2 text-start text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-40">{inRoom ? '− Remove from room' : '+ Add to room'}</button>
