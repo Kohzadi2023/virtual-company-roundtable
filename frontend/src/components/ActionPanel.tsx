@@ -4,7 +4,7 @@ import { ContextCopyControls } from '@/components/ContextCopyControls';
 import { Toast, type ToastMessage } from '@/components/Toast';
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
 import { agentContextKey } from '@/lib/id';
-import { loadMeetingOrchestration, markSpeakerStatus } from '@/lib/meetingOrchestration';
+import { loadMeetingOrchestration, markSpeakerStatus, MEETING_ORCHESTRATION_EVENT } from '@/lib/meetingOrchestration';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
 function useAutoResize(value: string) {
@@ -63,6 +63,16 @@ export function ActionPanel({ roomId }: { roomId: string }) {
     if (roomAgents.some(agent => agent.id === selectedAgentId)) return;
     setSelectedAgentId(roomAgents[0]?.id ?? '');
   }, [roomAgents, selectedAgentId]);
+
+  useEffect(() => {
+    const syncActiveSpeaker = () => {
+      const activeSpeakerId = loadMeetingOrchestration().rooms[roomId]?.activeSpeakerId;
+      if (activeSpeakerId && roomAgents.some(agent => agent.id === activeSpeakerId)) setSelectedAgentId(activeSpeakerId);
+    };
+    syncActiveSpeaker();
+    window.addEventListener(MEETING_ORCHESTRATION_EVENT, syncActiveSpeaker);
+    return () => window.removeEventListener(MEETING_ORCHESTRATION_EVENT, syncActiveSpeaker);
+  }, [roomAgents, roomId]);
 
   useEffect(() => setAgentResponse(''), [selectedAgentId, roomId]);
 
