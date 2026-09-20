@@ -1,11 +1,14 @@
-import { sharedAgentBehavior } from '@/lib/defaultCompany';
+import { MEETING_FACILITATOR_AGENT_ID, sharedAgentBehavior } from '@/lib/defaultCompany';
 import { getRoomLanguage } from '@/lib/languages';
+import { loadMeetingOrchestration } from '@/lib/meetingOrchestration';
+import { assessMeetingReadiness } from '@/lib/meetingReadiness';
 import {
   buildMemoryDigest,
   rankMemoriesByRelevance,
   relevantSharedMemories,
   type SharedMemoryEntry,
 } from '@/lib/memoryV2';
+import { loadOperationsSuite } from '@/lib/operationsSuite';
 import { professionalProfiles } from '@/lib/professionalProfiles';
 import {
   loadWorkspaceSuite,
@@ -13,7 +16,7 @@ import {
   type AgentMemoryEntry,
 } from '@/lib/workspaceSuite';
 import { useWorkspaceStore } from '@/store/workspaceStore';
-import type { Agent, Message, RoleDefinition } from '@/types/domain';
+import type { Agent, Message, RoleDefinition, Room } from '@/types/domain';
 
 function formatMessage(message: Message): string {
   const author = message.authorType === 'user'
@@ -73,6 +76,44 @@ function memorySection<T extends { category: AgentMemoryEntry['category']; title
   ];
 }
 
+function oliviaMeetingSection(agent: Agent, activeRoom: Room | undefined): string[] {
+  if (agent.id !== MEETING_FACILITATOR_AGENT_ID || !activeRoom) return [];
+  const meeting = loadMeetingOrchestration().rooms[activeRoom.id];
+  if (!meeting) return [];
+
+  const workspace = useWorkspaceStore.getState();
+  const readiness = assessMeetingReadiness({
+    roomId: activeRoom.id,
+    meeting,
+    operations: loadOperationsSuite(),
+    decisions: workspace.decisions,
+    actionItems: workspace.actionItems,
+  });
+  const roundName = meeting.rounds[meeting.roundIndex] ?? `Round ${meeting.roundIndex + 1}`;
+  const stageInstruction = meeting.roundStage === 'opening'
+    ? 'Open the current round by restating the purpose, the question this round must answer, and what specialists should focus on. Do not answer for them.'
+    : meeting.roundStage === 'synthesis'
+      ? 'Synthesize the specialist contributions. Separate facts, assumptions, disagreements, proposals, unresolved questions, risks, and any actual decision. Do not invent consensus or owners.'
+      : meeting.roundStage === 'complete'
+        ? 'The round is complete. Summarize what is settled, what remains unresolved, and whether the meeting is ready to advance.'
+        : 'Keep the specialist round focused. Intervene only to clarify scope, surface a blocker, or make disagreement explicit.';
+
+  return [
+    '',
+    'MEETING FACILITATION STATE — deterministic workspace state for Olivia:',
+    `- Objective: ${meeting.objective?.trim() || '(not set)'}`,
+    `- Expected outcome: ${meeting.expectedOutcome?.trim() || '(not set)'}`,
+    `- Decision question: ${meeting.decisionQuestion?.trim() || '(not set)'}`,
+    `- Phase: ${meeting.phase}`,
+    `- Round: ${meeting.roundIndex + 1}/${meeting.rounds.length} · ${roundName}`,
+    `- Stage: ${meeting.roundStage}`,
+    `- Decision readiness: ${readiness.decisionReady ? 'READY' : `BLOCKED — ${readiness.decisionBlockers.join(' | ')}`}`,
+    `- Close readiness: ${readiness.closeReady ? 'READY' : `BLOCKED — ${readiness.closeBlockers.join(' | ')}`}`,
+    stageInstruction,
+    'Treat the readiness state as workflow guardrails. Do not claim a blocker is resolved unless the supplied workspace state or discussion shows that it is resolved.',
+  ];
+}
+
 export function buildExternalChatTitleHint(agent: Pick<Agent, 'name'>): string[] {
   return [
     `CHAT TITLE: ${agent.name}`,
@@ -106,6 +147,7 @@ export function buildAgentPrompt(agent: Agent, role: RoleDefinition, messages: M
     ...memorySection(`${agent.name.toUpperCase()} SYSTEM MEMORY — automatically maintained operating state:`, systemAgentMemories, entry => formatSharedMemory(entry, activeProject?.name)),
     ...memorySection('PERSISTENT AGENT MEMORY — durable professional memory separate from this room conversation:', agentMemories, entry => formatAgentMemory(entry, entry.projectId === activeProject?.id ? activeProject?.name : undefined)),
   ];
+  const meetingSections = oliviaMeetingSection(agent, activeRoom);
 
   return [
     ...buildExternalChatTitleHint(agent),
@@ -118,6 +160,7 @@ export function buildAgentPrompt(agent: Agent, role: RoleDefinition, messages: M
     ...(memorySections.length > 0 ? [
       'Treat active memories as prior working context, not as new user messages. Company memory is shared, project memory is project-scoped, and agent memory belongs only to this specialist. If current context conflicts with memory, surface the conflict instead of silently choosing one.',
     ] : []),
+    ...meetingSections,
     '',
     'NEW CONTEXT — these are only the messages you have not seen yet:',
     context || '(No new context)',
