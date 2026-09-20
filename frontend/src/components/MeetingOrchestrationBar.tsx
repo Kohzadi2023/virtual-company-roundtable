@@ -25,7 +25,7 @@ const PHASES: Array<{ value: MeetingPhase; label: string }> = [
   { value: 'actions', label: 'Actions' },
   { value: 'closed', label: 'Closed' },
 ];
-const PROVIDERS: ExternalChatProvider[] = ['ChatGPT', 'Gemini', 'Claude', 'Copilot', 'Other'];
+const PROVIDERS: ExternalChatProvider[] = ['ChatGPT', 'Gemini', 'Claude', 'Copilot', 'DeepSeek', 'Qwen', 'Grok', 'META', 'Other'];
 
 function phaseLabel(value: MeetingPhase): string {
   return PHASES.find(item => item.value === value)?.label ?? value;
@@ -142,7 +142,7 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
 
               <div className="min-h-0 overflow-y-auto bg-slate-50 p-5">
                 <h3 className="text-xs font-bold uppercase tracking-wide text-slate-400">Agent Chat Registry</h3>
-                <p className="mt-1 text-xs leading-5 text-slate-500">Save the external ChatGPT, Gemini, Claude or other conversation URL for each specialist. Virtual Company stays manual-AI; this only stores navigation links.</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">Save the external AI conversation URL for each specialist. Supported providers include ChatGPT, Gemini, Claude, Copilot, DeepSeek, Qwen, Grok and META. Virtual Company stays manual-AI; this only stores navigation links.</p>
                 <label className="mt-4 block text-[10px] font-bold uppercase tracking-wide text-slate-400">Agent</label>
                 <select value={chatAgentId} onChange={event => setChatAgentId(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs">{roomAgents.map(agent => <option key={agent.id} value={agent.id}>{agent.name}</option>)}</select>
                 <label className="mt-3 block text-[10px] font-bold uppercase tracking-wide text-slate-400">Provider</label>
