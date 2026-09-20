@@ -3,6 +3,7 @@ import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
 import {
   ensureMeetingRoom,
   getExternalAgentChat,
+  inferExternalChatProvider,
   loadMeetingOrchestration,
   markSpeakerStatus,
   resetCurrentRound,
@@ -150,11 +151,29 @@ describe('meeting orchestration', () => {
     expect(restarted?.closedAt).toBeUndefined();
   });
 
-  it('tracks meeting phase and expanded external chat providers', () => {
+  it('infers supported external chat providers directly from conversation URLs', () => {
+    const cases = [
+      ['https://chatgpt.com/c/example', 'ChatGPT'],
+      ['https://chat.openai.com/c/example', 'ChatGPT'],
+      ['https://gemini.google.com/app/example', 'Gemini'],
+      ['https://claude.ai/chat/example', 'Claude'],
+      ['https://copilot.microsoft.com/chats/example', 'Copilot'],
+      ['https://chat.deepseek.com/a/chat/s/example', 'DeepSeek'],
+      ['https://chat.qwen.ai/c/example', 'Qwen'],
+      ['https://grok.com/c/example', 'Grok'],
+      ['https://x.com/i/grok?conversation=example', 'Grok'],
+      ['https://www.meta.ai/chat/example', 'META'],
+      ['https://example.com/chat/example', 'Other'],
+    ] as const;
+
+    for (const [url, provider] of cases) expect(inferExternalChatProvider(url)).toBe(provider);
+  });
+
+  it('stores the detected provider without a manual provider argument', () => {
     ensureMeetingRoom('room-a', [OLIVIA, EMMA]);
     setMeetingPhase('room-a', 'challenge');
-    setExternalAgentChat(OLIVIA, 'ChatGPT', 'https://chatgpt.com/c/example');
-    setExternalAgentChat(EMMA, 'DeepSeek', 'https://chat.deepseek.com/');
+    setExternalAgentChat(OLIVIA, 'https://chatgpt.com/c/example');
+    setExternalAgentChat(EMMA, 'https://chat.deepseek.com/');
 
     expect(loadMeetingOrchestration().rooms['room-a']?.phase).toBe('challenge');
     expect(getExternalAgentChat(OLIVIA)?.provider).toBe('ChatGPT');
