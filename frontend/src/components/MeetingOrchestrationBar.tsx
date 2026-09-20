@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { MeetingAgentRow, type MeetingAgentRowData } from '@/components/MeetingAgentRow';
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
+import { keepTabFocusInsideDialog } from '@/lib/dialogFocus';
 import { normalizeExternalChatUrl } from '@/lib/externalChatLink';
 import { openOrFocusExternalChat } from '@/lib/externalChatWindow';
 import {
@@ -83,6 +84,8 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
   const [operations, setOperations] = useState<OperationsSuiteState>(() => loadOperationsSuite());
   const [open, setOpen] = useState(false);
   const [chatRevision, setChatRevision] = useState(0);
+  const meetingButtonRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (!room) return;
@@ -100,6 +103,29 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
     window.addEventListener(OPERATIONS_SUITE_EVENT, refresh);
     return () => window.removeEventListener(OPERATIONS_SUITE_EVENT, refresh);
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    const focusFrame = window.requestAnimationFrame(() => dialog.focus());
+    const handleDialogKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setOpen(false);
+        window.requestAnimationFrame(() => meetingButtonRef.current?.focus());
+        return;
+      }
+      keepTabFocusInsideDialog(event, dialog);
+    };
+
+    document.addEventListener('keydown', handleDialogKeyDown);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener('keydown', handleDialogKeyDown);
+    };
+  }, [open]);
 
   const agentRows = useMemo<MeetingAgentRowData[]>(() => {
     if (!meeting) return [];
@@ -136,6 +162,11 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
   const nextLabel = meeting.roundStage === 'complete'
     ? canStartNextRound ? 'Awaiting next round' : '—'
     : activeRow?.agent.name ?? '—';
+
+  const closeMeetingModal = () => {
+    setOpen(false);
+    window.requestAnimationFrame(() => meetingButtonRef.current?.focus());
+  };
 
   const handleRoundSelection = (roundIndex: number) => {
     if (phaseForRound(roundIndex) === 'decision' && !readiness.decisionReady) {
@@ -196,7 +227,7 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
   return (
     <>
       <div className="flex h-10 shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-3 text-[11px]">
-        <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 rounded-md border border-violet-200 bg-violet-50 px-2.5 py-1.5 font-bold text-violet-700 hover:bg-violet-100">◉ Meeting</button>
+        <button ref={meetingButtonRef} type="button" onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 rounded-md border border-violet-200 bg-violet-50 px-2.5 py-1.5 font-bold text-violet-700 hover:bg-violet-100">◉ Meeting</button>
         <span className="rounded-md bg-slate-100 px-2 py-1 font-semibold text-slate-700">{phaseLabel(meeting.phase)}</span>
         <span className={`rounded-md px-2 py-1 font-semibold ${meeting.roundStage === 'synthesis' ? 'bg-violet-100 text-violet-700' : meeting.roundStage === 'complete' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>{roundStageLabel(meeting.roundStage)}</span>
         <span className={`rounded-md px-2 py-1 font-semibold ${readiness.decisionReady ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{readiness.decisionReady ? 'Decision ready' : `${readiness.decisionBlockers.length} readiness blocker${readiness.decisionBlockers.length === 1 ? '' : 's'}`}</span>
@@ -212,14 +243,22 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
       </div>
 
       {open ? (
-        <div className="fixed inset-0 z-[120] grid place-items-center bg-slate-950/45 p-5" onMouseDown={event => { if (event.target === event.currentTarget) setOpen(false); }}>
-          <section className="flex h-[90vh] w-[min(1180px,96vw)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" role="dialog" aria-modal="true" aria-label="Meeting orchestration">
+        <div className="fixed inset-0 z-[120] grid place-items-center bg-slate-950/45 p-5" onMouseDown={event => { if (event.target === event.currentTarget) closeMeetingModal(); }}>
+          <section
+            ref={dialogRef}
+            tabIndex={-1}
+            className="flex h-[90vh] w-[min(1180px,96vw)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="meeting-orchestration-title"
+            aria-describedby="meeting-orchestration-description"
+          >
             <header className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
               <div>
-                <h2 className="text-base font-bold text-slate-900">Meeting Orchestration</h2>
-                <p className="mt-0.5 text-xs text-slate-500">One operational view for meeting state, specialist turns and external AI chats.</p>
+                <h2 id="meeting-orchestration-title" className="text-base font-bold text-slate-900">Meeting Orchestration</h2>
+                <p id="meeting-orchestration-description" className="mt-0.5 text-xs text-slate-500">One operational view for meeting state, specialist turns and external AI chats.</p>
               </div>
-              <button type="button" onClick={() => setOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100">✕</button>
+              <button type="button" onClick={closeMeetingModal} aria-label="Close meeting orchestration" className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100">✕</button>
             </header>
 
             <div className="shrink-0 border-b border-slate-200 bg-slate-50/70 px-5 py-3">
