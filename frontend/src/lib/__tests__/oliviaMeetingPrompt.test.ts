@@ -48,7 +48,7 @@ describe('Olivia meeting prompt', () => {
     expect(oliviaPrompt).toContain('Choose the persistence architecture.');
     expect(oliviaPrompt).toContain('Should v4 snapshot persistence be canonical?');
     expect(oliviaPrompt).toContain('Decision readiness: READY');
-    expect(oliviaPrompt).toContain('Do not invent consensus or owners');
+    expect(oliviaPrompt).toContain('Do not answer for them.');
 
     const emmaPrompt = buildAgentPrompt(emma, emmaRole, []);
     expect(emmaPrompt).not.toContain('MEETING FACILITATION STATE');
