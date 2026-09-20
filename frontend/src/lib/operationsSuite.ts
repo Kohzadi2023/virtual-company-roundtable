@@ -7,7 +7,7 @@ export const OPERATIONS_SUITE_EVENT = 'virtual-company:operations-suite-changed'
 export type RegisterStatus = 'open' | 'validated' | 'resolved' | 'rejected' | 'archived';
 export type Confidence = 'low' | 'medium' | 'high';
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
-export type IdeaStatus = 'raw' | 'exploring' | 'promising' | 'rejected' | 'selected';
+export type IdeaStatus = 'raw' | 'exploring' | 'promising' | 'rejected' | 'selected' | 'merged';
 export type DeliverableType = 'PRD' | 'ADR' | 'Technical Spec' | 'Test Plan' | 'GTM Plan' | 'Risk Assessment' | 'Meeting Minutes' | 'Implementation Plan';
 export type KanbanStatus = 'todo' | 'in-progress' | 'blocked' | 'review' | 'done';
 
@@ -268,7 +268,7 @@ export function mergeIdeas(sourceIds: string[], targetId: string): void {
   if (sources.size === 0) return;
   updateOperationsSuite(state => ({
     ...state,
-    ideas: state.ideas.map(item => sources.has(item.id) ? { ...item, mergedIntoId: targetId, status: 'archived' as never, updatedAt: Date.now() } : item),
+    ideas: state.ideas.map(item => sources.has(item.id) ? { ...item, mergedIntoId: targetId, status: 'merged', updatedAt: Date.now() } : item),
   }));
 }
 
