@@ -4,6 +4,7 @@ import {
   compactMemoryV2Storage,
   hasLocalStorageHeadroom,
   isStorageQuotaError,
+  prepareMemoryV2Storage,
   runWithMemoryV2StorageRecovery,
 } from '@/lib/memoryV2Storage';
 
@@ -47,6 +48,24 @@ describe('memoryV2Storage', () => {
     expect(compacted.suggestions).toHaveLength(61);
     expect(compacted.conflicts).toHaveLength(61);
     expect(compacted.agentMemoryCache).toEqual({});
+  });
+
+  it('does not discard a small derived cache when storage is healthy', () => {
+    const state = {
+      version: 1,
+      sharedMemories: [],
+      suggestions: [],
+      relations: [],
+      conflicts: [],
+      history: [],
+      agentMemoryCache: {
+        a: { fingerprint: 'small-fingerprint', title: 'Agent memory' },
+      },
+    };
+    localStorage.setItem(MEMORY_KEY, JSON.stringify(state));
+
+    expect(prepareMemoryV2Storage()).toBe(false);
+    expect(JSON.parse(localStorage.getItem(MEMORY_KEY)!).agentMemoryCache).toEqual(state.agentMemoryCache);
   });
 
   it('shrinks an existing Memory V2 localStorage payload in place', () => {
