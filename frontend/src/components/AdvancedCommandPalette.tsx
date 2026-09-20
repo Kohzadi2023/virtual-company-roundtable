@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { getExternalAgentChat } from '@/lib/meetingOrchestration';
 import { openAgentMemory } from '@/lib/agentMemory';
+import { openOrFocusExternalChat } from '@/lib/externalChatWindow';
+import { getExternalAgentChat } from '@/lib/meetingOrchestration';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
 interface PaletteCommand {
@@ -76,7 +77,7 @@ export function AdvancedCommandPalette() {
         keywords: `specialist employee memory ${chat?.provider ?? ''}`,
         category: 'Agent',
         run: () => {
-          if (chat?.url) window.open(chat.url, '_blank', 'noopener,noreferrer');
+          if (chat?.url) openOrFocusExternalChat(agent.id, chat.url);
           else openAgentMemory({ agentId: agent.id });
         },
       });
