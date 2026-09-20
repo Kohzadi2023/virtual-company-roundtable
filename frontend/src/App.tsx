@@ -11,9 +11,11 @@ import { MemoryCenterDialogHost } from '@/components/MemoryCenterDialogHost';
 import { MemoryCenterLauncher } from '@/components/MemoryCenterLauncher';
 import { MemoryV2Runtime } from '@/components/MemoryV2Runtime';
 import { OperationsCenterLauncher } from '@/components/OperationsCenterLauncher';
+import { OperationsCompletionRuntime } from '@/components/OperationsCompletionRuntime';
 import { OtherRoomsPanel } from '@/components/OtherRoomsPanel';
 import { SecuritySettingsLauncher } from '@/components/SecuritySettingsLauncher';
 import { TopBar } from '@/components/TopBar';
+import { TraceabilityCenterLauncher } from '@/components/TraceabilityCenterLauncher';
 import { ensureMeetingFacilitatorMembership } from '@/lib/roomMembershipActions';
 import { bootstrapPersistence, startPersistence } from '@/lib/storage';
 import { useWorkspaceStore } from '@/store/workspaceStore';
@@ -62,6 +64,7 @@ export default function App() {
     <AppLockGate>
       <main className="flex h-screen min-w-[1180px] flex-col overflow-hidden bg-[#f7f9fc] text-slate-900">
         <MemoryV2Runtime />
+        <OperationsCompletionRuntime />
         <AdvancedCommandPalette />
         <AgentQuickActionsHost />
         <TopBar />
@@ -85,6 +88,8 @@ export default function App() {
             <MemoryCenterLauncher />
             <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
             <OperationsCenterLauncher />
+            <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
+            <TraceabilityCenterLauncher />
             <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
             <IdeaMergeLauncher />
             <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
