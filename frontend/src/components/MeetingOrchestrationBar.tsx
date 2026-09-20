@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
 import {
   ensureMeetingRoom,
   getExternalAgentChat,
@@ -13,6 +14,7 @@ import {
   type ExternalChatProvider,
   type MeetingPhase,
   type MeetingRoomState,
+  type RoundStage,
 } from '@/lib/meetingOrchestration';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
@@ -29,6 +31,15 @@ const PROVIDERS: ExternalChatProvider[] = ['ChatGPT', 'Gemini', 'Claude', 'Copil
 
 function phaseLabel(value: MeetingPhase): string {
   return PHASES.find(item => item.value === value)?.label ?? value;
+}
+
+function roundStageLabel(value: RoundStage): string {
+  switch (value) {
+    case 'opening': return 'Olivia opening';
+    case 'specialists': return 'Specialist round';
+    case 'synthesis': return 'Olivia synthesis';
+    case 'complete': return 'Round complete';
+  }
 }
 
 function validExternalUrl(value: string): boolean {
@@ -78,9 +89,11 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
 
   if (!room || !meeting) return null;
 
-  const responded = meeting.speakerOrder.filter(id => meeting.speakerStatus[id] === 'responded').length;
+  const specialistOrder = meeting.speakerOrder.filter(id => id !== MEETING_FACILITATOR_AGENT_ID);
+  const specialistResponded = specialistOrder.filter(id => meeting.speakerStatus[id] === 'responded').length;
   const activeAgent = agents.find(agent => agent.id === meeting.activeSpeakerId);
   const currentRound = meeting.rounds[meeting.roundIndex] ?? 'Round';
+  const nextLabel = meeting.roundStage === 'complete' ? '—' : activeAgent?.name ?? '—';
 
   const nextPhase = () => {
     const index = PHASES.findIndex(item => item.value === meeting.phase);
@@ -101,11 +114,12 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
       <div className="flex h-10 shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-3 text-[11px]">
         <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 rounded-md border border-violet-200 bg-violet-50 px-2.5 py-1.5 font-bold text-violet-700 hover:bg-violet-100">◉ Meeting</button>
         <span className="rounded-md bg-slate-100 px-2 py-1 font-semibold text-slate-700">{phaseLabel(meeting.phase)}</span>
+        <span className={`rounded-md px-2 py-1 font-semibold ${meeting.roundStage === 'synthesis' ? 'bg-violet-100 text-violet-700' : meeting.roundStage === 'complete' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>{roundStageLabel(meeting.roundStage)}</span>
         <span className="text-slate-400">·</span>
         <span className="font-medium text-slate-600">Round {meeting.roundIndex + 1}/{meeting.rounds.length}: {currentRound}</span>
         <span className="text-slate-400">·</span>
-        <span className="font-medium text-slate-600">Next: <strong className="text-slate-800">{activeAgent?.name ?? '—'}</strong></span>
-        <span className="ms-auto text-slate-400">{responded}/{meeting.speakerOrder.length} responded</span>
+        <span className="font-medium text-slate-600">Next: <strong className={meeting.roundStage === 'synthesis' ? 'text-violet-700' : 'text-slate-800'}>{nextLabel}</strong></span>
+        <span className="ms-auto text-slate-400">{specialistResponded}/{specialistOrder.length} specialists responded</span>
         {meeting.phase !== 'closed' ? <button type="button" onClick={nextPhase} className="rounded-md border border-slate-200 px-2 py-1 font-semibold text-slate-600 hover:bg-slate-50">Next phase →</button> : null}
       </div>
 
@@ -119,23 +133,31 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
 
             <div className="grid min-h-0 flex-1 grid-cols-[1.2fr_1fr] divide-x divide-slate-200">
               <div className="min-h-0 overflow-y-auto p-5">
-                <h3 className="text-xs font-bold uppercase tracking-wide text-slate-400">Meeting flow</h3>
+                <div className="rounded-xl border border-violet-100 bg-violet-50 p-3 text-xs leading-5 text-violet-800">
+                  <strong>{roundStageLabel(meeting.roundStage)}</strong><br />
+                  {meeting.roundStage === 'opening' ? 'Olivia opens the round, then the queue moves to the specialists.' : null}
+                  {meeting.roundStage === 'specialists' ? 'Specialists contribute in queue order. After the final specialist, Olivia becomes next automatically.' : null}
+                  {meeting.roundStage === 'synthesis' ? 'All specialist turns are complete. Copy Olivia context now so she can synthesize the round and direct the next step.' : null}
+                  {meeting.roundStage === 'complete' ? 'The final Olivia synthesis is complete.' : null}
+                </div>
+
+                <h3 className="mt-5 text-xs font-bold uppercase tracking-wide text-slate-400">Meeting flow</h3>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {PHASES.map(item => <button key={item.value} type="button" onClick={() => setMeetingPhase(room.id, item.value)} className={`rounded-lg border px-3 py-2 text-xs font-semibold ${meeting.phase === item.value ? 'border-violet-300 bg-violet-50 text-violet-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>{item.label}</button>)}
                 </div>
 
-                <div className="mt-6 flex items-center justify-between"><h3 className="text-xs font-bold uppercase tracking-wide text-slate-400">Rounds</h3><span className="text-[10px] text-slate-400">Changing round resets the speaking queue.</span></div>
+                <div className="mt-6 flex items-center justify-between"><h3 className="text-xs font-bold uppercase tracking-wide text-slate-400">Rounds</h3><span className="text-[10px] text-slate-400">Manual round selection starts with Olivia again.</span></div>
                 <div className="mt-2 space-y-2">
                   {meeting.rounds.map((round, index) => <div key={`${index}-${round}`} className={`flex items-center gap-2 rounded-lg border p-2 ${meeting.roundIndex === index ? 'border-blue-200 bg-blue-50' : 'border-slate-200'}`}><button type="button" onClick={() => setMeetingRound(room.id, index)} className="grid h-7 w-7 place-items-center rounded-full bg-white text-xs font-bold text-slate-600 shadow-sm">{index + 1}</button><input value={round} onChange={event => renameMeetingRound(room.id, index, event.target.value)} className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-slate-700 outline-none" /></div>)}
                 </div>
 
-                <div className="mt-6 flex items-center justify-between"><h3 className="text-xs font-bold uppercase tracking-wide text-slate-400">Speaking queue</h3><span className="text-[10px] text-slate-400">Click a person to make them next.</span></div>
+                <div className="mt-6 flex items-center justify-between"><h3 className="text-xs font-bold uppercase tracking-wide text-slate-400">Speaking queue</h3><span className="text-[10px] text-slate-400">Olivia is automatically re-queued for synthesis.</span></div>
                 <div className="mt-2 space-y-2">
                   {roomAgents.map(agent => {
                     const role = roles.find(item => item.id === agent.roleId);
                     const status = meeting.speakerStatus[agent.id] ?? 'waiting';
                     const active = meeting.activeSpeakerId === agent.id;
-                    return <div key={agent.id} className={`flex items-center gap-2 rounded-lg border p-2 ${active ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200'}`}><button type="button" onClick={() => setActiveSpeaker(room.id, agent.id)} className="min-w-0 flex-1 text-start"><div className="truncate text-xs font-bold text-slate-800">{agent.name}</div><div className="truncate text-[10px] text-slate-400">{role?.name ?? 'Specialist'}</div></button><span className={`rounded px-2 py-1 text-[9px] font-bold uppercase ${status === 'responded' ? 'bg-emerald-100 text-emerald-700' : status === 'skipped' ? 'bg-slate-100 text-slate-500' : 'bg-amber-50 text-amber-700'}`}>{status}</span><button type="button" onClick={() => markSpeakerStatus(room.id, agent.id, status === 'skipped' ? 'waiting' : 'skipped')} className="rounded border border-slate-200 px-2 py-1 text-[10px] text-slate-500 hover:bg-white">{status === 'skipped' ? 'Unskip' : 'Skip'}</button></div>;
+                    return <div key={agent.id} className={`flex items-center gap-2 rounded-lg border p-2 ${active ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200'}`}><button type="button" onClick={() => setActiveSpeaker(room.id, agent.id)} className="min-w-0 flex-1 text-start"><div className="truncate text-xs font-bold text-slate-800">{agent.name}{agent.id === MEETING_FACILITATOR_AGENT_ID ? ' · Facilitator' : ''}</div><div className="truncate text-[10px] text-slate-400">{role?.name ?? 'Specialist'}</div></button><span className={`rounded px-2 py-1 text-[9px] font-bold uppercase ${status === 'responded' ? 'bg-emerald-100 text-emerald-700' : status === 'skipped' ? 'bg-slate-100 text-slate-500' : 'bg-amber-50 text-amber-700'}`}>{status}</span><button type="button" onClick={() => markSpeakerStatus(room.id, agent.id, status === 'skipped' ? 'waiting' : 'skipped')} className="rounded border border-slate-200 px-2 py-1 text-[10px] text-slate-500 hover:bg-white">{status === 'skipped' ? 'Unskip' : 'Skip'}</button></div>;
                   })}
                 </div>
               </div>
