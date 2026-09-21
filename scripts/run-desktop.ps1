@@ -21,6 +21,40 @@ function Test-Command([string]$Name) {
   return $null -ne (Get-Command $Name -ErrorAction SilentlyContinue)
 }
 
+function Stop-StaleDesktopProcesses {
+  $managedRoots = @(
+    [System.IO.Path]::GetFullPath((Join-Path $frontendDir "src-tauri\target")),
+    [System.IO.Path]::GetFullPath((Join-Path $frontendDir "src-tauri\binaries"))
+  )
+
+  $processes = Get-Process -Name "virtual-company", "virtual-company-backend" -ErrorAction SilentlyContinue
+  foreach ($process in $processes) {
+    $processPath = $null
+    try {
+      $processPath = $process.Path
+    } catch {
+      continue
+    }
+
+    if ([string]::IsNullOrWhiteSpace($processPath)) { continue }
+
+    $fullProcessPath = [System.IO.Path]::GetFullPath($processPath)
+    $isManagedProcess = $false
+    foreach ($managedRoot in $managedRoots) {
+      if ($fullProcessPath.StartsWith($managedRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        $isManagedProcess = $true
+        break
+      }
+    }
+
+    if (-not $isManagedProcess) { continue }
+
+    Write-Host "Stopping stale desktop process $($process.ProcessName) (PID $($process.Id))..." -ForegroundColor Yellow
+    Stop-Process -Id $process.Id -Force -ErrorAction Stop
+    Wait-Process -Id $process.Id -Timeout 5 -ErrorAction SilentlyContinue
+  }
+}
+
 function Ensure-RustToolchain {
   $cargoBin = Join-Path $env:USERPROFILE ".cargo\bin"
   if ((Test-Path (Join-Path $cargoBin "cargo.exe")) -and -not (Test-Command "cargo")) {
@@ -224,6 +258,7 @@ function Ensure-WindowsNativeToolchain {
 
 Ensure-RustToolchain
 Ensure-WindowsNativeToolchain
+Stop-StaleDesktopProcesses
 
 & (Join-Path $PSScriptRoot "build-desktop-backend.ps1") -Python $Python
 
