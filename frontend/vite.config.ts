@@ -12,6 +12,11 @@ export default defineConfig(({ mode }) => {
     server: {
       host: true,
       port: 5173,
+      watch: {
+        // Cargo continuously creates and locks binaries under target/ during `tauri dev`.
+        // Vite does not need those files for HMR and watching them can raise EBUSY on Windows.
+        ignored: ['**/src-tauri/target/**'],
+      },
       proxy: { '/api': { target: apiTarget, changeOrigin: true } },
     },
   };
