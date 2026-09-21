@@ -27,6 +27,8 @@ jobs:
   frontend:
     name: Frontend checks
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     defaults:
       run:
         working-directory: frontend
@@ -46,6 +48,20 @@ jobs:
           path: frontend/package-lock.json
           if-no-files-found: error
           retention-days: 1
+      - name: Commit generated lockfile
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin "${{ github.head_ref }}"
+          git checkout -B "${{ github.head_ref }}" "origin/${{ github.head_ref }}"
+          git add package-lock.json
+          if git diff --cached --quiet; then
+            echo "Lockfile is already committed."
+          else
+            git commit -m "chore(frontend): lock dependency graph"
+            git push origin "HEAD:${{ github.head_ref }}"
+          fi
       - name: Run tests
         run: npm run test:run
       - name: Typecheck
