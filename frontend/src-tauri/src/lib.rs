@@ -5,10 +5,52 @@ use tauri_plugin_shell::{process::CommandChild, ShellExt};
 
 struct BackendProcess(Mutex<Option<CommandChild>>);
 
+#[tauri::command]
+fn open_external_url(url: String) -> Result<(), String> {
+    let url = url.trim();
+    let lower = url.to_ascii_lowercase();
+    if !(lower.starts_with("https://") || lower.starts_with("http://")) {
+        return Err("Only http:// and https:// URLs can be opened.".to_string());
+    }
+
+    #[cfg(target_os = "windows")]
+    let mut command = {
+        let mut command = std::process::Command::new("rundll32.exe");
+        command.arg("url.dll,FileProtocolHandler").arg(url);
+        command
+    };
+
+    #[cfg(target_os = "macos")]
+    let mut command = {
+        let mut command = std::process::Command::new("open");
+        command.arg(url);
+        command
+    };
+
+    #[cfg(target_os = "linux")]
+    let mut command = {
+        let mut command = std::process::Command::new("xdg-open");
+        command.arg(url);
+        command
+    };
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+    return Err("Opening external URLs is not supported on this platform.".to_string());
+
+    #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
+    {
+        command
+            .spawn()
+            .map(|_| ())
+            .map_err(|error| format!("Could not open the system browser: {error}"))
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .invoke_handler(tauri::generate_handler![open_external_url])
         .manage(BackendProcess(Mutex::new(None)))
         .setup(|app| {
             let app_data_dir = app.path().app_data_dir()?;
