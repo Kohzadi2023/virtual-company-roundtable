@@ -4,11 +4,24 @@ interface ExternalChatWindowRecord {
   windowRef: Window;
 }
 
+type TauriInvoke = <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
+type WindowWithTauri = Window & {
+  __TAURI__?: {
+    core?: {
+      invoke?: TauriInvoke;
+    };
+  };
+};
+
 const openWindows = new Map<string, ExternalChatWindowRecord>();
 
 function safeTargetPart(value: string): string {
   const normalized = value.trim().toLocaleLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
   return normalized || 'chat';
+}
+
+function tauriInvoke(): TauriInvoke | null {
+  return (window as WindowWithTauri).__TAURI__?.core?.invoke ?? null;
 }
 
 export function externalChatWindowTarget(agentId: string): string {
@@ -18,16 +31,23 @@ export function externalChatWindowTarget(agentId: string): string {
 export type ExternalChatOpenResult = 'opened' | 'focused' | 'navigated' | 'blocked';
 
 /**
- * Opens one reusable browser tab/window per Agent.
- *
- * Browser security does not let the app enumerate arbitrary tabs that the user
- * opened manually. This helper can, however, reuse tabs created by Virtual
- * Company and also asks the browser to reuse the same named browsing context
- * after an app refresh when the browser still has it available.
+ * Opens one reusable browser tab/window per Agent in the web app.
+ * In Tauri desktop, delegates to a native command so the saved chat URL opens
+ * in the user's system browser instead of relying on WebView popup behavior.
  */
-export function openOrFocusExternalChat(agentId: string, url: string): ExternalChatOpenResult {
+export async function openOrFocusExternalChat(agentId: string, url: string): Promise<ExternalChatOpenResult> {
   const cleanUrl = url.trim();
   if (!cleanUrl) return 'blocked';
+
+  const invoke = tauriInvoke();
+  if (invoke) {
+    try {
+      await invoke<void>('open_external_url', { url: cleanUrl });
+      return 'opened';
+    } catch {
+      return 'blocked';
+    }
+  }
 
   const targetName = externalChatWindowTarget(agentId);
   const existing = openWindows.get(agentId);
