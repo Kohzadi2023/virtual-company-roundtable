@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { estimatePromptSize, messagesForContextMode } from '@/lib/contextModes';
+import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
+import {
+  estimatePromptSize,
+  messagesForContextMode,
+  preferredContextModeForMeetingTurn,
+} from '@/lib/contextModes';
 import type { AgentContextState, Message, Room } from '@/types/domain';
 
 function message(id: string, authorId: string | undefined, pinned = false): Message {
@@ -45,5 +50,31 @@ describe('context copy modes', () => {
     const size = estimatePromptSize('one two three four');
     expect(size.words).toBe(4);
     expect(size.approxTokens).toBeGreaterThan(0);
+  });
+
+  it('prefers Smart Compact only for Olivia active synthesis turns', () => {
+    expect(preferredContextModeForMeetingTurn(
+      MEETING_FACILITATOR_AGENT_ID,
+      MEETING_FACILITATOR_AGENT_ID,
+      'synthesis',
+    )).toBe('compact');
+
+    expect(preferredContextModeForMeetingTurn(
+      MEETING_FACILITATOR_AGENT_ID,
+      MEETING_FACILITATOR_AGENT_ID,
+      'opening',
+    )).toBe('continue');
+
+    expect(preferredContextModeForMeetingTurn(
+      'agent-emma',
+      'agent-emma',
+      'synthesis',
+    )).toBe('continue');
+
+    expect(preferredContextModeForMeetingTurn(
+      MEETING_FACILITATOR_AGENT_ID,
+      'agent-emma',
+      'synthesis',
+    )).toBe('continue');
   });
 });
