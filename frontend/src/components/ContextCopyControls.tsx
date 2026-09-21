@@ -5,10 +5,15 @@ import {
   decoratePromptForContextMode,
   estimatePromptSize,
   messagesForContextMode,
+  preferredContextModeForMeetingTurn,
   type ContextCopyMode,
 } from '@/lib/contextModes';
 import { openOrFocusExternalChat } from '@/lib/externalChatWindow';
-import { getExternalAgentChat } from '@/lib/meetingOrchestration';
+import {
+  getExternalAgentChat,
+  loadMeetingOrchestration,
+  MEETING_ORCHESTRATION_EVENT,
+} from '@/lib/meetingOrchestration';
 import { buildAgentPrompt } from '@/lib/promptBuilder';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 import type { Agent, AgentContextState, RoleDefinition, Room } from '@/types/domain';
@@ -38,7 +43,14 @@ function messageLabel(content: string): string {
 
 export function ContextCopyControls({ room, agent, role, cursor, onNotify }: ContextCopyControlsProps) {
   const markAgentContextCopied = useWorkspaceStore(state => state.markAgentContextCopied);
-  const [mode, setMode] = useState<ContextCopyMode>('continue');
+  const [, setMeetingRevision] = useState(0);
+  const meeting = loadMeetingOrchestration().rooms[room.id];
+  const preferredMode = preferredContextModeForMeetingTurn(
+    agent.id,
+    meeting?.activeSpeakerId,
+    meeting?.roundStage,
+  );
+  const [mode, setMode] = useState<ContextCopyMode>(preferredMode);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [excludedIds, setExcludedIds] = useState<string[]>([]);
 
@@ -51,6 +63,17 @@ export function ContextCopyControls({ room, agent, role, cursor, onNotify }: Con
   const disabled = mode === 'continue' && selectedMessages.length === 0;
   const large = size.approxTokens >= 8000;
   const veryLarge = size.approxTokens >= 16000;
+
+  useEffect(() => {
+    const refresh = () => setMeetingRevision(value => value + 1);
+    window.addEventListener(MEETING_ORCHESTRATION_EVENT, refresh);
+    return () => window.removeEventListener(MEETING_ORCHESTRATION_EVENT, refresh);
+  }, [room.id]);
+
+  useEffect(() => {
+    setMode(preferredMode);
+    setPreviewOpen(false);
+  }, [agent.id, preferredMode, room.id]);
 
   useEffect(() => setExcludedIds([]), [agent.id, mode, room.id]);
 
