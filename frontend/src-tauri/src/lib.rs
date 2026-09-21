@@ -17,7 +17,7 @@ pub fn run() {
 
             let sidecar = app
                 .shell()
-                .sidecar("binaries/virtual-company-backend")?
+                .sidecar("virtual-company-backend")?
                 .env("AI_TEAM_DB", db_path.to_string_lossy().to_string())
                 .env("DESKTOP_BACKEND_PORT", "8765")
                 .env(
