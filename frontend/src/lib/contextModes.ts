@@ -1,4 +1,6 @@
 import { unseenMessagesForAgent } from '@/lib/contextDelta';
+import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
+import type { RoundStage } from '@/lib/meetingOrchestration';
 import type { AgentContextState, Message, Room } from '@/types/domain';
 
 export type ContextCopyMode = 'continue' | 'new-chat' | 'full' | 'compact' | 'decision' | 'challenge';
@@ -17,6 +19,18 @@ export const CONTEXT_MODES: ContextModeDefinition[] = [
   { value: 'decision', label: 'Decision Review', description: 'Smart compact context with a decision-ready review instruction.' },
   { value: 'challenge', label: 'Challenge Consensus', description: 'Smart compact context with a devil’s-advocate instruction.' },
 ];
+
+export function preferredContextModeForMeetingTurn(
+  agentId: string,
+  activeSpeakerId: string | null | undefined,
+  roundStage: RoundStage | undefined,
+): ContextCopyMode {
+  return agentId === MEETING_FACILITATOR_AGENT_ID
+    && activeSpeakerId === agentId
+    && roundStage === 'synthesis'
+    ? 'compact'
+    : 'continue';
+}
 
 function withoutAgentOwnMessages(room: Room, agentId: string): Message[] {
   return room.messages.filter(message => !(message.authorType === 'agent' && message.authorId === agentId));
