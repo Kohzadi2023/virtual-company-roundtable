@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { defaultAgents, defaultRoles } from '@/lib/defaultCompany';
+import { defaultAgents, defaultRoles, MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
 import { addSharedMemory } from '@/lib/memoryV2';
+import { ensureMeetingRoom } from '@/lib/meetingOrchestration';
 import { buildAgentPrompt, buildExternalChatTitleHint } from '@/lib/promptBuilder';
 import { addAgentMemory } from '@/lib/workspaceSuite';
 import { useWorkspaceStore } from '@/store/workspaceStore';
@@ -119,5 +120,120 @@ describe('external chat title hint', () => {
     expect(prompt).not.toContain('Other project shared secret');
     expect(prompt).not.toContain('Other project secret');
     expect(prompt).not.toContain('Other company secret');
+  });
+});
+
+describe('Olivia staffing roster injection', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  it('gives Olivia real per-agent context, not just names, and an honest workload proxy', () => {
+    const olivia = defaultAgents.find(item => item.id === MEETING_FACILITATOR_AGENT_ID)!;
+    const oliviaRole = defaultRoles.find(item => item.id === olivia.roleId)!;
+    const emma = { id: 'agent-emma', name: 'Emma', roleId: 'role-architect', emoji: '🏗️', color: '#6366F1', createdAt: 1 };
+    const architectRole = {
+      id: 'role-architect',
+      name: 'Software Architect',
+      description: 'Owns system structure and architectural trade-offs.',
+      skills: ['System Design', 'Scalability'],
+      scope: 'Architecture direction and integration boundaries.',
+      limitations: ['Does not own detailed implementation.'],
+      systemPrompt: 'Act as architect.',
+      builtIn: true,
+      createdAt: 1,
+    };
+
+    useWorkspaceStore.setState({
+      agents: [olivia, emma],
+      roles: [oliviaRole, architectRole],
+      teams: [{ id: 'team-eng', name: 'Product & Engineering', description: '', emoji: '🧩', agentIds: ['agent-emma'], builtIn: true, createdAt: 1 }],
+      projects: [{ id: 'project-a', name: 'Project A', description: '', emoji: '📁', createdAt: 1 }],
+      decisions: [],
+      actionItems: [],
+      rooms: [
+        {
+          id: 'room-a',
+          name: 'New Meeting',
+          emoji: '🏢',
+          companyId: 'company-default',
+          projectId: 'project-a',
+          languageCode: 'en',
+          agentIds: [olivia.id],
+          teamIds: [],
+          individualAgentIds: [olivia.id],
+          messages: [],
+          createdAt: 1,
+        },
+        {
+          id: 'room-b',
+          name: 'Payment Redesign',
+          emoji: '💳',
+          companyId: 'company-default',
+          projectId: 'project-a',
+          agentIds: ['agent-emma'],
+          messages: [],
+          createdAt: 1,
+        },
+      ],
+      activeRoomId: 'room-a',
+    });
+    ensureMeetingRoom('room-a', [olivia.id]);
+
+    const prompt = buildAgentPrompt(olivia, oliviaRole, []);
+
+    expect(prompt).toContain('agent-emma: Emma — Software Architect');
+    // Combines scope + deliverables + description, deduped — not just one field.
+    expect(prompt).toContain('Responsibilities: Architecture direction and integration boundaries.; Owns system structure and architectural trade-offs.');
+    expect(prompt).toContain('Boundaries: Does not own detailed implementation.');
+    expect(prompt).toContain('Teams: Product & Engineering');
+    // Emma's line ends right after the workload clause (no "ALREADY IN ROOM" —
+    // that only applies to Olivia herself, who is in room-a).
+    expect(prompt).toContain('activeRoomCount: 1 (Payment Redesign)\n');
+    expect(prompt).toContain('WORKLOAD SIGNAL');
+    expect(prompt).toContain('Do NOT interpret it as: availability, ownership, authority, or a current task assignment.');
+    expect(prompt).toContain('Match each required capability against this roster');
+    expect(prompt).toContain('do NOT invent an agent for it');
+  });
+
+  it('builds the facilitation/staffing section even when nothing has called ensureMeetingRoom yet', () => {
+    // Regression test: this section used to read loadMeetingOrchestration()
+    // and silently return [] if no meeting state existed for the room yet —
+    // a passive dependency on some other component (MeetingOrchestrationBar)
+    // having already called ensureMeetingRoom as a side effect of rendering.
+    // Deliberately skip that call here to prove buildAgentPrompt no longer
+    // needs it to have run first.
+    const olivia = defaultAgents.find(item => item.id === MEETING_FACILITATOR_AGENT_ID)!;
+    const oliviaRole = defaultRoles.find(item => item.id === olivia.roleId)!;
+
+    useWorkspaceStore.setState({
+      agents: [olivia],
+      roles: [oliviaRole],
+      teams: [],
+      projects: [{ id: 'project-a', name: 'Project A', description: '', emoji: '📁', createdAt: 1 }],
+      decisions: [],
+      actionItems: [],
+      rooms: [{
+        id: 'room-fresh',
+        name: 'Brand New Room',
+        emoji: '🏢',
+        companyId: 'company-default',
+        projectId: 'project-a',
+        languageCode: 'en',
+        agentIds: [olivia.id],
+        teamIds: [],
+        individualAgentIds: [olivia.id],
+        messages: [],
+        createdAt: 1,
+      }],
+      activeRoomId: 'room-fresh',
+    });
+
+    const prompt = buildAgentPrompt(olivia, oliviaRole, []);
+
+    expect(prompt).toContain('MEETING FACILITATION STATE');
+    expect(prompt).toContain('MEETING STAFFING');
+    expect(prompt).toContain('YOU ARE CURRENTLY THE ONLY PARTICIPANT IN THIS MEETING.');
   });
 });
