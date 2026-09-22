@@ -6,6 +6,7 @@ import { AgentQuickActionsHost } from '@/components/AgentQuickActionsHost';
 import { AppLockGate } from '@/components/AppLockGate';
 import { ChatRoom } from '@/components/ChatRoom';
 import { CollapsibleCompanyDirectory } from '@/components/CollapsibleCompanyDirectory';
+import { HelpTutorialLauncher } from '@/components/HelpTutorialLauncher';
 import { IdeaMergeLauncher } from '@/components/IdeaMergeLauncher';
 import { MemoryCenterDialogHost } from '@/components/MemoryCenterDialogHost';
 import { MemoryCenterLauncher } from '@/components/MemoryCenterLauncher';
@@ -92,6 +93,8 @@ export default function App() {
             <TraceabilityCenterLauncher />
             <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
             <IdeaMergeLauncher />
+            <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
+            <HelpTutorialLauncher />
             <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
             <SecuritySettingsLauncher />
           </div>
