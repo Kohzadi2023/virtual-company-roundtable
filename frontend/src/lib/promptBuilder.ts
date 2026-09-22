@@ -109,9 +109,24 @@ function oliviaMeetingBriefSection(activeRoom: Room, meeting: MeetingRoomState):
   ];
 }
 
+function isOliviaAloneInRoom(activeRoom: Room): boolean {
+  return activeRoom.agentIds.every(id => id === MEETING_FACILITATOR_AGENT_ID);
+}
+
+function oliviaSoloBootstrapPreamble(): string[] {
+  return [
+    '',
+    'YOU ARE CURRENTLY THE ONLY PARTICIPANT IN THIS MEETING.',
+    'Your first responsibility this turn is NOT to answer the meeting question yourself.',
+    'Your responsibility is to determine which existing people, agents, or teams must participate for this meeting to reach a reliable decision or outcome, then assemble that team before any specialist discussion begins.',
+    'Do not attempt to solve the meeting topic in this response. Focus this response on team assembly.',
+  ];
+}
+
 function oliviaStaffingSection(activeRoom: Room, workspace: WorkspaceState, roundStage: string): string[] {
   if (roundStage !== 'opening') return [];
 
+  const solo = isOliviaAloneInRoom(activeRoom);
   const roleById = new Map(workspace.roles.map(role => [role.id, role]));
   const roomMembers = new Set(activeRoom.agentIds);
   const roster = workspace.agents.map(agent => {
@@ -122,12 +137,15 @@ function oliviaStaffingSection(activeRoom: Room, workspace: WorkspaceState, roun
   });
 
   return [
+    ...(solo ? oliviaSoloBootstrapPreamble() : []),
     '',
     'MEETING STAFFING — assess the minimum expert team before you open the round:',
     'Use the meeting objective, expected outcome, decision question, and current discussion to decide which specialties are actually needed.',
     'If the meeting brief above was missing, use the brief you just inferred as the basis for staffing.',
     'Prefer existing company specialists whenever their role and skills are sufficient. Do not create a duplicate specialist merely to rename an existing capability.',
     'Only propose a new hire when the company roster has a material skill gap that would weaken the meeting. Keep the team small and decision-relevant.',
+    'For every participant and every hire, give a short reason and the expected contribution — a specific decision, evidence, or deliverable, not a generic "provides input".',
+    'A capability gap only exists when an essential area of expertise is missing, no existing person or agent legitimately owns it, and the meeting cannot safely reach its objective without it. Do not invite someone only because they are senior or generally important.',
     'The user remains the final approver: you propose the staffing plan; Virtual Company will show it for one-click review before mutating the company directory.',
     '',
     'COMPANY ROSTER — authoritative current specialists and role skills:',
@@ -139,7 +157,14 @@ function oliviaStaffingSection(activeRoom: Room, workspace: WorkspaceState, roun
     '{',
     '  "teamName": "Short meeting-specific team name",',
     '  "teamDescription": "What this team is responsible for in this meeting",',
-    '  "existingAgentIds": ["agent-emma", "agent-mike"],',
+    '  "participants": [',
+    '    {',
+    '      "agentId": "agent-emma",',
+    '      "priority": "required",',
+    '      "reason": "Why this specific person is needed for this meeting",',
+    '      "expectedContribution": "The decision, evidence, or deliverable expected from them"',
+    '    }',
+    '  ],',
     '  "hires": [',
     '    {',
     '      "agentName": "A concise human first name",',
@@ -147,19 +172,26 @@ function oliviaStaffingSection(activeRoom: Room, workspace: WorkspaceState, roun
     '      "description": "Professional scope for this role",',
     '      "skills": ["Skill 1", "Skill 2", "Skill 3"],',
     '      "systemPrompt": "A durable professional instruction defining scope, expected contribution, and boundaries.",',
-    '      "emoji": "🧑‍💼"',
+    '      "emoji": "🧑‍💼",',
+    '      "priority": "required",',
+    '      "type": "ai-agent",',
+    '      "reason": "Why this capability is missing and why no existing participant can cover it",',
+    '      "expectedContribution": "The decision, evidence, or deliverable expected from them"',
     '    }',
     '  ],',
+    '  "readiness": "TEAM_READY",',
     '  "rationale": "Why this is the minimum sufficient team and why any new hire is necessary"',
     '}',
     '```',
     'Staffing block rules:',
-    '- existingAgentIds must contain only exact IDs from the roster above.',
-    '- Include every existing specialist that should participate, even if already in the room.',
+    '- participants[].agentId must be an exact ID from the roster above. Include every existing specialist that should participate, even if already in the room.',
+    '- priority is "required" when the meeting cannot reliably reach its outcome without them, "optional" when they would materially help but are not essential.',
     '- hires must be [] when existing company skills are sufficient.',
     '- Never hire a new person for a skill that an existing specialist already covers adequately.',
     '- Limit new hires to genuine gaps; normally 0-3 and never more than 8.',
     '- A new hire must have a reusable professional role and skill matrix, not a task-specific persona.',
+    '- type is "ai-agent" (default) or "temporary-specialist" for a capability you can create yourself as an AI teammate; use "human" or "contractor" ONLY when the work genuinely requires a real person (e.g. legal sign-off, an external vendor relationship) — never invent an existing employee or fabricate expertise, and never use "human"/"contractor" as a way to avoid defining a normal AI specialist.',
+    '- readiness is exactly one of TEAM_READY (no unresolved gap), STAFFING_ACTION_REQUIRED (a "human"/"contractor" hire is still needed, or an AI hire awaits the user\'s one-click approval), or INSUFFICIENT_CONTEXT (you cannot determine the required team from what you have — say what is missing in rationale).',
     '- Do not put comments inside the JSON and do not write anything after the closing code fence.',
   ];
 }

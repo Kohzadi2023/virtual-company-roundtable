@@ -61,5 +61,43 @@ describe('Olivia meeting prompt', () => {
     expect(emmaPrompt).not.toContain('MEETING FACILITATION STATE');
     expect(emmaPrompt).not.toContain('MEETING STAFFING');
     expect(emmaPrompt).not.toContain('VC_STAFFING_PLAN');
+    // Emma is already in the room here, alongside Olivia — the solo
+    // bootstrap framing below must never leak into a non-solo meeting.
+    expect(oliviaPrompt).not.toContain('YOU ARE CURRENTLY THE ONLY PARTICIPANT');
+  });
+
+  it('reframes Olivia as team assembler only when she is the sole room participant', () => {
+    const olivia = defaultAgents.find(item => item.id === MEETING_FACILITATOR_AGENT_ID)!;
+    const oliviaRole = defaultRoles.find(item => item.id === olivia.roleId)!;
+
+    useWorkspaceStore.setState({
+      agents: defaultAgents,
+      roles: defaultRoles,
+      projects: [{ id: 'project-a', name: 'Project A', description: '', emoji: '📁', createdAt: 1 }],
+      decisions: [],
+      actionItems: [],
+      rooms: [{
+        id: 'room-solo',
+        name: 'New Meeting',
+        emoji: '🏢',
+        companyId: 'company-default',
+        projectId: 'project-a',
+        languageCode: 'en',
+        agentIds: [olivia.id],
+        teamIds: [],
+        individualAgentIds: [olivia.id],
+        messages: [],
+        createdAt: 1,
+      }],
+      activeRoomId: 'room-solo',
+    });
+
+    ensureMeetingRoom('room-solo', [olivia.id]);
+    const oliviaPrompt = buildAgentPrompt(olivia, oliviaRole, []);
+
+    expect(oliviaPrompt).toContain('YOU ARE CURRENTLY THE ONLY PARTICIPANT IN THIS MEETING.');
+    expect(oliviaPrompt).toContain('Your first responsibility this turn is NOT to answer the meeting question yourself.');
+    expect(oliviaPrompt).toContain('"participants"');
+    expect(oliviaPrompt).toContain('"readiness": "TEAM_READY"');
   });
 });
