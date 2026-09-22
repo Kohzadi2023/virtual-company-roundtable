@@ -40,7 +40,7 @@ function operations(overrides: Partial<OperationsSuiteState> = {}): OperationsSu
 }
 
 describe('meeting readiness', () => {
-  it('blocks decision when the brief is incomplete or room questions remain open', () => {
+  it('blocks decision while Olivia is preparing an incomplete brief or room questions remain open', () => {
     const result = assessMeetingReadiness({
       roomId: 'room-a',
       meeting: meeting({ decisionQuestion: '' }),
@@ -60,7 +60,9 @@ describe('meeting readiness', () => {
     });
 
     expect(result.decisionReady).toBe(false);
-    expect(result.decisionBlockers).toContain('Decision question is missing.');
+    expect(result.briefReady).toBe(false);
+    expect(result.decisionBlockers).toContain('Olivia is preparing the meeting brief automatically.');
+    expect(result.decisionBlockers.filter(item => item.includes('meeting brief'))).toHaveLength(1);
     expect(result.openQuestionCount).toBe(1);
   });
 
@@ -73,6 +75,7 @@ describe('meeting readiness', () => {
       actionItems: [],
     });
 
+    expect(result.briefReady).toBe(true);
     expect(result.decisionReady).toBe(true);
     expect(result.closeReady).toBe(false);
     expect(result.closeBlockers).toContain('No approved decision is recorded for this meeting.');
