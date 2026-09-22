@@ -1,3 +1,16 @@
+type TauriInvoke = <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
+type WindowWithTauri = Window & {
+  __TAURI__?: {
+    core?: {
+      invoke?: TauriInvoke;
+    };
+  };
+};
+
+function tauriInvoke(): TauriInvoke | null {
+  return (window as WindowWithTauri).__TAURI__?.core?.invoke ?? null;
+}
+
 function fallbackCopyText(text: string): void {
   const textarea = document.createElement('textarea');
   textarea.value = text;
@@ -26,6 +39,16 @@ function fallbackCopyText(text: string): void {
 export async function copyText(text: string): Promise<void> {
   if (!text) throw new Error('Nothing to copy');
 
+  const invoke = tauriInvoke();
+  if (invoke) {
+    try {
+      await invoke<void>('write_clipboard_text', { text });
+      return;
+    } catch {
+      // Fall through to the Web Clipboard API so desktop still has a best-effort fallback.
+    }
+  }
+
   if (navigator.clipboard?.writeText) {
     try {
       await navigator.clipboard.writeText(text);
@@ -38,4 +61,21 @@ export async function copyText(text: string): Promise<void> {
   }
 
   fallbackCopyText(text);
+}
+
+export async function readText(): Promise<string> {
+  const invoke = tauriInvoke();
+  if (invoke) {
+    try {
+      return await invoke<string>('read_clipboard_text');
+    } catch {
+      // Fall through to the Web Clipboard API so desktop still has a best-effort fallback.
+    }
+  }
+
+  if (navigator.clipboard?.readText) {
+    return navigator.clipboard.readText();
+  }
+
+  throw new Error('Clipboard read is unavailable');
 }
