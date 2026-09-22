@@ -522,33 +522,56 @@ function sameConflictScope(left: UnifiedMemory, right: UnifiedMemory): boolean {
   return left.companyId === right.companyId && left.scope === right.scope && (left.projectId ?? '') === (right.projectId ?? '');
 }
 
+// sameConflictScope only ever matches within one of two coarse groups: entries
+// sharing an agentId, or entries sharing companyId+scope+projectId. Comparing
+// every pair across the whole workspace is O(n²) even though almost all pairs
+// are in different groups and get rejected immediately. Bucketing by that same
+// key first turns the scan into O(sum of bucket-size²), which is what actually
+// matters once memories are spread across many agents/projects/companies.
+function conflictBucketKey(memory: UnifiedMemory): string {
+  if (memory.agentId) return `agent:${memory.agentId}:${memory.projectId ?? ''}`;
+  return `shared:${memory.companyId ?? ''}:${memory.scope}:${memory.projectId ?? ''}`;
+}
+
 export function refreshMemoryConflicts(): MemoryConflict[] {
   const memories = unifiedMemories().filter(item => item.status === 'active');
   const state = loadMemoryV2();
   const existingByPair = new Map(state.conflicts.map(item => [[item.leftRef, item.rightRef].sort().join('|'), item]));
   const found: MemoryConflict[] = [];
-  for (let leftIndex = 0; leftIndex < memories.length; leftIndex += 1) {
-    for (let rightIndex = leftIndex + 1; rightIndex < memories.length; rightIndex += 1) {
-      const left = memories[leftIndex]!;
-      const right = memories[rightIndex]!;
-      if (!sameConflictScope(left, right)) continue;
-      if (left.category !== right.category && !(['decision', 'constraint', 'fact'] as AgentMemoryCategory[]).includes(left.category)) continue;
-      const similarity = overlapScore(`${left.title} ${left.content}`, `${right.title} ${right.content}`);
-      if (similarity < 0.48) continue;
-      if (normalizeText(left.content) === normalizeText(right.content)) continue;
-      const pair = [left.ref, right.ref].sort();
-      const key = pair.join('|');
-      const prior = existingByPair.get(key);
-      found.push(prior ?? {
-        id: newId(),
-        leftRef: pair[0]!,
-        rightRef: pair[1]!,
-        reason: `Potential conflict: ${(similarity * 100).toFixed(0)}% topic overlap in the same active memory scope. Review before treating both as current truth.`,
-        status: 'open',
-        createdAt: now(),
-      });
+
+  const buckets = new Map<string, UnifiedMemory[]>();
+  for (const memory of memories) {
+    const key = conflictBucketKey(memory);
+    const bucket = buckets.get(key);
+    if (bucket) bucket.push(memory);
+    else buckets.set(key, [memory]);
+  }
+
+  for (const bucket of buckets.values()) {
+    for (let leftIndex = 0; leftIndex < bucket.length; leftIndex += 1) {
+      for (let rightIndex = leftIndex + 1; rightIndex < bucket.length; rightIndex += 1) {
+        const left = bucket[leftIndex]!;
+        const right = bucket[rightIndex]!;
+        if (!sameConflictScope(left, right)) continue;
+        if (left.category !== right.category && !(['decision', 'constraint', 'fact'] as AgentMemoryCategory[]).includes(left.category)) continue;
+        const similarity = overlapScore(`${left.title} ${left.content}`, `${right.title} ${right.content}`);
+        if (similarity < 0.48) continue;
+        if (normalizeText(left.content) === normalizeText(right.content)) continue;
+        const pair = [left.ref, right.ref].sort();
+        const key = pair.join('|');
+        const prior = existingByPair.get(key);
+        found.push(prior ?? {
+          id: newId(),
+          leftRef: pair[0]!,
+          rightRef: pair[1]!,
+          reason: `Potential conflict: ${(similarity * 100).toFixed(0)}% topic overlap in the same active memory scope. Review before treating both as current truth.`,
+          status: 'open',
+          createdAt: now(),
+        });
+      }
     }
   }
+
   const stillRelevant = new Set(found.map(item => [item.leftRef, item.rightRef].sort().join('|')));
   const preservedClosed = state.conflicts.filter(item => item.status !== 'open' && !stillRelevant.has([item.leftRef, item.rightRef].sort().join('|')));
   saveMemoryV2({ ...state, conflicts: [...found, ...preservedClosed].slice(0, 300) });
