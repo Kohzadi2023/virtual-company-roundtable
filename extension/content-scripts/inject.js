@@ -14,7 +14,7 @@
   }
 
   if (adapter.mode === 'auto' && adapter.selector) {
-    shared.watchForQuietReply(adapter.selector, sendCapture, adapter.quietMs);
+    shared.watchForQuietReply(adapter.selector, sendCapture, adapter.quietMs, adapter.extractText);
   } else {
     shared.injectFloatingButton(() => {
       const text = adapter.getLatestText ? adapter.getLatestText() : shared.genericLastAssistantText();
