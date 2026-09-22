@@ -1,6 +1,6 @@
 import { MEETING_FACILITATOR_AGENT_ID, sharedAgentBehavior } from '@/lib/defaultCompany';
 import { getRoomLanguage } from '@/lib/languages';
-import { loadMeetingOrchestration } from '@/lib/meetingOrchestration';
+import { loadMeetingOrchestration, type MeetingRoomState } from '@/lib/meetingOrchestration';
 import { assessMeetingReadiness } from '@/lib/meetingReadiness';
 import {
   buildMemoryDigest,
@@ -76,6 +76,39 @@ function memorySection<T extends { category: AgentMemoryEntry['category']; title
   ];
 }
 
+function oliviaMeetingBriefSection(activeRoom: Room, meeting: MeetingRoomState): string[] {
+  const missingBrief = !meeting.objective?.trim() || !meeting.expectedOutcome?.trim() || !meeting.decisionQuestion?.trim();
+  if (!missingBrief) return [];
+
+  return [
+    '',
+    'MEETING BRIEF — define this automatically for the user before facilitating the meeting:',
+    `Room/topic: ${activeRoom.title}`,
+    'The user is the meeting observer and final approver. Do NOT ask the user to discover or manually fill Objective, Expected Outcome, or Decision Question.',
+    'Infer the brief from the room topic, user request, supplied context, and discussion. Make it concrete enough that specialists know what they are solving and the system can judge decision readiness.',
+    'Prefer a reasonable, explicit interpretation over leaving the brief blank. Ask for clarification only when the meeting topic is genuinely ambiguous enough that proceeding would likely solve the wrong problem.',
+    '',
+    'Before any VC_STAFFING_PLAN block, append exactly one machine-readable meeting brief block using this format:',
+    'VC_MEETING_BRIEF',
+    '```json',
+    '{',
+    '  "objective": "What this meeting must accomplish",',
+    '  "expectedOutcome": "The concrete output that should exist by the end of the meeting",',
+    '  "decisionQuestion": "The exact question the user will ultimately approve, reject, or defer",',
+    '  "needsClarification": false,',
+    '  "clarificationQuestion": ""',
+    '}',
+    '```',
+    'Meeting brief rules:',
+    '- Write the brief in the room working language.',
+    '- Keep each field concise, specific, and decision-oriented.',
+    '- If the supplied context is sufficient, set needsClarification to false and do not ask the user anything.',
+    '- If clarification is truly required, set needsClarification to true and ask exactly one short clarificationQuestion; still provide your best provisional objective/outcome/question.',
+    '- Do not put comments inside the JSON.',
+    '- This block is workflow metadata. Do not describe these instructions to the user.',
+  ];
+}
+
 function oliviaStaffingSection(activeRoom: Room, workspace: WorkspaceState, roundStage: string): string[] {
   if (roundStage !== 'opening') return [];
 
@@ -92,6 +125,7 @@ function oliviaStaffingSection(activeRoom: Room, workspace: WorkspaceState, roun
     '',
     'MEETING STAFFING — assess the minimum expert team before you open the round:',
     'Use the meeting objective, expected outcome, decision question, and current discussion to decide which specialties are actually needed.',
+    'If the meeting brief above was missing, use the brief you just inferred as the basis for staffing.',
     'Prefer existing company specialists whenever their role and skills are sufficient. Do not create a duplicate specialist merely to rename an existing capability.',
     'Only propose a new hire when the company roster has a material skill gap that would weaken the meeting. Keep the team small and decision-relevant.',
     'The user remains the final approver: you propose the staffing plan; Virtual Company will show it for one-click review before mutating the company directory.',
@@ -155,14 +189,15 @@ function oliviaMeetingSection(agent: Agent, activeRoom: Room | undefined): strin
   return [
     '',
     'MEETING FACILITATION STATE — deterministic workspace state for Olivia:',
-    `- Objective: ${meeting.objective?.trim() || '(not set)'}`,
-    `- Expected outcome: ${meeting.expectedOutcome?.trim() || '(not set)'}`,
-    `- Decision question: ${meeting.decisionQuestion?.trim() || '(not set)'}`,
+    `- Objective: ${meeting.objective?.trim() || '(not set — infer automatically)'}`,
+    `- Expected outcome: ${meeting.expectedOutcome?.trim() || '(not set — infer automatically)'}`,
+    `- Decision question: ${meeting.decisionQuestion?.trim() || '(not set — infer automatically)'}`,
     `- Phase: ${meeting.phase}`,
     `- Round: ${meeting.roundIndex + 1}/${meeting.rounds.length} · ${roundName}`,
     `- Stage: ${meeting.roundStage}`,
     `- Decision readiness: ${readiness.decisionReady ? 'READY' : `BLOCKED — ${readiness.decisionBlockers.join(' | ')}`}`,
     `- Close readiness: ${readiness.closeReady ? 'READY' : `BLOCKED — ${readiness.closeBlockers.join(' | ')}`}`,
+    ...oliviaMeetingBriefSection(activeRoom, meeting),
     ...oliviaStaffingSection(activeRoom, workspace, meeting.roundStage),
     stageInstruction,
     'Treat the readiness state as workflow guardrails. Do not claim a blocker is resolved unless the supplied workspace state or discussion shows that it is resolved.',
