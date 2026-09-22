@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { ActionPanel } from '@/components/ActionPanel';
 import { MeetingOrchestrationBar } from '@/components/MeetingOrchestrationBar';
 import { MeetingPhaseTimerStrip } from '@/components/MeetingPhaseTimerStrip';
+import { OliviaStaffingCard } from '@/components/OliviaStaffingCard';
 import { RoomToolsBar } from '@/components/RoomToolsBar';
 import { TimelineMessage } from '@/components/TimelineMessage';
 import { useWorkspaceStore } from '@/store/workspaceStore';
@@ -44,6 +45,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
       <RoomToolsBar roomId={room.id} />
       <MeetingOrchestrationBar roomId={room.id} />
       <MeetingPhaseTimerStrip roomId={room.id} />
+      <OliviaStaffingCard roomId={room.id} />
 
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 pb-2 pt-2" role="log" aria-live="polite" aria-label="Company discussion">
         <div className="min-h-full rounded-xl border border-slate-200 bg-white px-3 py-1 shadow-[0_1px_2px_rgba(15,23,42,0.02)]">
