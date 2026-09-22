@@ -1,8 +1,11 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  type AgentMemoryEntry,
   addAgentMemory,
+  capAgentMemories,
   loadAutomaticBackups,
   loadWorkspaceSuite,
+  MAX_AGENT_MEMORIES,
   recordAudit,
   relevantAgentMemories,
   saveAutomaticBackup,
@@ -129,5 +132,47 @@ describe('workspaceSuite', () => {
     updateAgentMemory(id!, { status: 'superseded' });
 
     expect(relevantAgentMemories('agent-mike', undefined, 'company-default')).toEqual([]);
+  });
+
+  it('caps the agent-memory list to the newest entries once the limit is exceeded', () => {
+    const entries = Array.from({ length: MAX_AGENT_MEMORIES + 5 }, (_, index) => ({
+      id: `memory-${index}`,
+    })) as AgentMemoryEntry[];
+
+    const capped = capAgentMemories(entries);
+
+    expect(capped).toHaveLength(MAX_AGENT_MEMORIES);
+    expect(capped[0]?.id).toBe('memory-0');
+    expect(capped.at(-1)?.id).toBe(`memory-${MAX_AGENT_MEMORIES - 1}`);
+  });
+
+  it('keeps automatic backups within the retained-backup limit', () => {
+    for (let index = 0; index < 3; index += 1) {
+      updateWorkspaceSuite(state => ({ ...state, autoBackupEnabled: true }));
+      saveAutomaticBackup(emptySnapshot(index));
+      // Force the next backup past the 5-minute throttle window.
+      const backups = loadAutomaticBackups();
+      backups[0]!.createdAt = 0;
+      localStorage.setItem('virtual-company:auto-backups:v1', JSON.stringify(backups));
+    }
+    expect(loadAutomaticBackups().length).toBeLessThanOrEqual(5);
+  });
+
+  it('recovers automatically instead of throwing when a save hits a simulated quota error', () => {
+    let calls = 0;
+    const write = localStorage.setItem.bind(localStorage);
+    vi.spyOn(localStorage, 'setItem').mockImplementation((key, value) => {
+      calls += 1;
+      if (calls === 1) {
+        const quotaError = new Error('Storage quota exceeded');
+        quotaError.name = 'QuotaExceededError';
+        throw quotaError;
+      }
+      write(key, value);
+    });
+
+    expect(() => recordAudit('room.archived', 'Archived Architecture room.')).not.toThrow();
+    expect(loadWorkspaceSuite().auditLog.some(entry => entry.action === 'room.archived')).toBe(true);
+    vi.restoreAllMocks();
   });
 });
