@@ -83,7 +83,7 @@ function oliviaMeetingBriefSection(activeRoom: Room, meeting: MeetingRoomState):
   return [
     '',
     'MEETING BRIEF — define this automatically for the user before facilitating the meeting:',
-    `Room/topic: ${activeRoom.title}`,
+    `Room/topic: ${activeRoom.name}`,
     'The user is the meeting observer and final approver. Do NOT ask the user to discover or manually fill Objective, Expected Outcome, or Decision Question.',
     'Infer the brief from the room topic, user request, supplied context, and discussion. Make it concrete enough that specialists know what they are solving and the system can judge decision readiness.',
     'Prefer a reasonable, explicit interpretation over leaving the brief blank. Ask for clarification only when the meeting topic is genuinely ambiguous enough that proceeding would likely solve the wrong problem.',
