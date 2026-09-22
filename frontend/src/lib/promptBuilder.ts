@@ -1,6 +1,6 @@
 import { MEETING_FACILITATOR_AGENT_ID, sharedAgentBehavior } from '@/lib/defaultCompany';
 import { getRoomLanguage } from '@/lib/languages';
-import { loadMeetingOrchestration, type MeetingRoomState } from '@/lib/meetingOrchestration';
+import { ensureMeetingRoom, type MeetingRoomState } from '@/lib/meetingOrchestration';
 import { assessMeetingReadiness } from '@/lib/meetingReadiness';
 import {
   buildMemoryDigest,
@@ -125,39 +125,97 @@ function oliviaSoloBootstrapPreamble(): string[] {
 
 const MAX_ROSTER_ACTIVE_ROOMS_LISTED = 3;
 
+export interface MeetingStaffingRosterEntry {
+  id: string;
+  name: string;
+  role: string;
+  skills: string[];
+  responsibilities: string[];
+  boundaries: string[];
+  teams: Array<{ id: string; name: string }>;
+  /**
+   * A workload signal only — NOT availability, ownership, authority, or a
+   * current task assignment. Counts rooms other than the one this prompt is
+   * being built for (a room's own facilitator is trivially "in" it, so
+   * including that room would make every agent look busier than they are).
+   */
+  workload: {
+    activeRoomCount: number;
+    activeRoomTitles?: string[];
+  };
+  alreadyInRoom: boolean;
+}
+
+function dedupeStrings(values: Array<string | undefined>): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const value of values) {
+    const trimmed = value?.trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLocaleLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(trimmed);
+  }
+  return result;
+}
+
 /**
- * One roster line per agent with enough real, current context for Olivia to
- * actually match capabilities instead of guessing from a name — id, role,
- * skills, responsibilities, boundaries, team, and current workload.
+ * Real, current per-agent context for Olivia to match capabilities against —
+ * not just a name and a skill list.
  *
  * "Responsibilities" and "boundaries" come from RoleDefinition
- * (scope/description and limitations) since there's no separate field for
- * either. "Team" is derived by looking up which TeamDefinition(s) list this
- * agent, since Agent itself doesn't carry a team reference. There is no
- * "current ownership" or "availability" field anywhere in the domain model:
+ * (scope/deliverables/description and limitations) since there's no
+ * separate field for either. "Teams" is derived by looking up which
+ * TeamDefinition(s) list this agent, since Agent itself doesn't carry a team
+ * reference — an agent can be on more than one team. There is no "current
+ * ownership" or "availability" field anywhere in the domain model:
  * ActionItem.owner is a free-text string, not an agent id, so it can't be
- * matched reliably. Room membership across the workspace is used instead as
- * an honest, authoritative proxy for both — which rooms/projects an agent is
- * actively part of right now.
+ * matched reliably to a specific agent. Room membership across the
+ * workspace is used instead only as what it actually is — a count of how
+ * many other rooms this agent is currently active in — never relabeled as
+ * ownership or availability.
  */
-function rosterLine(agent: Agent, workspace: WorkspaceState, activeRoom: Room): string {
+function buildRosterEntry(agent: Agent, workspace: WorkspaceState, activeRoom: Room): MeetingStaffingRosterEntry {
   const role = workspace.roles.find(item => item.id === agent.roleId);
-  const skills = role?.skills.length ? role.skills.join(', ') : 'No skills listed';
-  const responsibilities = role?.scope || role?.description || 'Not specified';
-  const boundaries = role?.limitations?.length ? role.limitations.join('; ') : 'None specified';
-  const teamNames = workspace.teams.filter(team => team.agentIds.includes(agent.id)).map(team => team.name);
+  const teams = workspace.teams
+    .filter(team => team.agentIds.includes(agent.id))
+    .map(team => ({ id: team.id, name: team.name }));
   const otherRooms = workspace.rooms.filter(room => room.id !== activeRoom.id && room.agentIds.includes(agent.id));
-  const otherRoomNames = otherRooms.slice(0, MAX_ROSTER_ACTIVE_ROOMS_LISTED).map(room => room.name);
-  const workload = otherRooms.length > 0
-    ? `Active in ${otherRooms.length} other room${otherRooms.length === 1 ? '' : 's'} (${otherRoomNames.join(', ')}${otherRooms.length > otherRoomNames.length ? ', …' : ''})`
-    : 'Not currently active in any other room';
-  const roomStatus = activeRoom.agentIds.includes(agent.id) ? ' · ALREADY IN ROOM' : '';
+  const activeRoomTitles = otherRooms.slice(0, MAX_ROSTER_ACTIVE_ROOMS_LISTED).map(room => room.name);
 
-  return `- ${agent.id}: ${agent.name} — ${role?.name ?? 'Unknown role'}`
+  return {
+    id: agent.id,
+    name: agent.name,
+    role: role?.name ?? 'Unknown role',
+    skills: role?.skills.length ? role.skills : [],
+    responsibilities: dedupeStrings([role?.scope, ...(role?.deliverables ?? []), role?.description]),
+    boundaries: role?.limitations?.length ? role.limitations : [],
+    teams,
+    workload: {
+      activeRoomCount: otherRooms.length,
+      ...(activeRoomTitles.length > 0 ? { activeRoomTitles } : {}),
+    },
+    alreadyInRoom: activeRoom.agentIds.includes(agent.id),
+  };
+}
+
+function formatRosterEntry(entry: MeetingStaffingRosterEntry): string {
+  const skills = entry.skills.length ? entry.skills.join(', ') : 'No skills listed';
+  const responsibilities = entry.responsibilities.length ? entry.responsibilities.join('; ') : 'Not specified';
+  const boundaries = entry.boundaries.length ? entry.boundaries.join('; ') : 'None specified';
+  const teamNames = entry.teams.length ? entry.teams.map(team => team.name).join(', ') : 'Unassigned';
+  const { activeRoomCount, activeRoomTitles } = entry.workload;
+  const workload = activeRoomCount > 0
+    ? `activeRoomCount: ${activeRoomCount} (${(activeRoomTitles ?? []).join(', ')}${activeRoomCount > (activeRoomTitles?.length ?? 0) ? ', …' : ''})`
+    : 'activeRoomCount: 0';
+  const roomStatus = entry.alreadyInRoom ? ' · ALREADY IN ROOM' : '';
+
+  return `- ${entry.id}: ${entry.name} — ${entry.role}`
     + ` | Skills: ${skills}`
     + ` | Responsibilities: ${responsibilities}`
     + ` | Boundaries: ${boundaries}`
-    + ` | Team: ${teamNames.length > 0 ? teamNames.join(', ') : 'Unassigned'}`
+    + ` | Teams: ${teamNames}`
     + ` | ${workload}${roomStatus}`;
 }
 
@@ -165,7 +223,7 @@ function oliviaStaffingSection(activeRoom: Room, workspace: WorkspaceState, roun
   if (roundStage !== 'opening') return [];
 
   const solo = isOliviaAloneInRoom(activeRoom);
-  const roster = workspace.agents.map(agent => rosterLine(agent, workspace, activeRoom));
+  const roster = workspace.agents.map(agent => formatRosterEntry(buildRosterEntry(agent, workspace, activeRoom)));
 
   return [
     ...(solo ? oliviaSoloBootstrapPreamble() : []),
@@ -179,14 +237,17 @@ function oliviaStaffingSection(activeRoom: Room, workspace: WorkspaceState, roun
     'A capability gap only exists when an essential area of expertise is missing, no existing person or agent legitimately owns it, and the meeting cannot safely reach its objective without it. Do not invite someone only because they are senior or generally important.',
     'The user remains the final approver: you propose the staffing plan; Virtual Company will show it for one-click review before mutating the company directory.',
     '',
-    'COMPANY ROSTER — authoritative current specialists, skills, responsibilities, boundaries, team, and current workload:',
+    'COMPANY ROSTER — authoritative current specialists, skills, responsibilities, boundaries, teams, and workload signal:',
     ...roster,
+    '',
+    'WORKLOAD SIGNAL',
+    'activeRoomCount in the roster above is how many OTHER active meeting rooms that participant currently belongs to. It is only a workload signal.',
+    'Do NOT interpret it as: availability, ownership, authority, or a current task assignment. A busy specialist (high activeRoomCount) can still be the right choice — it is context for you and the user, never a disqualifier, and activeRoomCount: 0 does not mean the person is "available".',
     '',
     'Match each required capability against this roster before deciding anything:',
     '- A need this roster already covers → add that person/agent as a participant. Do not hire for it.',
     '- A need no existing person or agent legitimately owns → propose an AI specialist hire (type "ai-agent" or "temporary-specialist").',
     '- A need that genuinely requires a real person (legal standing, an external vendor relationship, physical presence, anything an AI cannot legitimately do) → do NOT invent an agent for it. Mark it as a "human" or "contractor" hire; it becomes a blocker, not a fabricated participant.',
-    'A busy specialist (already active in other rooms) can still be the right choice — workload is context for you and the user, not a disqualifier.',
     '',
     'At the END of your opening response, append exactly one machine-readable staffing block using this format:',
     'VC_STAFFING_PLAN',
@@ -235,8 +296,13 @@ function oliviaStaffingSection(activeRoom: Room, workspace: WorkspaceState, roun
 
 function oliviaMeetingSection(agent: Agent, activeRoom: Room | undefined): string[] {
   if (agent.id !== MEETING_FACILITATOR_AGENT_ID || !activeRoom) return [];
-  const meeting = loadMeetingOrchestration().rooms[activeRoom.id];
-  if (!meeting) return [];
+  // Must not depend on some other component (MeetingOrchestrationBar) having
+  // already called ensureMeetingRoom as a side effect of rendering — that
+  // silently dropped this entire section (no facilitation, no staffing, no
+  // error) whenever a prompt was built through any path that got here first.
+  // ensureMeetingRoom is idempotent, so calling it here makes this section
+  // self-sufficient instead of a passive, easy-to-break dependency.
+  const meeting = ensureMeetingRoom(activeRoom.id, activeRoom.agentIds);
 
   const workspace = useWorkspaceStore.getState();
   const readiness = assessMeetingReadiness({

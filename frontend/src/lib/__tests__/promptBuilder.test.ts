@@ -184,13 +184,56 @@ describe('Olivia staffing roster injection', () => {
     const prompt = buildAgentPrompt(olivia, oliviaRole, []);
 
     expect(prompt).toContain('agent-emma: Emma — Software Architect');
-    expect(prompt).toContain('Responsibilities: Architecture direction and integration boundaries.');
+    // Combines scope + deliverables + description, deduped — not just one field.
+    expect(prompt).toContain('Responsibilities: Architecture direction and integration boundaries.; Owns system structure and architectural trade-offs.');
     expect(prompt).toContain('Boundaries: Does not own detailed implementation.');
-    expect(prompt).toContain('Team: Product & Engineering');
+    expect(prompt).toContain('Teams: Product & Engineering');
     // Emma's line ends right after the workload clause (no "ALREADY IN ROOM" —
     // that only applies to Olivia herself, who is in room-a).
-    expect(prompt).toContain('Active in 1 other room (Payment Redesign)\n');
+    expect(prompt).toContain('activeRoomCount: 1 (Payment Redesign)\n');
+    expect(prompt).toContain('WORKLOAD SIGNAL');
+    expect(prompt).toContain('Do NOT interpret it as: availability, ownership, authority, or a current task assignment.');
     expect(prompt).toContain('Match each required capability against this roster');
     expect(prompt).toContain('do NOT invent an agent for it');
+  });
+
+  it('builds the facilitation/staffing section even when nothing has called ensureMeetingRoom yet', () => {
+    // Regression test: this section used to read loadMeetingOrchestration()
+    // and silently return [] if no meeting state existed for the room yet —
+    // a passive dependency on some other component (MeetingOrchestrationBar)
+    // having already called ensureMeetingRoom as a side effect of rendering.
+    // Deliberately skip that call here to prove buildAgentPrompt no longer
+    // needs it to have run first.
+    const olivia = defaultAgents.find(item => item.id === MEETING_FACILITATOR_AGENT_ID)!;
+    const oliviaRole = defaultRoles.find(item => item.id === olivia.roleId)!;
+
+    useWorkspaceStore.setState({
+      agents: [olivia],
+      roles: [oliviaRole],
+      teams: [],
+      projects: [{ id: 'project-a', name: 'Project A', description: '', emoji: '📁', createdAt: 1 }],
+      decisions: [],
+      actionItems: [],
+      rooms: [{
+        id: 'room-fresh',
+        name: 'Brand New Room',
+        emoji: '🏢',
+        companyId: 'company-default',
+        projectId: 'project-a',
+        languageCode: 'en',
+        agentIds: [olivia.id],
+        teamIds: [],
+        individualAgentIds: [olivia.id],
+        messages: [],
+        createdAt: 1,
+      }],
+      activeRoomId: 'room-fresh',
+    });
+
+    const prompt = buildAgentPrompt(olivia, oliviaRole, []);
+
+    expect(prompt).toContain('MEETING FACILITATION STATE');
+    expect(prompt).toContain('MEETING STAFFING');
+    expect(prompt).toContain('YOU ARE CURRENTLY THE ONLY PARTICIPANT IN THIS MEETING.');
   });
 });
