@@ -34,7 +34,7 @@ same as today.
 | Site | Capture | Confidence |
 | --- | --- | --- |
 | ChatGPT | Automatic | **Verified 2026-09-22** against a live, unauthenticated `chatgpt.com` session — see below. |
-| Gemini | One click | Selector is a best-effort guess (`model-response`), **not verified against a live session**. |
+| Gemini | One click | **Verified 2026-09-22** against a live, unauthenticated `gemini.google.com` session — see below. |
 | DeepSeek, Qwen, Grok, Meta AI | One click | Selectors are best-effort guesses, **not verified against a live session**, with a generic "last text block on the page" fallback. |
 
 ### What "verified" caught for ChatGPT
@@ -60,11 +60,28 @@ All fixed in `content-scripts/site-adapters/chatgpt.js` and confirmed
 end-to-end: a real reply ("purple elephant") was captured verbatim, with no
 label, script payload, or ad text mixed in.
 
+### What "verified" caught for Gemini
+
+The original guessed selector, `model-response`, does match a real element
+— but its `innerText` includes a visually-hidden `"Gemini said"`
+accessibility label (`cdk-visually-hidden` keeps text in the accessibility
+tree without hiding it from `innerText`, unlike `display:none`). The
+`<message-content>` custom element nested inside `<model-response>` holds
+exactly the markdown answer with none of that label text, and never
+appears inside the user's own turn (`<user-query>`) — confirmed by
+querying both. `gemini.js` now tries `message-content` first.
+
+Guest/unauthenticated mode consistently returned a backend error
+("Sorry, something went wrong…") rather than a real answer on every
+attempt, so the DOM structure and extraction path were confirmed live, but
+real answer wording/formatting on a logged-in account was not.
+
 Claude built this without accounts on Gemini/DeepSeek/Qwen/Grok/Meta AI
-(and ChatGPT was only reachable in guest/unauthenticated mode), so those
-five adapters — and ChatGPT's behavior specifically on your logged-in
-account — still need real-world confirmation. If a captured reply looks
-wrong (wrong text, includes UI chrome, etc.):
+(and both ChatGPT and Gemini were only reachable in guest/unauthenticated
+mode), so DeepSeek/Qwen/Grok/Meta AI — and both ChatGPT's and Gemini's
+behavior specifically on your logged-in account — still need real-world
+confirmation. If a captured reply looks wrong (wrong text, includes UI
+chrome, etc.):
 
 1. Open DevTools on the site, inspect the element that wraps one assistant
    reply.
