@@ -1,4 +1,5 @@
 import { newId } from '@/lib/id';
+import { compactMemoryV2State, isStorageQuotaExceeded } from '@/lib/memoryV2StorageRecovery';
 import {
   addAgentMemory,
   loadWorkspaceSuite,
@@ -11,6 +12,13 @@ import type { ActionItem, DecisionRecord, Message, Room } from '@/types/domain';
 
 const KEY = 'virtual-company:memory-v2:v1';
 export const MEMORY_V2_EVENT = 'virtual-company:memory-v2-changed';
+
+// Unlike history/suggestions/relations/conflicts, shared memories used to have
+// no cap at all, which let a single localStorage key grow without bound and
+// was the main contributor to quota-exceeded crashes (see #21). Recovery
+// deliberately never trims this array (it holds the user's actual knowledge),
+// so it must be bounded at write time instead.
+export const MAX_SHARED_MEMORIES = 2000;
 
 export type SharedMemoryScope = 'company' | 'project' | 'agent-system';
 export type MemorySuggestionTarget = 'agent' | 'company' | 'project';
@@ -187,6 +195,10 @@ function appendHistory(state: MemoryV2State, event: Omit<MemoryHistoryEvent, 'id
   };
 }
 
+export function capSharedMemories(entries: SharedMemoryEntry[]): SharedMemoryEntry[] {
+  return entries.length > MAX_SHARED_MEMORIES ? entries.slice(0, MAX_SHARED_MEMORIES) : entries;
+}
+
 export function loadMemoryV2(): MemoryV2State {
   try {
     const raw = localStorage.getItem(KEY);
@@ -207,7 +219,22 @@ export function loadMemoryV2(): MemoryV2State {
 }
 
 export function saveMemoryV2(state: MemoryV2State): void {
-  localStorage.setItem(KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(KEY, JSON.stringify(state));
+  } catch (error) {
+    if (!isStorageQuotaExceeded(error)) throw error;
+    try {
+      // Trim rebuildable metadata (history/suggestions/relations/conflicts/cache)
+      // and retry once. Shared memories are intentionally left untouched here;
+      // MAX_SHARED_MEMORIES is what keeps that array itself bounded.
+      const compacted = compactMemoryV2State(state as unknown as Parameters<typeof compactMemoryV2State>[0]);
+      localStorage.setItem(KEY, JSON.stringify(compacted));
+    } catch (retryError) {
+      if (!isStorageQuotaExceeded(retryError)) throw retryError;
+      console.warn('[Memory V2] Unable to persist memory changes: browser storage is full.');
+      return;
+    }
+  }
   window.dispatchEvent(new CustomEvent(MEMORY_V2_EVENT));
 }
 
@@ -227,7 +254,7 @@ export function addSharedMemory(input: Omit<SharedMemoryEntry, 'id' | 'createdAt
   const stamp = now();
   const entry: SharedMemoryEntry = { ...input, id, title, content, createdAt: stamp, updatedAt: stamp };
   updateMemoryV2(state => appendHistory(
-    { ...state, sharedMemories: [entry, ...state.sharedMemories] },
+    { ...state, sharedMemories: capSharedMemories([entry, ...state.sharedMemories]) },
     { action: 'memory.created', label: `Created ${input.scope} memory: ${title}`, memoryRef: `v2:${id}` },
   ));
   refreshMemoryConflicts();
@@ -640,7 +667,7 @@ export function syncOliviaMeetingState(
     updatedAt: stamp,
   };
   updateMemoryV2(current => appendHistory(
-    { ...current, sharedMemories: [entry, ...current.sharedMemories] },
+    { ...current, sharedMemories: capSharedMemories([entry, ...current.sharedMemories]) },
     { action: 'meeting-state.created', label: `Olivia started persistent meeting state for ${room.name}.`, memoryRef: `v2:${entry.id}` },
   ));
 }

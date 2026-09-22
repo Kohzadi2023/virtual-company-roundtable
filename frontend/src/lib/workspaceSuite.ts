@@ -1,4 +1,5 @@
 import { newId } from '@/lib/id';
+import { isStorageQuotaExceeded } from '@/lib/memoryV2StorageRecovery';
 import { withWorkspaceExtensions } from '@/lib/workspaceExtensions';
 import type { StorageSnapshot } from '@/types/domain';
 
@@ -6,6 +7,16 @@ const SUITE_KEY = 'virtual-company:workspace-suite:v1';
 const BACKUP_KEY = 'virtual-company:auto-backups:v1';
 const UNLOCK_KEY = 'virtual-company:session-unlocked';
 export const WORKSPACE_SUITE_EVENT = 'virtual-company:workspace-suite-changed';
+
+// agentMemories used to grow without bound, the same quota-crash root cause as
+// Memory V2's sharedMemories (see #21). Bounded at write time for the same
+// reason: it holds real agent knowledge, so it isn't trimmed during recovery.
+export const MAX_AGENT_MEMORIES = 2000;
+
+// How many rolling automatic backups to retain. Each backup is a full,
+// non-delta copy of the entire workspace (including every extension store),
+// so this directly multiplies localStorage pressure -- keep it modest.
+const MAX_AUTOMATIC_BACKUPS = 5;
 
 type NonEmptyArray<T> = [T, ...T[]];
 
@@ -253,8 +264,25 @@ export function loadWorkspaceSuite(): WorkspaceSuiteState {
   }
 }
 
+function compactWorkspaceSuiteForRecovery(state: WorkspaceSuiteState): WorkspaceSuiteState {
+  // agentMemories is user-value data, kept as-is; only the rebuildable audit
+  // trail is trimmed further here as a last resort before giving up.
+  return { ...state, auditLog: state.auditLog.slice(0, 50) };
+}
+
 export function saveWorkspaceSuite(state: WorkspaceSuiteState): void {
-  localStorage.setItem(SUITE_KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(SUITE_KEY, JSON.stringify(state));
+  } catch (error) {
+    if (!isStorageQuotaExceeded(error)) throw error;
+    try {
+      localStorage.setItem(SUITE_KEY, JSON.stringify(compactWorkspaceSuiteForRecovery(state)));
+    } catch (retryError) {
+      if (!isStorageQuotaExceeded(retryError)) throw retryError;
+      console.warn('[Workspace Suite] Unable to persist workspace changes: browser storage is full.');
+      return;
+    }
+  }
   window.dispatchEvent(new CustomEvent(WORKSPACE_SUITE_EVENT));
 }
 
@@ -288,9 +316,13 @@ export function addAgentMemory(input: Omit<AgentMemoryEntry, 'id' | 'createdAt' 
     createdAt,
     updatedAt: createdAt,
   };
-  updateWorkspaceSuite(state => ({ ...state, agentMemories: [entry, ...state.agentMemories] }));
+  updateWorkspaceSuite(state => ({ ...state, agentMemories: capAgentMemories([entry, ...state.agentMemories]) }));
   recordAudit('agent-memory.created', `Created ${input.category} memory: ${title}.`);
   return id;
+}
+
+export function capAgentMemories(entries: AgentMemoryEntry[]): AgentMemoryEntry[] {
+  return entries.length > MAX_AGENT_MEMORIES ? entries.slice(0, MAX_AGENT_MEMORIES) : entries;
 }
 
 export function updateAgentMemory(
@@ -356,7 +388,7 @@ export function saveAutomaticBackup(snapshot: StorageSnapshot): void {
   const next: AutomaticBackup[] = [
     { id: newId(), createdAt: now(), snapshot: snapshotWithExtensions, suite },
     ...existing,
-  ].slice(0, 10);
+  ].slice(0, MAX_AUTOMATIC_BACKUPS);
   try {
     localStorage.setItem(BACKUP_KEY, JSON.stringify(next));
   } catch {

@@ -1,13 +1,16 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   acceptMemorySuggestion,
   addSharedMemory,
   buildMemoryDigest,
+  capSharedMemories,
   captureAgentMemoryHistory,
   loadMemoryV2,
+  MAX_SHARED_MEMORIES,
   relevantSharedMemories,
   suggestMemoryFromMessage,
   syncOliviaMeetingState,
+  type SharedMemoryEntry,
 } from '@/lib/memoryV2';
 import { addAgentMemory, loadWorkspaceSuite, updateAgentMemory } from '@/lib/workspaceSuite';
 import type { Room } from '@/types/domain';
@@ -209,6 +212,50 @@ describe('memory v2', () => {
     const meeting = state.sharedMemories.find(item => item.scope === 'agent-system' && item.agentId === 'agent-olivia');
     expect(meeting?.content).toContain('Review port collision');
     expect(meeting?.content).toContain('Should we keep port 8765 fixed');
+  });
+
+  it('caps the shared-memory list to the newest entries once the limit is exceeded', () => {
+    const entries = Array.from({ length: MAX_SHARED_MEMORIES + 5 }, (_, index) => ({
+      id: `memory-${index}`,
+    })) as SharedMemoryEntry[];
+
+    const capped = capSharedMemories(entries);
+
+    expect(capped).toHaveLength(MAX_SHARED_MEMORIES);
+    expect(capped[0]?.id).toBe('memory-0');
+    expect(capped.at(-1)?.id).toBe(`memory-${MAX_SHARED_MEMORIES - 1}`);
+  });
+
+  it('leaves the shared-memory list untouched when under the cap', () => {
+    const entries = [{ id: 'memory-0' }, { id: 'memory-1' }] as SharedMemoryEntry[];
+    expect(capSharedMemories(entries)).toBe(entries);
+  });
+
+  it('recovers automatically instead of throwing when a save hits a simulated quota error', () => {
+    let calls = 0;
+    const write = localStorage.setItem.bind(localStorage);
+    vi.spyOn(localStorage, 'setItem').mockImplementation((key, value) => {
+      calls += 1;
+      if (calls === 1) {
+        const quotaError = new Error('Storage quota exceeded');
+        quotaError.name = 'QuotaExceededError';
+        throw quotaError;
+      }
+      write(key, value);
+    });
+
+    expect(() => addSharedMemory({
+      scope: 'company',
+      companyId: 'company-default',
+      category: 'fact',
+      title: 'Resilient memory',
+      content: 'Should survive a simulated storage quota failure.',
+      status: 'active',
+      importance: 'medium',
+    })).not.toThrow();
+
+    expect(loadMemoryV2().sharedMemories.some(item => item.title === 'Resilient memory')).toBe(true);
+    vi.restoreAllMocks();
   });
 
   it('builds deterministic compact digests without an AI API', () => {
