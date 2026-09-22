@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { defaultAgents, defaultRoles, defaultTeams } from '@/lib/defaultCompany';
 import {
   applyOliviaStaffingPlan,
+  deriveStaffingReadiness,
   findLatestOliviaStaffingPlan,
   isOliviaStaffingPlanApplied,
   parseOliviaStaffingPlan,
@@ -55,6 +56,31 @@ const staffingResponseWithHumanHire = `Recommendation.\n\nVC_STAFFING_PLAN\n\`\`
     }
   ],
   "readiness": "STAFFING_ACTION_REQUIRED"
+}\n\`\`\``;
+
+const staffingResponseFalseTeamReady = `Recommendation.\n\nVC_STAFFING_PLAN\n\`\`\`json\n{
+  "teamName": "Contract Review",
+  "participants": [{ "agentId": "agent-emma", "priority": "required" }],
+  "hires": [
+    {
+      "agentName": "Legal Counsel",
+      "roleName": "Canadian Legal Counsel",
+      "description": "Reviews the Canadian contract terms.",
+      "skills": ["Contract Law"],
+      "systemPrompt": "n/a",
+      "priority": "required",
+      "type": "human",
+      "reason": "Requires a licensed Canadian attorney."
+    }
+  ],
+  "readiness": "TEAM_READY"
+}\n\`\`\``;
+
+const emptyStaffingResponse = `No usable context.\n\nVC_STAFFING_PLAN\n\`\`\`json\n{
+  "teamName": "Unresolved",
+  "participants": [],
+  "hires": [],
+  "readiness": "TEAM_READY"
 }\n\`\`\``;
 
 beforeEach(() => {
@@ -175,5 +201,52 @@ describe('Olivia meeting staffing', () => {
   it('rejects content without a valid staffing block', () => {
     expect(parseOliviaStaffingPlan('No staffing JSON here.')).toBeNull();
     expect(parseOliviaStaffingPlan('VC_STAFFING_PLAN ```json {broken} ```')).toBeNull();
+  });
+});
+
+describe('server-derived staffing readiness', () => {
+  it('overrides a false self-reported TEAM_READY when a required human hire is unresolved', () => {
+    const plan = parseOliviaStaffingPlan(staffingResponseFalseTeamReady)!;
+    applyOliviaStaffingPlan('room-1', plan); // adds Emma; never auto-creates the human hire
+
+    const readiness = deriveStaffingReadiness('room-1', plan);
+    expect(readiness.modelReadiness).toBe('TEAM_READY');
+    expect(readiness.effectiveReadiness).toBe('STAFFING_ACTION_REQUIRED');
+    expect(readiness.blockers).toEqual([
+      { type: 'human-staffing-required', role: 'Canadian Legal Counsel', hireType: 'human' },
+    ]);
+  });
+
+  it('reports a required participant that never made it into the room as a blocker', () => {
+    const plan = parseOliviaStaffingPlan(staffingResponse)!;
+    // Deliberately not applied: Emma (required) is not yet a room member.
+    const readiness = deriveStaffingReadiness('room-1', plan);
+    expect(readiness.effectiveReadiness).toBe('STAFFING_ACTION_REQUIRED');
+    expect(readiness.blockers).toEqual(expect.arrayContaining([
+      { type: 'required-participant-missing', participantId: 'agent-emma', name: 'Emma' },
+    ]));
+    // Mike is optional, so his absence is not a blocker.
+    expect(readiness.blockers.some(blocker => 'participantId' in blocker && blocker.participantId === 'agent-mike')).toBe(false);
+  });
+
+  it('reports TEAM_READY once every required participant and hire is actually resolved', () => {
+    const plan = parseOliviaStaffingPlan(staffingResponse)!;
+    applyOliviaStaffingPlan('room-1', plan);
+
+    const readiness = deriveStaffingReadiness('room-1', plan);
+    expect(readiness.effectiveReadiness).toBe('TEAM_READY');
+    expect(readiness.blockers).toEqual([]);
+  });
+
+  it('reports INSUFFICIENT_CONTEXT only when the plan has nothing to act on at all', () => {
+    const plan = parseOliviaStaffingPlan(emptyStaffingResponse)!;
+    const readiness = deriveStaffingReadiness('room-1', plan);
+    expect(readiness.effectiveReadiness).toBe('INSUFFICIENT_CONTEXT');
+    expect(readiness.blockers).toEqual([]);
+
+    // A plan with real content never reads as insufficient context, even if
+    // Olivia's own readiness field said so and it's still unresolved.
+    const humanPlan = parseOliviaStaffingPlan(staffingResponseWithHumanHire)!;
+    expect(deriveStaffingReadiness('room-1', humanPlan).effectiveReadiness).not.toBe('INSUFFICIENT_CONTEXT');
   });
 });

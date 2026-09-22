@@ -2,8 +2,10 @@ import { useMemo, useState } from 'react';
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
 import {
   applyOliviaStaffingPlan,
+  deriveStaffingReadiness,
   findLatestOliviaStaffingPlan,
   isOliviaStaffingPlanApplied,
+  type StaffingBlocker,
   type StaffingReadiness,
 } from '@/lib/meetingStaffing';
 import { useWorkspaceStore } from '@/store/workspaceStore';
@@ -20,6 +22,17 @@ const READINESS_CLASS: Record<StaffingReadiness, string> = {
   INSUFFICIENT_CONTEXT: 'bg-rose-50 text-rose-700 ring-rose-200',
 };
 
+function describeBlocker(blocker: StaffingBlocker): string {
+  switch (blocker.type) {
+    case 'required-participant-missing':
+      return `${blocker.name ?? blocker.participantId} could not be added to the room.`;
+    case 'required-ai-hire-failed':
+      return `${blocker.role} could not be created.`;
+    case 'human-staffing-required':
+      return `Human ${blocker.hireType} required: ${blocker.role}.`;
+  }
+}
+
 export function OliviaStaffingCard({ roomId }: { roomId: string }) {
   const room = useWorkspaceStore(state => state.rooms.find(item => item.id === roomId));
   const agents = useWorkspaceStore(state => state.agents);
@@ -34,6 +47,7 @@ export function OliviaStaffingCard({ roomId }: { roomId: string }) {
 
   if (!room || !plan) return null;
 
+  const readiness = deriveStaffingReadiness(room.id, plan);
   const applied = isOliviaStaffingPlanApplied(room.id, plan);
   const creatableHires = plan.hires.filter(hire => hire.type === 'ai-agent' || hire.type === 'temporary-specialist');
   const blockedHires = plan.hires.filter(hire => hire.type === 'human' || hire.type === 'contractor');
@@ -67,11 +81,34 @@ export function OliviaStaffingCard({ roomId }: { roomId: string }) {
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <h3 className="text-sm font-bold text-slate-900">Olivia Staffing Plan</h3>
             <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-teal-700 ring-1 ring-teal-200">{plan.teamName}</span>
-            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1 ${READINESS_CLASS[plan.readiness]}`}>
-              {READINESS_LABEL[plan.readiness]}
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1 ${READINESS_CLASS[readiness.effectiveReadiness]}`}
+              title={readiness.modelReadiness !== readiness.effectiveReadiness
+                ? `Olivia reported ${READINESS_LABEL[readiness.modelReadiness]}; shown here is Virtual Company's own check of the room's actual state.`
+                : undefined}
+            >
+              {READINESS_LABEL[readiness.effectiveReadiness]}
             </span>
           </div>
           {plan.rationale ? <p className="mt-1 text-xs leading-5 text-slate-600">{plan.rationale}</p> : null}
+
+          {readiness.blockers.length > 0 ? (
+            <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-2.5">
+              <p className="text-[11px] font-bold text-amber-800">
+                {readiness.blockers.length} blocker{readiness.blockers.length === 1 ? '' : 's'}
+              </p>
+              <ul className="mt-1 space-y-0.5">
+                {readiness.blockers.map(blocker => (
+                  <li
+                    key={blocker.type === 'required-participant-missing' ? `p:${blocker.participantId}` : `h:${blocker.role}`}
+                    className="text-[11px] text-amber-800"
+                  >
+                    • {describeBlocker(blocker)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
           {participants.length > 0 ? (
             <div className="mt-2 flex flex-wrap gap-1.5">
