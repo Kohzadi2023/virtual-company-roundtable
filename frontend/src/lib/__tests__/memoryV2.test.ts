@@ -7,6 +7,7 @@ import {
   captureAgentMemoryHistory,
   loadMemoryV2,
   MAX_SHARED_MEMORIES,
+  refreshMemoryConflicts,
   relevantSharedMemories,
   suggestMemoryFromMessage,
   syncOliviaMeetingState,
@@ -196,6 +197,57 @@ describe('memory v2', () => {
     });
 
     expect(loadMemoryV2().conflicts.some(item => item.status === 'open')).toBe(true);
+  });
+
+  it('does not flag overlapping content across different projects as a conflict', () => {
+    addSharedMemory({
+      scope: 'project',
+      companyId: 'company-default',
+      projectId: 'project-a',
+      category: 'decision',
+      title: 'Storage decision',
+      content: 'Workspace persistence uses SQLite as the durable local source of truth.',
+      status: 'active',
+      importance: 'high',
+    });
+    addSharedMemory({
+      scope: 'project',
+      companyId: 'company-default',
+      projectId: 'project-b',
+      category: 'decision',
+      title: 'Storage decision',
+      content: 'Workspace persistence uses SQLite as the durable local source of truth.',
+      status: 'active',
+      importance: 'high',
+    });
+
+    expect(loadMemoryV2().conflicts).toHaveLength(0);
+  });
+
+  it('does not flag overlapping content across different agents as a conflict', () => {
+    addAgentMemory({
+      agentId: 'agent-emma',
+      companyId: 'company-default',
+      projectId: 'project-a',
+      category: 'decision',
+      title: 'Storage decision',
+      content: 'Workspace persistence uses SQLite as the durable local source of truth.',
+      status: 'active',
+      importance: 'high',
+    });
+    addAgentMemory({
+      agentId: 'agent-mike',
+      companyId: 'company-default',
+      projectId: 'project-a',
+      category: 'decision',
+      title: 'Storage decision',
+      content: 'Workspace persistence uses SQLite as the durable local source of truth.',
+      status: 'active',
+      importance: 'high',
+    });
+
+    refreshMemoryConflicts();
+    expect(loadMemoryV2().conflicts).toHaveLength(0);
   });
 
   it('maintains Olivia meeting state as agent-system memory', () => {
