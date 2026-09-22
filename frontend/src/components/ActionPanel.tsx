@@ -4,8 +4,13 @@ import { ContextCopyControls } from '@/components/ContextCopyControls';
 import { Toast, type ToastMessage } from '@/components/Toast';
 import { readText } from '@/lib/clipboard';
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
+import {
+  agentIdForExtensionChatUrl,
+  EXTENSION_RESPONSE_EVENT,
+  type ExtensionResponseEvent,
+} from '@/lib/extensionBridge';
 import { agentContextKey } from '@/lib/id';
-import { loadMeetingOrchestration, markSpeakerStatus, MEETING_ORCHESTRATION_EVENT } from '@/lib/meetingOrchestration';
+import { getExternalAgentChat, loadMeetingOrchestration, markSpeakerStatus, MEETING_ORCHESTRATION_EVENT } from '@/lib/meetingOrchestration';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
 function useAutoResize(value: string) {
@@ -76,6 +81,30 @@ export function ActionPanel({ roomId }: { roomId: string }) {
   }, [roomAgents, roomId]);
 
   useEffect(() => setAgentResponse(''), [selectedAgentId, roomId]);
+
+  useEffect(() => {
+    const handleExtensionResponse = (event: Event) => {
+      const detail = (event as ExtensionResponseEvent).detail;
+      const content = detail?.content?.trim();
+      if (!content) return;
+      const agentId = agentIdForExtensionChatUrl(detail.chatUrl);
+      const agent = agentId ? roomAgents.find(item => item.id === agentId) : undefined;
+      if (!agent) return;
+
+      if (agent.id !== selectedAgentId) {
+        setToast({ id: Date.now(), text: `Captured a response for ${agent.name}, but they aren't selected. Switch to ${agent.name} in the Agent Response tab to review it.`, tone: 'info' });
+        return;
+      }
+
+      setTab('agent');
+      setAgentResponse(content);
+      const chat = getExternalAgentChat(agent.id);
+      setToast({ id: Date.now(), text: `${agent.name}'s response captured automatically from ${chat?.provider ?? 'the linked chat'}. Review it before adding.` });
+    };
+
+    window.addEventListener(EXTENSION_RESPONSE_EVENT, handleExtensionResponse);
+    return () => window.removeEventListener(EXTENSION_RESPONSE_EVENT, handleExtensionResponse);
+  }, [roomAgents, selectedAgentId]);
 
   const selectedAgent = roomAgents.find(agent => agent.id === selectedAgentId);
   const selectedRole = selectedAgent ? roles.find(role => role.id === selectedAgent.roleId) : undefined;
