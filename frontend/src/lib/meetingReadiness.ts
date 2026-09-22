@@ -7,6 +7,7 @@ export interface MeetingReadiness {
   closeReady: boolean;
   decisionBlockers: string[];
   closeBlockers: string[];
+  briefReady: boolean;
   openQuestionCount: number;
   criticalOpenRiskCount: number;
   proposedDecisionCount: number;
@@ -38,11 +39,10 @@ export function assessMeetingReadiness(input: {
   const proposedDecisions = roomDecisions.filter(item => item.status === 'proposed');
   const approvedDecisions = roomDecisions.filter(item => item.status === 'approved');
   const unownedOpenActions = roomActions.filter(item => item.status !== 'done' && !item.owner?.trim());
+  const briefReady = hasText(meeting.objective) && hasText(meeting.expectedOutcome) && hasText(meeting.decisionQuestion);
 
   const decisionBlockers: string[] = [];
-  if (!hasText(meeting.objective)) decisionBlockers.push('Meeting objective is missing.');
-  if (!hasText(meeting.expectedOutcome)) decisionBlockers.push('Expected outcome is missing.');
-  if (!hasText(meeting.decisionQuestion)) decisionBlockers.push('Decision question is missing.');
+  if (!briefReady) decisionBlockers.push('Olivia is preparing the meeting brief automatically.');
   if (roomQuestions.length > 0) decisionBlockers.push(`${roomQuestions.length} open question${roomQuestions.length === 1 ? '' : 's'} must be resolved or archived.`);
   if (criticalOpenRisks.length > 0) decisionBlockers.push(`${criticalOpenRisks.length} critical open risk${criticalOpenRisks.length === 1 ? '' : 's'} must be mitigated, accepted, or archived.`);
 
@@ -58,6 +58,7 @@ export function assessMeetingReadiness(input: {
     closeReady: closeBlockers.length === 0,
     decisionBlockers,
     closeBlockers,
+    briefReady,
     openQuestionCount: roomQuestions.length,
     criticalOpenRiskCount: criticalOpenRisks.length,
     proposedDecisionCount: proposedDecisions.length,
