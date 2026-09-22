@@ -1,6 +1,6 @@
 [package]
 name = "virtual-company"
-version = "2.4.0"
+version = "2.5.0"
 description = "Virtual Company desktop application"
 authors = ["Kohzadi2023"]
 edition = "2021"
