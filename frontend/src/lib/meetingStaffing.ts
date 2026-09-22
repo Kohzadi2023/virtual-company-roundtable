@@ -1,6 +1,24 @@
 import { useWorkspaceStore } from '@/store/workspaceStore';
 import type { Message } from '@/types/domain';
 
+export type StaffingPriority = 'required' | 'optional';
+// 'temporary-specialist' is still an AI agent (auto-createable), just not
+// meant to be a durable role; 'human'/'contractor' cannot be auto-created —
+// this app has no hiring/recruiting integration, so those become a flagged
+// blocker instead of a fabricated agent standing in for a real person.
+export type StaffingHireType = 'ai-agent' | 'temporary-specialist' | 'human' | 'contractor';
+export type StaffingReadiness = 'TEAM_READY' | 'STAFFING_ACTION_REQUIRED' | 'INSUFFICIENT_CONTEXT';
+
+const READINESS_VALUES: StaffingReadiness[] = ['TEAM_READY', 'STAFFING_ACTION_REQUIRED', 'INSUFFICIENT_CONTEXT'];
+const AUTO_CREATABLE_HIRE_TYPES: StaffingHireType[] = ['ai-agent', 'temporary-specialist'];
+
+export interface OliviaStaffingParticipant {
+  agentId: string;
+  priority: StaffingPriority;
+  reason?: string;
+  expectedContribution?: string;
+}
+
 export interface OliviaStaffingHire {
   agentName: string;
   roleName: string;
@@ -8,13 +26,20 @@ export interface OliviaStaffingHire {
   skills: string[];
   systemPrompt: string;
   emoji?: string;
+  priority: StaffingPriority;
+  type: StaffingHireType;
+  reason?: string;
+  expectedContribution?: string;
 }
 
 export interface OliviaStaffingPlan {
   teamName: string;
   teamDescription: string;
+  /** Flat agent-id list, derived from `participants` — kept for the apply/idempotency logic below. */
   existingAgentIds: string[];
+  participants: OliviaStaffingParticipant[];
   hires: OliviaStaffingHire[];
+  readiness: StaffingReadiness;
   rationale?: string;
 }
 
@@ -23,6 +48,8 @@ export interface AppliedStaffingPlan {
   teamName: string;
   reusedAgentIds: string[];
   hiredAgentIds: string[];
+  /** human/contractor hires: not auto-created, surfaced for the user to act on separately. */
+  blockedHires: OliviaStaffingHire[];
 }
 
 const MAX_EXISTING_AGENTS = 20;
@@ -57,6 +84,50 @@ function defaultSystemPrompt(roleName: string, skills: string[]): string {
   return `Respond as the company's ${roleName}. Give only relevant professional analysis, recommendations, risks, and implementation guidance.${specialty}`;
 }
 
+function cleanPriority(value: unknown): StaffingPriority {
+  return value === 'optional' ? 'optional' : 'required';
+}
+
+function cleanHireType(value: unknown): StaffingHireType {
+  return value === 'temporary-specialist' || value === 'human' || value === 'contractor' ? value : 'ai-agent';
+}
+
+function cleanReadiness(value: unknown): StaffingReadiness {
+  return READINESS_VALUES.includes(value as StaffingReadiness) ? value as StaffingReadiness : 'TEAM_READY';
+}
+
+function cleanOptionalText(value: unknown, maxLength: number): string | undefined {
+  const text = cleanText(value, maxLength);
+  return text || undefined;
+}
+
+/**
+ * Reads the richer `participants` array when Olivia's response provides one,
+ * otherwise falls back to the legacy flat `existingAgentIds` list (older
+ * messages already in a room's history, or a response that only used the
+ * simpler shape) so parsing never regresses for messages already sent.
+ */
+function parseParticipants(raw: Record<string, unknown>): OliviaStaffingParticipant[] {
+  if (Array.isArray(raw.participants)) {
+    return raw.participants.slice(0, MAX_EXISTING_AGENTS).flatMap(item => {
+      if (!item || typeof item !== 'object') return [];
+      const participant = item as Record<string, unknown>;
+      const agentId = cleanText(participant.agentId, 120);
+      if (!agentId) return [];
+      const reason = cleanOptionalText(participant.reason, 400);
+      const expectedContribution = cleanOptionalText(participant.expectedContribution, 400);
+      return [{
+        agentId,
+        priority: cleanPriority(participant.priority),
+        ...(reason ? { reason } : {}),
+        ...(expectedContribution ? { expectedContribution } : {}),
+      }];
+    });
+  }
+  return uniqueStrings(raw.existingAgentIds, MAX_EXISTING_AGENTS, 120)
+    .map(agentId => ({ agentId, priority: 'required' as const }));
+}
+
 export function parseOliviaStaffingPlan(content: string): OliviaStaffingPlan | null {
   const match = content.match(/VC_STAFFING_PLAN\s*```(?:json)?\s*([\s\S]*?)```/i);
   if (!match?.[1]) return null;
@@ -73,6 +144,8 @@ export function parseOliviaStaffingPlan(content: string): OliviaStaffingPlan | n
   const teamName = cleanText(raw.teamName, 100);
   if (!teamName) return null;
 
+  const participants = parseParticipants(raw);
+
   const hires: OliviaStaffingHire[] = Array.isArray(raw.hires)
     ? raw.hires.slice(0, MAX_HIRES).flatMap(item => {
         if (!item || typeof item !== 'object') return [];
@@ -86,13 +159,19 @@ export function parseOliviaStaffingPlan(content: string): OliviaStaffingPlan | n
         const systemPrompt = cleanText(hire.systemPrompt, 1200)
           || defaultSystemPrompt(roleName, skills);
         const emoji = cleanText(hire.emoji, 8);
+        const reason = cleanOptionalText(hire.reason, 400);
+        const expectedContribution = cleanOptionalText(hire.expectedContribution, 400);
         return [{
           agentName,
           roleName,
           description,
           skills,
           systemPrompt,
+          priority: cleanPriority(hire.priority),
+          type: cleanHireType(hire.type),
           ...(emoji ? { emoji } : {}),
+          ...(reason ? { reason } : {}),
+          ...(expectedContribution ? { expectedContribution } : {}),
         }];
       })
     : [];
@@ -101,8 +180,10 @@ export function parseOliviaStaffingPlan(content: string): OliviaStaffingPlan | n
   return {
     teamName,
     teamDescription: cleanText(raw.teamDescription, 500) || `Meeting team selected by Olivia for ${teamName}.`,
-    existingAgentIds: uniqueStrings(raw.existingAgentIds, MAX_EXISTING_AGENTS, 120),
+    existingAgentIds: participants.map(participant => participant.agentId),
+    participants,
     hires,
+    readiness: cleanReadiness(raw.readiness),
     ...(rationale ? { rationale } : {}),
   };
 }
@@ -130,12 +211,16 @@ export function isOliviaStaffingPlanApplied(roomId: string, plan: OliviaStaffing
   const requiredExisting = plan.existingAgentIds.filter(id => state.agents.some(agent => agent.id === id));
   if (!requiredExisting.every(id => team.agentIds.includes(id))) return false;
 
-  return plan.hires.every(hire => {
-    const role = state.roles.find(item => normalize(item.name) === normalize(hire.roleName));
-    if (!role) return false;
-    const agent = state.agents.find(item => normalize(item.name) === normalize(hire.agentName) && item.roleId === role.id);
-    return Boolean(agent && team.agentIds.includes(agent.id));
-  });
+  // Human/contractor hires are never auto-created (see applyOliviaStaffingPlan),
+  // so "applied" only tracks the hires this function can actually satisfy.
+  return plan.hires
+    .filter(hire => AUTO_CREATABLE_HIRE_TYPES.includes(hire.type))
+    .every(hire => {
+      const role = state.roles.find(item => normalize(item.name) === normalize(hire.roleName));
+      if (!role) return false;
+      const agent = state.agents.find(item => normalize(item.name) === normalize(hire.agentName) && item.roleId === role.id);
+      return Boolean(agent && team.agentIds.includes(agent.id));
+    });
 }
 
 export function applyOliviaStaffingPlan(roomId: string, plan: OliviaStaffingPlan): AppliedStaffingPlan | null {
@@ -144,8 +229,10 @@ export function applyOliviaStaffingPlan(roomId: string, plan: OliviaStaffingPlan
 
   const reusedAgentIds = plan.existingAgentIds.filter(id => initial.agents.some(agent => agent.id === id));
   const hiredAgentIds: string[] = [];
+  const blockedHires = plan.hires.filter(hire => !AUTO_CREATABLE_HIRE_TYPES.includes(hire.type));
+  const creatableHires = plan.hires.filter(hire => AUTO_CREATABLE_HIRE_TYPES.includes(hire.type));
 
-  for (const hire of plan.hires) {
+  for (const hire of creatableHires) {
     let state = useWorkspaceStore.getState();
     let role = state.roles.find(item => normalize(item.name) === normalize(hire.roleName));
     if (!role) {
@@ -218,6 +305,7 @@ export function applyOliviaStaffingPlan(roomId: string, plan: OliviaStaffingPlan
     teamName: team.name,
     reusedAgentIds,
     hiredAgentIds: Array.from(new Set(hiredAgentIds)),
+    blockedHires,
   };
 }
 
