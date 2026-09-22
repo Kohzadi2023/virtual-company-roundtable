@@ -73,10 +73,10 @@ export function HelpTutorialLauncher() {
         ref={launcherRef}
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-[13px] font-semibold text-violet-700 shadow-sm transition hover:bg-violet-100"
+        className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold text-violet-600 transition hover:bg-violet-50 hover:text-violet-800"
         title="Help and tutorial"
       >
-        <span aria-hidden="true">?</span> Help / Tutorial
+        <span aria-hidden="true">?</span> Help
       </button>
 
       {open ? (
