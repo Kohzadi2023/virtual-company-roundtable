@@ -52,6 +52,19 @@ export interface AppliedStaffingPlan {
   blockedHires: OliviaStaffingHire[];
 }
 
+export type StaffingBlocker =
+  | { type: 'required-participant-missing'; participantId: string; name?: string }
+  | { type: 'required-ai-hire-failed'; role: string }
+  | { type: 'human-staffing-required'; role: string; hireType: 'human' | 'contractor' };
+
+export interface StaffingReadinessResult {
+  /** What Olivia self-reported in VC_STAFFING_PLAN — kept for audit, never trusted on its own. */
+  modelReadiness: StaffingReadiness;
+  /** The app's own conclusion, derived from the room/company directory's actual current state. */
+  effectiveReadiness: StaffingReadiness;
+  blockers: StaffingBlocker[];
+}
+
 const MAX_EXISTING_AGENTS = 20;
 const MAX_HIRES = 8;
 const MAX_SKILLS_PER_HIRE = 12;
@@ -306,6 +319,67 @@ export function applyOliviaStaffingPlan(roomId: string, plan: OliviaStaffingPlan
     reusedAgentIds,
     hiredAgentIds: Array.from(new Set(hiredAgentIds)),
     blockedHires,
+  };
+}
+
+/**
+ * Olivia's own `readiness` field is self-reported and never fully trusted —
+ * kept as `modelReadiness` for audit, but the app derives its own
+ * `effectiveReadiness` by inspecting what the room/company directory
+ * actually looks like right now, not what the plan proposed. This is
+ * intentionally re-derived on every call rather than cached: it must
+ * reflect the current state whether or not Apply Staffing Plan has been
+ * clicked yet (before Apply, required items simply aren't there yet and
+ * correctly show as blockers; after Apply, resolved items stop blocking).
+ *
+ * INSUFFICIENT_CONTEXT is reserved for a plan with nothing to act on at all
+ * (no participants and no hires) — Olivia genuinely had nothing to work
+ * with. Once a plan proposes real participants/hires, "insufficient
+ * context" is no longer the right read of it even if Olivia's own
+ * `readiness` field said so; any unresolved requirement is a concrete,
+ * actionable blocker (STAFFING_ACTION_REQUIRED), not missing context.
+ */
+export function deriveStaffingReadiness(roomId: string, plan: OliviaStaffingPlan): StaffingReadinessResult {
+  const modelReadiness = plan.readiness;
+
+  if (plan.participants.length === 0 && plan.hires.length === 0) {
+    return { modelReadiness, effectiveReadiness: 'INSUFFICIENT_CONTEXT', blockers: [] };
+  }
+
+  const state = useWorkspaceStore.getState();
+  const room = state.rooms.find(item => item.id === roomId);
+  if (!room) {
+    return { modelReadiness, effectiveReadiness: 'STAFFING_ACTION_REQUIRED', blockers: [] };
+  }
+
+  const blockers: StaffingBlocker[] = [];
+
+  for (const participant of plan.participants) {
+    if (participant.priority !== 'required') continue;
+    if (room.agentIds.includes(participant.agentId)) continue;
+    const name = state.agents.find(agent => agent.id === participant.agentId)?.name;
+    blockers.push({ type: 'required-participant-missing', participantId: participant.agentId, ...(name ? { name } : {}) });
+  }
+
+  for (const hire of plan.hires) {
+    if (hire.priority !== 'required') continue;
+    if (hire.type === 'human' || hire.type === 'contractor') {
+      blockers.push({ type: 'human-staffing-required', role: hire.roleName, hireType: hire.type });
+      continue;
+    }
+    const role = state.roles.find(item => normalize(item.name) === normalize(hire.roleName));
+    const agent = role
+      ? state.agents.find(item => normalize(item.name) === normalize(hire.agentName) && item.roleId === role.id)
+      : undefined;
+    if (!agent || !room.agentIds.includes(agent.id)) {
+      blockers.push({ type: 'required-ai-hire-failed', role: hire.roleName });
+    }
+  }
+
+  return {
+    modelReadiness,
+    effectiveReadiness: blockers.length > 0 ? 'STAFFING_ACTION_REQUIRED' : 'TEAM_READY',
+    blockers,
   };
 }
 
