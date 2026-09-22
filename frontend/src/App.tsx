@@ -1,27 +1,22 @@
 import { useEffect } from 'react';
 import { AdvancedCommandPalette } from '@/components/AdvancedCommandPalette';
 import { AgentMemoryDialogHost } from '@/components/AgentMemoryDialogHost';
-import { AgentMemoryLauncher } from '@/components/AgentMemoryLauncher';
 import { AgentQuickActionsHost } from '@/components/AgentQuickActionsHost';
 import { AppLockGate } from '@/components/AppLockGate';
 import { ChatRoom } from '@/components/ChatRoom';
 import { CollapsibleCompanyDirectory } from '@/components/CollapsibleCompanyDirectory';
-import { HelpTutorialLauncher } from '@/components/HelpTutorialLauncher';
-import { IdeaMergeLauncher } from '@/components/IdeaMergeLauncher';
+import { FooterToolsMenu } from '@/components/FooterToolsMenu';
 import { MemoryCenterDialogHost } from '@/components/MemoryCenterDialogHost';
-import { MemoryCenterLauncher } from '@/components/MemoryCenterLauncher';
 import { MemoryV2Runtime } from '@/components/MemoryV2Runtime';
-import { OperationsCenterLauncher } from '@/components/OperationsCenterLauncher';
 import { OperationsCompletionRuntime } from '@/components/OperationsCompletionRuntime';
 import { OtherRoomsPanel } from '@/components/OtherRoomsPanel';
-import { SecuritySettingsLauncher } from '@/components/SecuritySettingsLauncher';
 import { TopBar } from '@/components/TopBar';
-import { TraceabilityCenterLauncher } from '@/components/TraceabilityCenterLauncher';
+import { getRoomLanguage } from '@/lib/languages';
 import { ensureMeetingFacilitatorMembership } from '@/lib/roomMembershipActions';
 import { bootstrapPersistence, startPersistence } from '@/lib/storage';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
-const APP_VERSION = import.meta.env.VITE_APP_VERSION?.trim() || '2.5.0';
+const APP_VERSION = import.meta.env.VITE_APP_VERSION?.trim() || '2.6.0';
 
 export default function App() {
   const hydrated = useWorkspaceStore(state => state.hydrated);
@@ -61,9 +56,17 @@ export default function App() {
     );
   }
 
+  const activeRoom = rooms.find(room => room.id === activeRoomId);
+  const roomLanguage = getRoomLanguage(activeRoom?.languageCode);
+  const openActionCount = actionItems.filter(item => item.status !== 'done').length;
+
   return (
     <AppLockGate>
-      <main className="flex h-screen min-w-[1180px] flex-col overflow-hidden bg-[#f7f9fc] text-slate-900">
+      <main
+        dir={roomLanguage.dir}
+        data-room-language={roomLanguage.code}
+        className="flex h-screen min-w-[1180px] flex-col overflow-hidden bg-[#f7f9fc] text-slate-900"
+      >
         <MemoryV2Runtime />
         <OperationsCompletionRuntime />
         <AdvancedCommandPalette />
@@ -80,34 +83,22 @@ export default function App() {
           <OtherRoomsPanel />
         </div>
 
-        <footer className="flex h-8 shrink-0 items-center border-t border-slate-200 bg-white px-4 text-[11px] text-slate-500">
+        <footer className="flex h-9 shrink-0 items-center border-t border-slate-200 bg-white px-4 text-[11px] text-slate-500">
           <div className="flex shrink-0 items-center gap-2">
-            <span>▣ &nbsp; Virtual Company &nbsp; v{APP_VERSION}</span>
+            <span className="font-medium text-slate-600">▣ Virtual Company v{APP_VERSION}</span>
             <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
-            <AgentMemoryLauncher />
-            <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
-            <MemoryCenterLauncher />
-            <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
-            <OperationsCenterLauncher />
-            <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
-            <TraceabilityCenterLauncher />
-            <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
-            <IdeaMergeLauncher />
-            <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
-            <HelpTutorialLauncher />
-            <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
-            <SecuritySettingsLauncher />
+            <FooterToolsMenu />
           </div>
-          <div className="flex min-w-0 flex-1 items-center justify-end gap-5 pe-1">
-            <span>📁 {projects.length} projects</span>
-            <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
-            <span>✓ {actionItems.filter(item => item.status !== 'done').length} open actions</span>
-            <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
-            <span>💡 {agents.length} specialists</span>
-            <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
-            <span>{teams.length} teams</span>
-            <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
-            <span>{roles.length} professional matrices</span>
+
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-3 pe-1">
+            <span className="rounded-md bg-slate-50 px-2 py-1" title="Projects in the current workspace">📁 {projects.length}</span>
+            <span className="rounded-md bg-slate-50 px-2 py-1" title="Open action items">✓ {openActionCount}</span>
+            <span
+              className="rounded-md bg-slate-50 px-2 py-1"
+              title={`${teams.length} teams · ${roles.length} professional matrices`}
+            >
+              💡 {agents.length}
+            </span>
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" title="System ready" aria-label="System ready" />
           </div>
         </footer>
