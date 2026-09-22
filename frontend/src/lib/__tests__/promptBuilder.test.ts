@@ -193,8 +193,14 @@ describe('Olivia staffing roster injection', () => {
     expect(prompt).toContain('activeRoomCount: 1 (Payment Redesign)\n');
     expect(prompt).toContain('WORKLOAD SIGNAL');
     expect(prompt).toContain('Do NOT interpret it as: availability, ownership, authority, or a current task assignment.');
-    expect(prompt).toContain('Match each required capability against this roster');
+    expect(prompt).toContain('Match each required capability against AVAILABLE_ORGANIZATION_ROSTER');
     expect(prompt).toContain('do NOT invent an agent for it');
+    // The XML sections keep data (roster, participants) separate from
+    // instructions (staffing rules) instead of one mixed block.
+    expect(prompt).toContain('<AVAILABLE_ORGANIZATION_ROSTER>');
+    expect(prompt).toContain('<MEETING_STAFFING_RULES>');
+    expect(prompt).toContain('<CURRENT_PARTICIPANTS>');
+    expect(prompt).toContain('- agent-olivia: Olivia — Operations Manager & Meeting Facilitator');
   });
 
   it('builds the facilitation/staffing section even when nothing has called ensureMeetingRoom yet', () => {
@@ -232,8 +238,8 @@ describe('Olivia staffing roster injection', () => {
 
     const prompt = buildAgentPrompt(olivia, oliviaRole, []);
 
-    expect(prompt).toContain('MEETING FACILITATION STATE');
-    expect(prompt).toContain('MEETING STAFFING');
+    expect(prompt).toContain('<MEETING_CONTEXT>');
+    expect(prompt).toContain('<MEETING_STAFFING_RULES>');
     expect(prompt).toContain('YOU ARE CURRENTLY THE ONLY PARTICIPANT IN THIS MEETING.');
   });
 });

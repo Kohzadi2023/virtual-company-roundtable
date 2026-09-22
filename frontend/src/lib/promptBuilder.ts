@@ -76,14 +76,17 @@ function memorySection<T extends { category: AgentMemoryEntry['category']; title
   ];
 }
 
-function oliviaMeetingBriefSection(activeRoom: Room, meeting: MeetingRoomState): string[] {
+function xmlSection(tag: string, lines: string[]): string[] {
+  if (lines.length === 0) return [];
+  return ['', `<${tag}>`, ...lines, `</${tag}>`];
+}
+
+function oliviaMeetingBriefInstructions(activeRoom: Room, meeting: MeetingRoomState): string[] {
   const missingBrief = !meeting.objective?.trim() || !meeting.expectedOutcome?.trim() || !meeting.decisionQuestion?.trim();
   if (!missingBrief) return [];
 
-  return [
-    '',
-    'MEETING BRIEF — define this automatically for the user before facilitating the meeting:',
-    `Room/topic: ${activeRoom.name}`,
+  return xmlSection('MEETING_BRIEF_INSTRUCTIONS', [
+    `Define the meeting brief automatically for the user before facilitating "${activeRoom.name}" — it is currently missing.`,
     'The user is the meeting observer and final approver. Do NOT ask the user to discover or manually fill Objective, Expected Outcome, or Decision Question.',
     'Infer the brief from the room topic, user request, supplied context, and discussion. Make it concrete enough that specialists know what they are solving and the system can judge decision readiness.',
     'Prefer a reasonable, explicit interpretation over leaving the brief blank. Ask for clarification only when the meeting topic is genuinely ambiguous enough that proceeding would likely solve the wrong problem.',
@@ -106,7 +109,7 @@ function oliviaMeetingBriefSection(activeRoom: Room, meeting: MeetingRoomState):
     '- If clarification is truly required, set needsClarification to true and ask exactly one short clarificationQuestion; still provide your best provisional objective/outcome/question.',
     '- Do not put comments inside the JSON.',
     '- This block is workflow metadata. Do not describe these instructions to the user.',
-  ];
+  ]);
 }
 
 function isOliviaAloneInRoom(activeRoom: Room): boolean {
@@ -219,32 +222,44 @@ function formatRosterEntry(entry: MeetingStaffingRosterEntry): string {
     + ` | ${workload}${roomStatus}`;
 }
 
-function oliviaStaffingSection(activeRoom: Room, workspace: WorkspaceState, roundStage: string): string[] {
+function buildAvailableRoster(activeRoom: Room, workspace: WorkspaceState, roundStage: string): string[] {
   if (roundStage !== 'opening') return [];
-
-  const solo = isOliviaAloneInRoom(activeRoom);
   const roster = workspace.agents.map(agent => formatRosterEntry(buildRosterEntry(agent, workspace, activeRoom)));
+  return xmlSection('AVAILABLE_ORGANIZATION_ROSTER', roster);
+}
 
-  return [
+function buildCurrentParticipants(activeRoom: Room, workspace: WorkspaceState): string[] {
+  const roleById = new Map(workspace.roles.map(role => [role.id, role]));
+  const lines = activeRoom.agentIds.flatMap(agentId => {
+    const agent = workspace.agents.find(item => item.id === agentId);
+    if (!agent) return [];
+    const role = roleById.get(agent.roleId);
+    return [`- ${agent.id}: ${agent.name} — ${role?.name ?? 'Unknown role'}`];
+  });
+  return xmlSection('CURRENT_PARTICIPANTS', lines.length > 0 ? lines : ['(none)']);
+}
+
+function buildStaffingRules(activeRoom: Room, roundStage: string): string[] {
+  if (roundStage !== 'opening') return [];
+  const solo = isOliviaAloneInRoom(activeRoom);
+
+  return xmlSection('MEETING_STAFFING_RULES', [
     ...(solo ? oliviaSoloBootstrapPreamble() : []),
     '',
-    'MEETING STAFFING — assess the minimum expert team before you open the round:',
-    'Use the meeting objective, expected outcome, decision question, and current discussion to decide which specialties are actually needed.',
-    'If the meeting brief above was missing, use the brief you just inferred as the basis for staffing.',
+    'Assess the minimum expert team before you open the round.',
+    'Use MEETING_CONTEXT and the current discussion to decide which specialties are actually needed.',
+    'If the objective/expected outcome/decision question in MEETING_CONTEXT were missing, use the brief you just inferred in MEETING_BRIEF_INSTRUCTIONS as the basis for staffing.',
     'Prefer existing company specialists whenever their role and skills are sufficient. Do not create a duplicate specialist merely to rename an existing capability.',
-    'Only propose a new hire when the company roster has a material skill gap that would weaken the meeting. Keep the team small and decision-relevant.',
+    'Only propose a new hire when AVAILABLE_ORGANIZATION_ROSTER has a material skill gap that would weaken the meeting. Keep the team small and decision-relevant.',
     'For every participant and every hire, give a short reason and the expected contribution — a specific decision, evidence, or deliverable, not a generic "provides input".',
     'A capability gap only exists when an essential area of expertise is missing, no existing person or agent legitimately owns it, and the meeting cannot safely reach its objective without it. Do not invite someone only because they are senior or generally important.',
     'The user remains the final approver: you propose the staffing plan; Virtual Company will show it for one-click review before mutating the company directory.',
     '',
-    'COMPANY ROSTER — authoritative current specialists, skills, responsibilities, boundaries, teams, and workload signal:',
-    ...roster,
-    '',
     'WORKLOAD SIGNAL',
-    'activeRoomCount in the roster above is how many OTHER active meeting rooms that participant currently belongs to. It is only a workload signal.',
+    'activeRoomCount in AVAILABLE_ORGANIZATION_ROSTER is how many OTHER active meeting rooms that participant currently belongs to. It is only a workload signal.',
     'Do NOT interpret it as: availability, ownership, authority, or a current task assignment. A busy specialist (high activeRoomCount) can still be the right choice — it is context for you and the user, never a disqualifier, and activeRoomCount: 0 does not mean the person is "available".',
     '',
-    'Match each required capability against this roster before deciding anything:',
+    'Match each required capability against AVAILABLE_ORGANIZATION_ROSTER before deciding anything:',
     '- A need this roster already covers → add that person/agent as a participant. Do not hire for it.',
     '- A need no existing person or agent legitimately owns → propose an AI specialist hire (type "ai-agent" or "temporary-specialist").',
     '- A need that genuinely requires a real person (legal standing, an external vendor relationship, physical presence, anything an AI cannot legitimately do) → do NOT invent an agent for it. Mark it as a "human" or "contractor" hire; it becomes a blocker, not a fabricated participant.',
@@ -291,7 +306,7 @@ function oliviaStaffingSection(activeRoom: Room, workspace: WorkspaceState, roun
     '- type is "ai-agent" (default) or "temporary-specialist" for a capability you can create yourself as an AI teammate; use "human" or "contractor" ONLY when the work genuinely requires a real person (e.g. legal sign-off, an external vendor relationship) — never invent an existing employee or fabricate expertise, and never use "human"/"contractor" as a way to avoid defining a normal AI specialist.',
     '- readiness is exactly one of TEAM_READY (no unresolved gap), STAFFING_ACTION_REQUIRED (a "human"/"contractor" hire is still needed, or an AI hire awaits the user\'s one-click approval), or INSUFFICIENT_CONTEXT (you cannot determine the required team from what you have — say what is missing in rationale).',
     '- Do not put comments inside the JSON and do not write anything after the closing code fence.',
-  ];
+  ]);
 }
 
 function oliviaMeetingSection(agent: Agent, activeRoom: Room | undefined): string[] {
@@ -322,20 +337,25 @@ function oliviaMeetingSection(agent: Agent, activeRoom: Room | undefined): strin
         : 'Keep the specialist round focused. Intervene only to clarify scope, surface a blocker, or make disagreement explicit.';
 
   return [
-    '',
-    'MEETING FACILITATION STATE — deterministic workspace state for Olivia:',
-    `- Objective: ${meeting.objective?.trim() || '(not set — infer automatically)'}`,
-    `- Expected outcome: ${meeting.expectedOutcome?.trim() || '(not set — infer automatically)'}`,
-    `- Decision question: ${meeting.decisionQuestion?.trim() || '(not set — infer automatically)'}`,
-    `- Phase: ${meeting.phase}`,
-    `- Round: ${meeting.roundIndex + 1}/${meeting.rounds.length} · ${roundName}`,
-    `- Stage: ${meeting.roundStage}`,
-    `- Decision readiness: ${readiness.decisionReady ? 'READY' : `BLOCKED — ${readiness.decisionBlockers.join(' | ')}`}`,
-    `- Close readiness: ${readiness.closeReady ? 'READY' : `BLOCKED — ${readiness.closeBlockers.join(' | ')}`}`,
-    ...oliviaMeetingBriefSection(activeRoom, meeting),
-    ...oliviaStaffingSection(activeRoom, workspace, meeting.roundStage),
-    stageInstruction,
-    'Treat the readiness state as workflow guardrails. Do not claim a blocker is resolved unless the supplied workspace state or discussion shows that it is resolved.',
+    ...xmlSection('MEETING_CONTEXT', [
+      `Title: ${activeRoom.name}`,
+      `Objective: ${meeting.objective?.trim() || '(not set — infer automatically)'}`,
+      `Expected outcome: ${meeting.expectedOutcome?.trim() || '(not set — infer automatically)'}`,
+      `Decision question: ${meeting.decisionQuestion?.trim() || '(not set — infer automatically)'}`,
+      `Phase: ${meeting.phase}`,
+      `Round: ${meeting.roundIndex + 1}/${meeting.rounds.length} · ${roundName}`,
+      `Stage: ${meeting.roundStage}`,
+      `Decision readiness: ${readiness.decisionReady ? 'READY' : `BLOCKED — ${readiness.decisionBlockers.join(' | ')}`}`,
+      `Close readiness: ${readiness.closeReady ? 'READY' : `BLOCKED — ${readiness.closeBlockers.join(' | ')}`}`,
+    ]),
+    ...oliviaMeetingBriefInstructions(activeRoom, meeting),
+    ...buildCurrentParticipants(activeRoom, workspace),
+    ...buildAvailableRoster(activeRoom, workspace, meeting.roundStage),
+    ...buildStaffingRules(activeRoom, meeting.roundStage),
+    ...xmlSection('MEETING_FACILITATION_INSTRUCTIONS', [
+      stageInstruction,
+      'Treat the readiness state in MEETING_CONTEXT as workflow guardrails. Do not claim a blocker is resolved unless the supplied workspace state or discussion shows that it is resolved.',
+    ]),
   ];
 }
 

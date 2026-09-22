@@ -46,20 +46,21 @@ describe('Olivia meeting prompt', () => {
     });
 
     const oliviaPrompt = buildAgentPrompt(olivia, oliviaRole, []);
-    expect(oliviaPrompt).toContain('MEETING FACILITATION STATE');
+    expect(oliviaPrompt).toContain('<MEETING_CONTEXT>');
     expect(oliviaPrompt).toContain('Choose the persistence architecture.');
     expect(oliviaPrompt).toContain('Should v4 snapshot persistence be canonical?');
     expect(oliviaPrompt).toContain('Decision readiness: READY');
     expect(oliviaPrompt).toContain('Do not answer for them.');
-    expect(oliviaPrompt).toContain('MEETING STAFFING');
-    expect(oliviaPrompt).toContain('COMPANY ROSTER');
+    expect(oliviaPrompt).toContain('<MEETING_STAFFING_RULES>');
+    expect(oliviaPrompt).toContain('<CURRENT_PARTICIPANTS>');
+    expect(oliviaPrompt).toContain('<AVAILABLE_ORGANIZATION_ROSTER>');
     expect(oliviaPrompt).toContain('agent-emma: Emma — Software Architect');
     expect(oliviaPrompt).toContain('VC_STAFFING_PLAN');
     expect(oliviaPrompt).toContain('Never hire a new person for a skill that an existing specialist already covers adequately.');
 
     const emmaPrompt = buildAgentPrompt(emma, emmaRole, []);
-    expect(emmaPrompt).not.toContain('MEETING FACILITATION STATE');
-    expect(emmaPrompt).not.toContain('MEETING STAFFING');
+    expect(emmaPrompt).not.toContain('<MEETING_CONTEXT>');
+    expect(emmaPrompt).not.toContain('<MEETING_STAFFING_RULES>');
     expect(emmaPrompt).not.toContain('VC_STAFFING_PLAN');
     // Emma is already in the room here, alongside Olivia — the solo
     // bootstrap framing below must never leak into a non-solo meeting.
