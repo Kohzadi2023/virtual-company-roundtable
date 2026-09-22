@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { ActionPanel } from '@/components/ActionPanel';
 import { MeetingBriefRuntime } from '@/components/MeetingBriefRuntime';
+import { MeetingBriefStatus } from '@/components/MeetingBriefStatus';
 import { MeetingOrchestrationBar } from '@/components/MeetingOrchestrationBar';
 import { MeetingPhaseTimerStrip } from '@/components/MeetingPhaseTimerStrip';
 import { OliviaStaffingCard } from '@/components/OliviaStaffingCard';
@@ -46,6 +47,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
       <MeetingBriefRuntime roomId={room.id} />
       <RoomToolsBar roomId={room.id} />
       <MeetingOrchestrationBar roomId={room.id} />
+      <MeetingBriefStatus roomId={room.id} />
       <MeetingPhaseTimerStrip roomId={room.id} />
       <OliviaStaffingCard roomId={room.id} />
 
