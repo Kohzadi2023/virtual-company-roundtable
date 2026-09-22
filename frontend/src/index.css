@@ -29,3 +29,44 @@
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 transparent;
 }
+
+/* Workspace-level dialogs should visually and interactively dominate the chat underneath. */
+[class~="z-[90]"],
+[class~="z-[120]"] {
+  background-color: rgb(15 23 42 / 0.62) !important;
+  backdrop-filter: blur(4px);
+  padding: 1rem !important;
+}
+
+[class~="z-[90]"] > section,
+[class~="z-[120]"] > div {
+  width: min(1500px, calc(100vw - 2rem)) !important;
+  height: calc(100vh - 2rem) !important;
+  max-width: none !important;
+}
+
+/* Keep the message action visually integrated with the composer instead of floating beside it. */
+section[aria-label="Discussion actions"] [role="tabpanel"]:has(#user-message) > div:last-child {
+  align-self: stretch;
+  justify-content: stretch;
+  gap: 0;
+  padding: 0.25rem;
+}
+
+section[aria-label="Discussion actions"] [role="tabpanel"]:has(#user-message) > div:last-child > button {
+  min-height: 5.75rem;
+  height: 100%;
+}
+
+section[aria-label="Discussion actions"] [role="tabpanel"]:has(#user-message) > div:last-child > button::after {
+  content: "Ctrl + Enter";
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.65rem;
+  font-weight: 500;
+  opacity: 0.76;
+}
+
+section[aria-label="Discussion actions"] [role="tabpanel"]:has(#user-message) > div:last-child > span {
+  display: none;
+}
