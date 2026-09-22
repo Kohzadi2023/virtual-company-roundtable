@@ -1,6 +1,7 @@
 use std::sync::Mutex;
 
 use tauri::{Manager, WindowEvent};
+use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_shell::{process::CommandChild, ShellExt};
 
 struct BackendProcess(Mutex<Option<CommandChild>>);
@@ -46,11 +47,34 @@ fn open_external_url(url: String) -> Result<(), String> {
     }
 }
 
+#[tauri::command]
+fn read_clipboard_text(app: tauri::AppHandle) -> Result<String, String> {
+    app.clipboard()
+        .read_text()
+        .map_err(|error| format!("Could not read clipboard text: {error}"))
+}
+
+#[tauri::command]
+fn write_clipboard_text(app: tauri::AppHandle, text: String) -> Result<(), String> {
+    if text.is_empty() {
+        return Err("Nothing to copy.".to_string());
+    }
+
+    app.clipboard()
+        .write_text(text)
+        .map_err(|error| format!("Could not write clipboard text: {error}"))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![open_external_url])
+        .plugin(tauri_plugin_clipboard_manager::init())
+        .invoke_handler(tauri::generate_handler![
+            open_external_url,
+            read_clipboard_text,
+            write_clipboard_text
+        ])
         .manage(BackendProcess(Mutex::new(None)))
         .setup(|app| {
             let app_data_dir = app.path().app_data_dir()?;
