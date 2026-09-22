@@ -185,6 +185,15 @@ docker compose up --build
 
 Open `http://localhost:8080`.
 
+## Browser extension (optional)
+
+`extension/` is an unpacked browser extension that removes the manual copy
+step from the copy/paste round-trip: it captures the latest reply on
+ChatGPT, Gemini, DeepSeek, Qwen, Grok, or Meta AI and fills the matching
+agent's Agent Response box for you (you still click **Add Response**
+yourself). See [`extension/README.md`](extension/README.md) for setup, site
+coverage, and known limitations.
+
 ## Verification performed while generating this revision
 
 - Backend API tests: **4 passed**

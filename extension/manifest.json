@@ -1,0 +1,71 @@
+{
+  "manifest_version": 3,
+  "name": "Virtual Company Roundtable Bridge",
+  "version": "0.1.0",
+  "description": "Captures the latest reply from ChatGPT, Gemini, DeepSeek, Qwen, Grok or Meta AI and delivers it into the Virtual Company Roundtable app's Agent Response box.",
+  "permissions": ["tabs"],
+  "host_permissions": [
+    "https://chatgpt.com/*",
+    "https://chat.openai.com/*",
+    "https://gemini.google.com/*",
+    "https://chat.deepseek.com/*",
+    "https://*.qwen.ai/*",
+    "https://tongyi.aliyun.com/*",
+    "https://grok.com/*",
+    "https://x.com/i/grok*",
+    "https://meta.ai/*",
+    "http://localhost:5173/*",
+    "http://127.0.0.1:5173/*",
+    "http://localhost:8080/*",
+    "http://127.0.0.1:8080/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://chatgpt.com/*", "https://chat.openai.com/*"],
+      "js": ["content-scripts/shared.js", "content-scripts/site-adapters/chatgpt.js", "content-scripts/inject.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://gemini.google.com/*"],
+      "js": ["content-scripts/shared.js", "content-scripts/site-adapters/gemini.js", "content-scripts/inject.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://chat.deepseek.com/*"],
+      "js": ["content-scripts/shared.js", "content-scripts/site-adapters/deepseek.js", "content-scripts/inject.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://*.qwen.ai/*", "https://tongyi.aliyun.com/*"],
+      "js": ["content-scripts/shared.js", "content-scripts/site-adapters/qwen.js", "content-scripts/inject.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://grok.com/*", "https://x.com/i/grok*"],
+      "js": ["content-scripts/shared.js", "content-scripts/site-adapters/grok.js", "content-scripts/inject.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://meta.ai/*"],
+      "js": ["content-scripts/shared.js", "content-scripts/site-adapters/meta.js", "content-scripts/inject.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "http://localhost:5173/*",
+        "http://127.0.0.1:5173/*",
+        "http://localhost:8080/*",
+        "http://127.0.0.1:8080/*"
+      ],
+      "js": ["content-scripts/vc-bridge.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Virtual Company Roundtable Bridge"
+  }
+}

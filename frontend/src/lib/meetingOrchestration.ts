@@ -425,3 +425,7 @@ export function setExternalAgentChat(agentId: string, url: string): void {
 export function getExternalAgentChat(agentId: string): ExternalAgentChat | undefined {
   return loadMeetingOrchestration().chats[agentId];
 }
+
+export function allExternalAgentChats(): ExternalAgentChat[] {
+  return Object.values(loadMeetingOrchestration().chats);
+}
