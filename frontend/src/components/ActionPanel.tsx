@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { ContextCopyControls } from '@/components/ContextCopyControls';
 import { Toast, type ToastMessage } from '@/components/Toast';
+import { readText } from '@/lib/clipboard';
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
 import { agentContextKey } from '@/lib/id';
 import { loadMeetingOrchestration, markSpeakerStatus, MEETING_ORCHESTRATION_EVENT } from '@/lib/meetingOrchestration';
@@ -103,6 +104,37 @@ export function ActionPanel({ roomId }: { roomId: string }) {
       const nextSpeaker = loadMeetingOrchestration().rooms[room.id]?.activeSpeakerId;
       if (nextSpeaker && room.agentIds.includes(nextSpeaker)) setSelectedAgentId(nextSpeaker);
       notify(`${selectedAgent.name}'s response added and speaking queue advanced.`);
+    }
+  };
+
+  const pasteAgentResponse = async () => {
+    if (!selectedAgent) return;
+
+    try {
+      const clipboardText = await readText();
+      if (!clipboardText) {
+        notify('Clipboard is empty.', 'error');
+        return;
+      }
+
+      const element = agentRef.current;
+      const hasFocusedTextarea = element && document.activeElement === element;
+      const start = hasFocusedTextarea ? element.selectionStart : agentResponse.length;
+      const end = hasFocusedTextarea ? element.selectionEnd : agentResponse.length;
+      const needsSeparator = !hasFocusedTextarea && agentResponse.length > 0 && !agentResponse.endsWith('\n');
+      const insertion = `${needsSeparator ? '\n\n' : ''}${clipboardText}`;
+      const next = `${agentResponse.slice(0, start)}${insertion}${agentResponse.slice(end)}`;
+      const caret = start + insertion.length;
+
+      setAgentResponse(next);
+      requestAnimationFrame(() => {
+        if (!element) return;
+        element.focus();
+        element.setSelectionRange(caret, caret);
+      });
+      notify(`Clipboard pasted into ${selectedAgent.name}'s response. Review it before adding.`);
+    } catch {
+      notify('Could not read clipboard. Use Ctrl+V instead.', 'error');
     }
   };
 
@@ -227,8 +259,9 @@ export function ActionPanel({ roomId }: { roomId: string }) {
 
                 <div className="flex flex-col justify-center gap-2">
                   {selectedAgent && selectedRole ? <ContextCopyControls room={room} agent={selectedAgent} role={selectedRole} cursor={cursor} onNotify={notify} /> : null}
+                  <button type="button" onClick={pasteAgentResponse} disabled={!selectedAgent} className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm font-bold text-amber-700 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-40">📋 Paste Response</button>
                   <button type="button" onClick={submitAgent} disabled={!selectedAgent || !agentResponse.trim()} className="rounded-lg bg-emerald-600 px-3 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">Add Response</button>
-                  <span className="text-center text-[11px] text-slate-400">Ctrl + Enter</span>
+                  <span className="text-center text-[11px] text-slate-400">Paste does not submit · Ctrl + Enter adds</span>
                 </div>
               </div>
             )}
