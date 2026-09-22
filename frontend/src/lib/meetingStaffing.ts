@@ -1,5 +1,5 @@
-import { newId } from '@/lib/id';
 import { useWorkspaceStore } from '@/store/workspaceStore';
+import type { Message } from '@/types/domain';
 
 export interface OliviaStaffingHire {
   agentName: string;
@@ -73,7 +73,7 @@ export function parseOliviaStaffingPlan(content: string): OliviaStaffingPlan | n
   const teamName = cleanText(raw.teamName, 100);
   if (!teamName) return null;
 
-  const hires = Array.isArray(raw.hires)
+  const hires: OliviaStaffingHire[] = Array.isArray(raw.hires)
     ? raw.hires.slice(0, MAX_HIRES).flatMap(item => {
         if (!item || typeof item !== 'object') return [];
         const hire = item as Record<string, unknown>;
@@ -85,22 +85,30 @@ export function parseOliviaStaffingPlan(content: string): OliviaStaffingPlan | n
           || `${roleName} created for the current meeting's specialist needs.`;
         const systemPrompt = cleanText(hire.systemPrompt, 1200)
           || defaultSystemPrompt(roleName, skills);
-        const emoji = cleanText(hire.emoji, 8) || undefined;
-        return [{ agentName, roleName, description, skills, systemPrompt, emoji } satisfies OliviaStaffingHire];
+        const emoji = cleanText(hire.emoji, 8);
+        return [{
+          agentName,
+          roleName,
+          description,
+          skills,
+          systemPrompt,
+          ...(emoji ? { emoji } : {}),
+        }];
       })
     : [];
 
+  const rationale = cleanText(raw.rationale, 800);
   return {
     teamName,
     teamDescription: cleanText(raw.teamDescription, 500) || `Meeting team selected by Olivia for ${teamName}.`,
     existingAgentIds: uniqueStrings(raw.existingAgentIds, MAX_EXISTING_AGENTS, 120),
     hires,
-    rationale: cleanText(raw.rationale, 800) || undefined,
+    ...(rationale ? { rationale } : {}),
   };
 }
 
 export function findLatestOliviaStaffingPlan(
-  messages: Array<{ authorType: 'user' | 'agent'; authorId?: string; content: string }>,
+  messages: Array<Pick<Message, 'authorType' | 'authorId' | 'content'>>,
   oliviaAgentId: string,
 ): OliviaStaffingPlan | null {
   for (let index = messages.length - 1; index >= 0; index -= 1) {
@@ -154,7 +162,7 @@ export function applyOliviaStaffingPlan(roomId: string, plan: OliviaStaffingPlan
     if (!role) continue;
 
     state = useWorkspaceStore.getState();
-    let agent = state.agents.find(item => normalize(item.name) === normalize(hire.agentName) && item.roleId === role!.id);
+    let agent = state.agents.find(item => normalize(item.name) === normalize(hire.agentName) && item.roleId === role.id);
     if (!agent) {
       const agentId = state.addAgent({
         name: hire.agentName,
@@ -186,8 +194,9 @@ export function applyOliviaStaffingPlan(roomId: string, plan: OliviaStaffingPlan
   } else {
     const mergedIds = Array.from(new Set([...team.agentIds, ...desiredAgentIds]));
     if (mergedIds.length !== team.agentIds.length) {
+      const teamId = team.id;
       useWorkspaceStore.setState(current => ({
-        teams: current.teams.map(item => item.id === team!.id ? { ...item, agentIds: mergedIds } : item),
+        teams: current.teams.map(item => item.id === teamId ? { ...item, agentIds: mergedIds } : item),
       }));
       team = { ...team, agentIds: mergedIds };
     }
@@ -197,9 +206,9 @@ export function applyOliviaStaffingPlan(roomId: string, plan: OliviaStaffingPlan
 
   useWorkspaceStore.getState().addTeamToRoom(roomId, team.id);
 
-  // Keep the custom team definition stable on repeated Apply operations.
+  const teamId = team.id;
   useWorkspaceStore.setState(current => ({
-    teams: current.teams.map(item => item.id === team!.id
+    teams: current.teams.map(item => item.id === teamId
       ? { ...item, description: plan.teamDescription || item.description }
       : item),
   }));
@@ -217,5 +226,5 @@ export function staffingPlanFingerprint(plan: OliviaStaffingPlan): string {
     normalize(plan.teamName),
     ...plan.existingAgentIds.slice().sort(),
     ...plan.hires.map(hire => `${normalize(hire.agentName)}:${normalize(hire.roleName)}`).sort(),
-  ].join('|') || newId();
+  ].join('|');
 }
