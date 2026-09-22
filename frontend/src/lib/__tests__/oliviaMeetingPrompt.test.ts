@@ -10,7 +10,7 @@ describe('Olivia meeting prompt', () => {
     sessionStorage.clear();
   });
 
-  it('injects the meeting brief and readiness state only for Olivia', () => {
+  it('injects meeting readiness and a company staffing roster only for Olivia', () => {
     const olivia = defaultAgents.find(item => item.id === MEETING_FACILITATOR_AGENT_ID)!;
     const emma = defaultAgents.find(item => item.id === 'agent-emma')!;
     const oliviaRole = defaultRoles.find(item => item.id === olivia.roleId)!;
@@ -30,6 +30,8 @@ describe('Olivia meeting prompt', () => {
         projectId: 'project-a',
         languageCode: 'en',
         agentIds: [olivia.id, emma.id],
+        teamIds: [],
+        individualAgentIds: [olivia.id, emma.id],
         messages: [],
         createdAt: 1,
       }],
@@ -49,9 +51,15 @@ describe('Olivia meeting prompt', () => {
     expect(oliviaPrompt).toContain('Should v4 snapshot persistence be canonical?');
     expect(oliviaPrompt).toContain('Decision readiness: READY');
     expect(oliviaPrompt).toContain('Do not answer for them.');
+    expect(oliviaPrompt).toContain('MEETING STAFFING');
+    expect(oliviaPrompt).toContain('COMPANY ROSTER');
+    expect(oliviaPrompt).toContain('agent-emma: Emma — Software Architect');
+    expect(oliviaPrompt).toContain('VC_STAFFING_PLAN');
+    expect(oliviaPrompt).toContain('Never hire a new person for a skill that an existing specialist already covers adequately.');
 
     const emmaPrompt = buildAgentPrompt(emma, emmaRole, []);
     expect(emmaPrompt).not.toContain('MEETING FACILITATION STATE');
-    expect(emmaPrompt).not.toContain('Decision readiness: READY');
+    expect(emmaPrompt).not.toContain('MEETING STAFFING');
+    expect(emmaPrompt).not.toContain('VC_STAFFING_PLAN');
   });
 });
