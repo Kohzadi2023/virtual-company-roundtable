@@ -53,8 +53,8 @@ function stripMarkdownDecorators(value: string): string {
 
 function parseLegacyBrief(content: string): OliviaMeetingBrief | null {
   const normalized = stripMarkdownDecorators(content);
-  const objectiveMatch = normalized.match(/(?:^|\n)\s*Objective\s*:?\s*([\s\S]*?)(?=\n\s*Expected\s+Outcome\s*:)/i);
-  const outcomeMatch = normalized.match(/(?:^|\n)\s*Expected\s+Outcome\s*:?\s*([\s\S]*?)(?=\n\s*Decision\s+Question\s*:)/i);
+  const objectiveMatch = normalized.match(/(?:^|\n)\s*Objective\s*:?\s*([\s\S]*?)(?=\n\s*Expected\s+Outcome\s*:?\s*)/i);
+  const outcomeMatch = normalized.match(/(?:^|\n)\s*Expected\s+Outcome\s*:?\s*([\s\S]*?)(?=\n\s*Decision\s+Question\s*:?\s*)/i);
   const decisionMatch = normalized.match(/(?:^|\n)\s*Decision\s+Question\s*:?\s*([\s\S]*?)(?=\n\s*(?:VC_|Meeting\s+status|Facts\s+established|Assumptions|$))/i)
     ?? normalized.match(/(?:^|\n)\s*Decision\s+Question\s*:?\s*([\s\S]*)$/i);
 
