@@ -33,18 +33,44 @@ same as today.
 
 | Site | Capture | Confidence |
 | --- | --- | --- |
-| ChatGPT | Automatic | Selector (`[data-message-author-role="assistant"]`) is ChatGPT's long-standing convention. |
+| ChatGPT | Automatic | **Verified 2026-09-22** against a live, unauthenticated `chatgpt.com` session — see below. |
 | Gemini | One click | Selector is a best-effort guess (`model-response`), **not verified against a live session**. |
 | DeepSeek, Qwen, Grok, Meta AI | One click | Selectors are best-effort guesses, **not verified against a live session**, with a generic "last text block on the page" fallback. |
 
-Claude built this without accounts on Gemini/DeepSeek/Qwen/Grok/Meta AI, so
-those five adapters could not be checked against real, logged-in pages. If a
-captured reply looks wrong (wrong text, includes UI chrome, etc.):
+### What "verified" caught for ChatGPT
+
+The first version of `chatgpt.js` shipped with an unverified selector
+(`data-message-author-role`) that turned out not to exist at all — the real
+attribute is `data-message-role="assistant"`. Testing live also found two
+extraction bugs a selector guess alone wouldn't have caught:
+
+- `innerText` on the message container included a `"ChatGPT said:"`
+  accessibility label and, once, the raw JSON text of a `<script
+  type="application/json">` hydration payload sitting inside it.
+- In guest/unauthenticated mode specifically, the container also included a
+  trailing ad ("Speechify …"); logged-in accounts should not see this, but
+  it's excluded defensively either way.
+- ChatGPT's `data-message-complete` attribute can flip to `true` while only
+  a short preamble line has rendered and the real answer is still streaming
+  in below it — confirmed live. `chatgpt.js` does not use it; completion is
+  still detected by content settling (see `watchForQuietReply` in
+  `shared.js`), which isn't affected by that timing.
+
+All fixed in `content-scripts/site-adapters/chatgpt.js` and confirmed
+end-to-end: a real reply ("purple elephant") was captured verbatim, with no
+label, script payload, or ad text mixed in.
+
+Claude built this without accounts on Gemini/DeepSeek/Qwen/Grok/Meta AI
+(and ChatGPT was only reachable in guest/unauthenticated mode), so those
+five adapters — and ChatGPT's behavior specifically on your logged-in
+account — still need real-world confirmation. If a captured reply looks
+wrong (wrong text, includes UI chrome, etc.):
 
 1. Open DevTools on the site, inspect the element that wraps one assistant
    reply.
 2. Open `content-scripts/site-adapters/<site>.js` and put that element's
-   selector first in the `getLatestText` list.
+   selector first in the `getLatestText` list (or fix `extractText` for
+   ChatGPT if its logged-in DOM differs from the guest version tested here).
 3. Reload the extension from `chrome://extensions`.
 
 ## Limitations
