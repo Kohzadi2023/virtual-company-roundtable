@@ -112,6 +112,16 @@ function statuses(agentIds: string[], current?: Record<string, SpeakerStatus>): 
   return Object.fromEntries(agentIds.map(id => [id, current?.[id] ?? 'waiting'])) as Record<string, SpeakerStatus>;
 }
 
+function arraysEqual(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function speakerStatusesEqual(left: Record<string, SpeakerStatus>, right: Record<string, SpeakerStatus>): boolean {
+  const leftKeys = Object.keys(left);
+  const rightKeys = Object.keys(right);
+  return leftKeys.length === rightKeys.length && leftKeys.every(key => left[key] === right[key]);
+}
+
 function specialistIds(order: string[]): string[] {
   return order.filter(id => id !== MEETING_FACILITATOR_AGENT_ID);
 }
@@ -160,35 +170,53 @@ export function ensureMeetingRoom(roomId: string, agentIds: string[]): MeetingRo
   const order = orderedAgents(agentIds);
   const existing = state.rooms[roomId];
   const fallbackStage: RoundStage = order.includes(MEETING_FACILITATOR_AGENT_ID) ? 'opening' : 'specialists';
-  const next: MeetingRoomState = existing
-    ? (() => {
-        const roundStage = existing.roundStage ?? inferRoundStage(existing);
-        const candidate = { ...existing, roundStage };
-        return {
-          ...existing,
-          phase: synchronizedPhase(candidate),
-          roundStage,
-          speakerOrder: order,
-          speakerStatus: statuses(order, existing.speakerStatus),
-          ...(existing.activeSpeakerId && order.includes(existing.activeSpeakerId)
-            ? { activeSpeakerId: existing.activeSpeakerId }
-            : roundStage === 'complete'
-              ? { activeSpeakerId: undefined }
-              : order[0] ? { activeSpeakerId: order[0] } : { activeSpeakerId: undefined }),
-          updatedAt: Date.now(),
-        };
-      })()
-    : {
-        roomId,
-        phase: 'open',
-        rounds: [...DEFAULT_ROUNDS],
-        roundIndex: 0,
-        roundStage: fallbackStage,
-        speakerOrder: order,
-        speakerStatus: statuses(order),
-        ...(order[0] ? { activeSpeakerId: order[0] } : { activeSpeakerId: undefined }),
-        updatedAt: Date.now(),
-      };
+
+  if (!existing) {
+    const created: MeetingRoomState = {
+      roomId,
+      phase: 'open',
+      rounds: [...DEFAULT_ROUNDS],
+      roundIndex: 0,
+      roundStage: fallbackStage,
+      speakerOrder: order,
+      speakerStatus: statuses(order),
+      ...(order[0] ? { activeSpeakerId: order[0] } : { activeSpeakerId: undefined }),
+      updatedAt: Date.now(),
+    };
+    saveMeetingOrchestration({ ...state, rooms: { ...state.rooms, [roomId]: created } });
+    return created;
+  }
+
+  const roundStage = existing.roundStage ?? inferRoundStage(existing);
+  const phase = synchronizedPhase({ ...existing, roundStage });
+  const speakerStatus = statuses(order, existing.speakerStatus);
+  const activeSpeakerId = existing.activeSpeakerId && order.includes(existing.activeSpeakerId)
+    ? existing.activeSpeakerId
+    : roundStage === 'complete'
+      ? undefined
+      : order[0];
+
+  const unchanged = existing.phase === phase
+    && existing.roundStage === roundStage
+    && arraysEqual(existing.speakerOrder, order)
+    && speakerStatusesEqual(existing.speakerStatus, speakerStatus)
+    && existing.activeSpeakerId === activeSpeakerId;
+
+  // Prompt construction calls ensureMeetingRoom while React is rendering.
+  // When there is nothing to synchronize, a write/event here would turn a
+  // read-like ensure into a render-phase side effect and can recursively
+  // retrigger prompt rendering through MEETING_ORCHESTRATION_EVENT.
+  if (unchanged) return existing;
+
+  const next: MeetingRoomState = {
+    ...existing,
+    phase,
+    roundStage,
+    speakerOrder: order,
+    speakerStatus,
+    activeSpeakerId,
+    updatedAt: Date.now(),
+  };
   saveMeetingOrchestration({ ...state, rooms: { ...state.rooms, [roomId]: next } });
   return next;
 }
