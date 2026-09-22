@@ -123,18 +123,49 @@ function oliviaSoloBootstrapPreamble(): string[] {
   ];
 }
 
+const MAX_ROSTER_ACTIVE_ROOMS_LISTED = 3;
+
+/**
+ * One roster line per agent with enough real, current context for Olivia to
+ * actually match capabilities instead of guessing from a name — id, role,
+ * skills, responsibilities, boundaries, team, and current workload.
+ *
+ * "Responsibilities" and "boundaries" come from RoleDefinition
+ * (scope/description and limitations) since there's no separate field for
+ * either. "Team" is derived by looking up which TeamDefinition(s) list this
+ * agent, since Agent itself doesn't carry a team reference. There is no
+ * "current ownership" or "availability" field anywhere in the domain model:
+ * ActionItem.owner is a free-text string, not an agent id, so it can't be
+ * matched reliably. Room membership across the workspace is used instead as
+ * an honest, authoritative proxy for both — which rooms/projects an agent is
+ * actively part of right now.
+ */
+function rosterLine(agent: Agent, workspace: WorkspaceState, activeRoom: Room): string {
+  const role = workspace.roles.find(item => item.id === agent.roleId);
+  const skills = role?.skills.length ? role.skills.join(', ') : 'No skills listed';
+  const responsibilities = role?.scope || role?.description || 'Not specified';
+  const boundaries = role?.limitations?.length ? role.limitations.join('; ') : 'None specified';
+  const teamNames = workspace.teams.filter(team => team.agentIds.includes(agent.id)).map(team => team.name);
+  const otherRooms = workspace.rooms.filter(room => room.id !== activeRoom.id && room.agentIds.includes(agent.id));
+  const otherRoomNames = otherRooms.slice(0, MAX_ROSTER_ACTIVE_ROOMS_LISTED).map(room => room.name);
+  const workload = otherRooms.length > 0
+    ? `Active in ${otherRooms.length} other room${otherRooms.length === 1 ? '' : 's'} (${otherRoomNames.join(', ')}${otherRooms.length > otherRoomNames.length ? ', …' : ''})`
+    : 'Not currently active in any other room';
+  const roomStatus = activeRoom.agentIds.includes(agent.id) ? ' · ALREADY IN ROOM' : '';
+
+  return `- ${agent.id}: ${agent.name} — ${role?.name ?? 'Unknown role'}`
+    + ` | Skills: ${skills}`
+    + ` | Responsibilities: ${responsibilities}`
+    + ` | Boundaries: ${boundaries}`
+    + ` | Team: ${teamNames.length > 0 ? teamNames.join(', ') : 'Unassigned'}`
+    + ` | ${workload}${roomStatus}`;
+}
+
 function oliviaStaffingSection(activeRoom: Room, workspace: WorkspaceState, roundStage: string): string[] {
   if (roundStage !== 'opening') return [];
 
   const solo = isOliviaAloneInRoom(activeRoom);
-  const roleById = new Map(workspace.roles.map(role => [role.id, role]));
-  const roomMembers = new Set(activeRoom.agentIds);
-  const roster = workspace.agents.map(agent => {
-    const role = roleById.get(agent.roleId);
-    const skills = role?.skills.length ? role.skills.join(', ') : 'No skills listed';
-    const roomStatus = roomMembers.has(agent.id) ? ' · ALREADY IN ROOM' : '';
-    return `- ${agent.id}: ${agent.name} — ${role?.name ?? 'Unknown role'} | Skills: ${skills}${roomStatus}`;
-  });
+  const roster = workspace.agents.map(agent => rosterLine(agent, workspace, activeRoom));
 
   return [
     ...(solo ? oliviaSoloBootstrapPreamble() : []),
@@ -148,8 +179,14 @@ function oliviaStaffingSection(activeRoom: Room, workspace: WorkspaceState, roun
     'A capability gap only exists when an essential area of expertise is missing, no existing person or agent legitimately owns it, and the meeting cannot safely reach its objective without it. Do not invite someone only because they are senior or generally important.',
     'The user remains the final approver: you propose the staffing plan; Virtual Company will show it for one-click review before mutating the company directory.',
     '',
-    'COMPANY ROSTER — authoritative current specialists and role skills:',
+    'COMPANY ROSTER — authoritative current specialists, skills, responsibilities, boundaries, team, and current workload:',
     ...roster,
+    '',
+    'Match each required capability against this roster before deciding anything:',
+    '- A need this roster already covers → add that person/agent as a participant. Do not hire for it.',
+    '- A need no existing person or agent legitimately owns → propose an AI specialist hire (type "ai-agent" or "temporary-specialist").',
+    '- A need that genuinely requires a real person (legal standing, an external vendor relationship, physical presence, anything an AI cannot legitimately do) → do NOT invent an agent for it. Mark it as a "human" or "contractor" hire; it becomes a blocker, not a fabricated participant.',
+    'A busy specialist (already active in other rooms) can still be the right choice — workload is context for you and the user, not a disqualifier.',
     '',
     'At the END of your opening response, append exactly one machine-readable staffing block using this format:',
     'VC_STAFFING_PLAN',
