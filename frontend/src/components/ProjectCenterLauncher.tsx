@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
+import { roomsForProject, roomsOutsideProject } from '@/lib/projectCenter';
 import { useWorkspaceStore } from '@/store/workspaceStore';
-import type { ActionItemPriority, ActionItemStatus, DecisionStatus } from '@/types/domain';
+import type { ActionItemPriority, ActionItemStatus, DecisionStatus, Room } from '@/types/domain';
 
 type ProjectTab = 'overview' | 'decisions' | 'actions';
 
@@ -15,6 +16,14 @@ const actionStatusLabel: Record<ActionItemStatus, string> = {
   'in-progress': 'In Progress',
   done: 'Done',
 };
+
+function EmptyProjectState({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-xs text-slate-500">
+      {children}
+    </div>
+  );
+}
 
 export function ProjectCenterLauncher() {
   const projects = useWorkspaceStore(state => state.projects);
@@ -57,7 +66,11 @@ export function ProjectCenterLauncher() {
   const selectedProject = projects.find(project => project.id === resolvedProjectId);
 
   const projectRooms = useMemo(
-    () => rooms.filter(room => room.projectId === resolvedProjectId),
+    () => roomsForProject(rooms, resolvedProjectId),
+    [rooms, resolvedProjectId],
+  );
+  const otherRooms = useMemo(
+    () => roomsOutsideProject(rooms, resolvedProjectId),
     [rooms, resolvedProjectId],
   );
   const projectDecisions = useMemo(
@@ -69,17 +82,29 @@ export function ProjectCenterLauncher() {
     [actionItems, resolvedProjectId],
   );
 
+  const chooseProject = (id: string) => {
+    setProjectId(id);
+    setDecisionRoomId('');
+    setActionRoomId('');
+  };
+
   const openCenter = () => {
-    setProjectId(activeRoom?.projectId ?? projects[0]?.id ?? '');
+    chooseProject(activeRoom?.projectId ?? projects[0]?.id ?? '');
+    setTab('overview');
     setOpen(true);
   };
 
   const submitProject = () => {
     const id = createProject(projectName, '📁', projectDescription);
     if (!id) return;
-    setProjectId(id);
+    chooseProject(id);
     setProjectName('');
     setProjectDescription('');
+  };
+
+  const moveRoomToSelectedProject = (roomId: string) => {
+    if (!resolvedProjectId) return;
+    setRoomProject(roomId, resolvedProjectId);
   };
 
   const submitDecision = () => {
@@ -120,6 +145,8 @@ export function ProjectCenterLauncher() {
     setActionPriority('medium');
   };
 
+  const projectNameForRoom = (room: Room) => projects.find(project => project.id === room.projectId)?.name ?? 'Unknown project';
+
   return (
     <>
       <button
@@ -132,7 +159,15 @@ export function ProjectCenterLauncher() {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[120] grid place-items-center bg-slate-950/35 p-6" role="dialog" aria-modal="true" aria-label="Project Center">
+        <div
+          className="fixed inset-0 z-[120] grid place-items-center bg-slate-950/35 p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Project Center"
+          onMouseDown={event => {
+            if (event.target === event.currentTarget) setOpen(false);
+          }}
+        >
           <div className="flex h-[82vh] w-[min(1180px,94vw)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
             <aside className="flex w-72 shrink-0 flex-col border-e border-slate-200 bg-slate-50">
               <div className="border-b border-slate-200 px-4 py-4">
@@ -150,13 +185,13 @@ export function ProjectCenterLauncher() {
                       <button
                         key={project.id}
                         type="button"
-                        onClick={() => setProjectId(project.id)}
+                        onClick={() => chooseProject(project.id)}
                         className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-start transition ${selected ? 'border-violet-300 bg-white shadow-sm' : 'border-transparent hover:border-slate-200 hover:bg-white'}`}
                       >
                         <span className="text-lg" aria-hidden="true">{project.emoji}</span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-xs font-semibold text-slate-800">{project.name}</span>
-                          <span className="block text-[10px] text-slate-400">{roomCount} rooms</span>
+                          <span className="block text-[10px] text-slate-400">{roomCount} room{roomCount === 1 ? '' : 's'}</span>
                         </span>
                       </button>
                     );
@@ -192,6 +227,16 @@ export function ProjectCenterLauncher() {
                   </div>
                   <p className="mt-1 truncate text-xs text-slate-500">{selectedProject?.description || 'No project description yet.'}</p>
                 </div>
+                {activeRoom && selectedProject && activeRoom.projectId !== selectedProject.id ? (
+                  <button
+                    type="button"
+                    onClick={() => moveRoomToSelectedProject(activeRoom.id)}
+                    className="shrink-0 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-[11px] font-semibold text-violet-700 hover:bg-violet-100"
+                    title={`Move ${activeRoom.name} into ${selectedProject.name}`}
+                  >
+                    + Move active room here
+                  </button>
+                ) : null}
                 <div className="flex gap-2 text-[11px]">
                   <span className="rounded-full bg-blue-50 px-2.5 py-1 font-semibold text-blue-700">{projectRooms.length} rooms</span>
                   <span className="rounded-full bg-amber-50 px-2.5 py-1 font-semibold text-amber-700">{projectDecisions.length} decisions</span>
@@ -212,33 +257,61 @@ export function ProjectCenterLauncher() {
 
               <div className="min-h-0 flex-1 overflow-y-auto p-5">
                 {tab === 'overview' && (
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="text-sm font-bold text-slate-800">Rooms in this project</h4>
-                      <p className="mt-1 text-xs text-slate-500">Assign any room to a workspace. New rooms inherit the active room's project.</p>
-                    </div>
-                    <div className="grid gap-2 lg:grid-cols-2">
-                      {rooms.map(room => {
-                        const roomProject = projects.find(project => project.id === room.projectId);
-                        return (
-                          <div key={room.id} className="rounded-xl border border-slate-200 p-3">
-                            <div className="flex items-center gap-2">
-                              <button type="button" onClick={() => { setActiveRoom(room.id); setOpen(false); }} className="min-w-0 flex-1 truncate text-start text-sm font-semibold text-slate-800 hover:text-blue-600">
-                                <span className="me-2">{room.emoji}</span>{room.name}
-                              </button>
-                              <span className="text-[10px] text-slate-400">{room.messages.length} msgs</span>
+                  <div className="space-y-6">
+                    <section className="space-y-3">
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-800">Rooms in this project</h4>
+                        <p className="mt-1 text-xs text-slate-500">Only rooms assigned to {selectedProject?.name ?? 'this project'} appear here.</p>
+                      </div>
+
+                      {projectRooms.length === 0 ? (
+                        <EmptyProjectState>
+                          This project has no rooms yet. Use “Move active room here” above or move one of the rooms below into this project.
+                        </EmptyProjectState>
+                      ) : (
+                        <div className="grid gap-2 lg:grid-cols-2">
+                          {projectRooms.map(room => (
+                            <div key={room.id} className={`rounded-xl border p-3 ${room.id === activeRoomId ? 'border-violet-300 bg-violet-50/40' : 'border-slate-200'}`}>
+                              <div className="flex items-center gap-2">
+                                <button type="button" onClick={() => { setActiveRoom(room.id); setOpen(false); }} className="min-w-0 flex-1 truncate text-start text-sm font-semibold text-slate-800 hover:text-blue-600">
+                                  <span className="me-2">{room.emoji}</span>{room.name}
+                                </button>
+                                {room.id === activeRoomId ? <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold text-violet-700">ACTIVE</span> : null}
+                                <span className="text-[10px] text-slate-400">{room.messages.length} msgs</span>
+                              </div>
+                              <div className="mt-2 flex items-center gap-2">
+                                <span className="text-[10px] font-medium text-slate-400">Move to</span>
+                                <select value={room.projectId ?? ''} onChange={event => setRoomProject(room.id, event.target.value)} className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs">
+                                  {projects.map(project => <option key={project.id} value={project.id}>{project.emoji} {project.name}</option>)}
+                                </select>
+                              </div>
                             </div>
-                            <div className="mt-2 flex items-center gap-2">
-                              <span className="text-[10px] font-medium text-slate-400">Project</span>
-                              <select value={room.projectId ?? ''} onChange={event => setRoomProject(room.id, event.target.value)} className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs">
-                                {projects.map(project => <option key={project.id} value={project.id}>{project.emoji} {project.name}</option>)}
-                              </select>
+                          ))}
+                        </div>
+                      )}
+                    </section>
+
+                    <section className="space-y-3 border-t border-slate-200 pt-5">
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-800">Other rooms</h4>
+                        <p className="mt-1 text-xs text-slate-500">Move an existing room into {selectedProject?.name ?? 'the selected project'} without switching projects first.</p>
+                      </div>
+                      {otherRooms.length === 0 ? (
+                        <EmptyProjectState>Every room is already assigned to this project.</EmptyProjectState>
+                      ) : (
+                        <div className="grid gap-2 lg:grid-cols-2">
+                          {otherRooms.map(room => (
+                            <div key={room.id} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate text-sm font-semibold text-slate-800"><span className="me-2">{room.emoji}</span>{room.name}</div>
+                                <div className="mt-1 truncate text-[10px] text-slate-400">Currently in {projectNameForRoom(room)}</div>
+                              </div>
+                              <button type="button" onClick={() => moveRoomToSelectedProject(room.id)} className="shrink-0 rounded-md border border-violet-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-violet-700 hover:bg-violet-50">Move here</button>
                             </div>
-                            {roomProject ? <div className="mt-1 text-[10px] text-slate-400">Currently in {roomProject.name}</div> : null}
-                          </div>
-                        );
-                      })}
-                    </div>
+                          ))}
+                        </div>
+                      )}
+                    </section>
                   </div>
                 )}
 
@@ -258,7 +331,7 @@ export function ProjectCenterLauncher() {
                     </div>
 
                     <div className="space-y-2">
-                      {projectDecisions.length === 0 ? <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-xs text-slate-400">No decisions recorded for this project.</div> : null}
+                      {projectDecisions.length === 0 ? <EmptyProjectState>No decisions recorded for this project.</EmptyProjectState> : null}
                       {projectDecisions.map(decision => {
                         const room = rooms.find(item => item.id === decision.roomId);
                         return (
@@ -309,7 +382,7 @@ export function ProjectCenterLauncher() {
                     </div>
 
                     <div className="space-y-2">
-                      {projectActions.length === 0 ? <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-xs text-slate-400">No action items for this project.</div> : null}
+                      {projectActions.length === 0 ? <EmptyProjectState>No action items for this project.</EmptyProjectState> : null}
                       {projectActions.map(actionItem => {
                         const room = rooms.find(item => item.id === actionItem.roomId);
                         return (
