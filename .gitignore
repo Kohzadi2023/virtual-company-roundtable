@@ -3,6 +3,7 @@ frontend/dist/
 frontend/src-tauri/target/
 frontend/src-tauri/binaries/*.exe
 frontend/src-tauri/icons/
+frontend/src-tauri/gen/schemas/
 backend/.venv/
 backend/__pycache__/
 backend/.pytest_cache/
