@@ -186,20 +186,26 @@ export function normalizeMeetingOrchestrationValue(value: unknown): RecoveredMee
 }
 
 export function repairMeetingOrchestrationStorage(): boolean {
-  const raw = localStorage.getItem(KEY);
-  if (!raw) return false;
-
-  let parsed: unknown;
   try {
-    parsed = JSON.parse(raw) as unknown;
-  } catch {
-    localStorage.setItem(KEY, JSON.stringify({ rooms: {}, chats: {} }));
-    return true;
-  }
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return false;
 
-  const normalized = normalizeMeetingOrchestrationValue(parsed);
-  const next = JSON.stringify(normalized);
-  if (next === JSON.stringify(parsed)) return false;
-  localStorage.setItem(KEY, next);
-  return true;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw) as unknown;
+    } catch {
+      localStorage.setItem(KEY, JSON.stringify({ rooms: {}, chats: {} }));
+      return true;
+    }
+
+    const normalized = normalizeMeetingOrchestrationValue(parsed);
+    const next = JSON.stringify(normalized);
+    if (next === JSON.stringify(parsed)) return false;
+    localStorage.setItem(KEY, next);
+    return true;
+  } catch {
+    // Startup recovery is best-effort. Storage denial/quota errors must not
+    // prevent React from mounting and showing the normal recovery boundary.
+    return false;
+  }
 }
