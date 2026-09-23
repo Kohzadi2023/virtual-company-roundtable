@@ -5,6 +5,7 @@ import { AgentQuickActionsHost } from '@/components/AgentQuickActionsHost';
 import { AppLockGate } from '@/components/AppLockGate';
 import { ChatRoom } from '@/components/ChatRoom';
 import { CollapsibleCompanyDirectory } from '@/components/CollapsibleCompanyDirectory';
+import { DevToolsMenu } from '@/components/DevToolsMenu';
 import { FooterToolsMenu } from '@/components/FooterToolsMenu';
 import { MemoryCenterDialogHost } from '@/components/MemoryCenterDialogHost';
 import { MemoryV2Runtime } from '@/components/MemoryV2Runtime';
@@ -88,6 +89,8 @@ export default function App() {
             <span className="font-medium text-slate-600">▣ Virtual Company v{APP_VERSION}</span>
             <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
             <FooterToolsMenu />
+            <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
+            <DevToolsMenu />
           </div>
 
           <div className="flex min-w-0 flex-1 items-center justify-end gap-3 pe-1">
