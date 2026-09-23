@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { MarkdownMessage } from '@/components/MarkdownMessage';
 import { MessageReviewActions } from '@/components/MessageReviewActions';
 import { openAgentMemory } from '@/lib/agentMemory';
 import { copyText } from '@/lib/clipboard';
 import { formatTimestamp } from '@/lib/format';
+import { useClickOutside } from '@/lib/useClickOutside';
 import { recordAudit } from '@/lib/workspaceSuite';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 import type { Message, MessageReaction } from '@/types/domain';
@@ -66,6 +68,43 @@ export function TimelineMessage({ roomId, message, isLast = false }: TimelineMes
   const [copied, setCopied] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [reactionOpen, setReactionOpen] = useState(false);
+  const [moreMenuPosition, setMoreMenuPosition] = useState<{ top: number; left: number } | null>(null);
+  const moreOpen = moreMenuPosition !== null;
+  const moreTriggerRef = useRef<HTMLDivElement>(null);
+  const moreMenuPanelRef = useRef<HTMLDivElement>(null);
+  // MessageReviewActions renders its own follow-up popover through a
+  // separate portal (see there for why) — its ref has to be ignored here
+  // too, or clicking anything inside it reads as "outside" this menu and
+  // closes it (unmounting the follow-up popover along with it) before the
+  // user can pick a target agent and submit.
+  const reviewPopoverRef = useRef<HTMLDivElement>(null);
+  useClickOutside(moreTriggerRef, moreOpen, () => setMoreMenuPosition(null), [moreMenuPanelRef, reviewPopoverRef]);
+
+  // The action row lives inside the scrolling message list (overflow-y-auto
+  // in ChatRoom), which clips its own descendants — including anything
+  // positioned absolutely inside it, regardless of where on screen it lands.
+  // A plain "open upward" popover (as reaction picker still does, for a
+  // small 5-icon row) gets silently clipped for any message near the top of
+  // that scroll container: confirmed live, the menu items were still in the
+  // DOM, just rendered outside the visible/clipped area. This menu can hold
+  // up to 8 items, so it renders through a portal to <body> instead (same
+  // pattern as AgentAvatar's hover card) and picks its own fixed, viewport-
+  // clamped position, escaping that clipping entirely.
+  const openMoreMenu = () => {
+    const trigger = moreTriggerRef.current;
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    const menuWidth = 208;
+    const menuHeight = 320;
+    const gap = 4;
+    const left = Math.max(8, Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - 8));
+    const preferredTop = rect.top - gap - menuHeight;
+    const top = preferredTop >= 8
+      ? preferredTop
+      : Math.max(8, Math.min(rect.bottom + gap, window.innerHeight - menuHeight - 8));
+    setMoreMenuPosition({ top, left });
+  };
+  const closeMoreMenu = () => setMoreMenuPosition(null);
 
   const isUser = message.authorType === 'user';
   const author = isUser ? 'User' : message.authorNameSnapshot ?? 'Agent';
@@ -235,19 +274,40 @@ export function TimelineMessage({ roomId, message, isLast = false }: TimelineMes
 
         {!editing && (
           <div className="mt-1.5 flex flex-wrap items-center justify-end gap-1 text-[10px] text-slate-500" aria-label="Message collaboration actions">
-            <button type="button" onClick={togglePin} className="rounded-md px-2 py-1 font-medium hover:bg-amber-50 hover:text-amber-700">{message.pinned ? 'Unpin' : '📌 Pin'}</button>
-            <button type="button" onClick={rememberMessage} className="rounded-md px-2 py-1 font-medium hover:bg-violet-50 hover:text-violet-700">🧠 Remember</button>
-            <MessageReviewActions roomId={roomId} message={message} />
             <div className="relative">
               <button type="button" onClick={() => setReactionOpen(value => !value)} className="rounded-md px-2 py-1 font-medium hover:bg-slate-100">{reaction ? `${reaction.icon} ${reaction.label}` : 'React'}</button>
               {reactionOpen ? <div className="absolute bottom-7 end-0 z-20 flex gap-1 rounded-lg border border-slate-200 bg-white p-1.5 shadow-xl">{REACTIONS.map(item => <button key={item.value} type="button" onClick={() => setReaction(item.value)} title={item.label} className="grid h-7 w-7 place-items-center rounded hover:bg-slate-100">{item.icon}</button>)}</div> : null}
             </div>
-            <button type="button" onClick={addTag} className="rounded-md px-2 py-1 font-medium hover:bg-slate-100"># Tag</button>
-            <button type="button" onClick={createBranch} className="rounded-md px-2 py-1 font-medium hover:bg-violet-50 hover:text-violet-700">⑂ {message.branchRoomId ? 'Open Branch' : 'Branch'}</button>
-            {(message.versions?.length ?? 0) > 0 ? <button type="button" onClick={() => setHistoryOpen(value => !value)} className="rounded-md px-2 py-1 font-medium hover:bg-slate-100">History ({message.versions?.length})</button> : null}
-            {isLast ? <><button type="button" onClick={startEditing} className="rounded-md px-2 py-1 font-medium hover:bg-slate-100 hover:text-blue-600"><span aria-hidden="true">✎</span> Edit</button><button type="button" onClick={handleCopy} className="rounded-md px-2 py-1 font-medium hover:bg-slate-100 hover:text-blue-600"><span aria-hidden="true">⧉</span> {copied ? 'Copied' : 'Copy'}</button><button type="button" onClick={handleDelete} className="rounded-md px-2 py-1 font-medium hover:bg-rose-50 hover:text-rose-600"><span aria-hidden="true">⌫</span> Delete</button></> : null}
+            <button type="button" onClick={togglePin} className="rounded-md px-2 py-1 font-medium hover:bg-amber-50 hover:text-amber-700">{message.pinned ? 'Unpin' : '📌 Pin'}</button>
+            <div className="relative" ref={moreTriggerRef}>
+              <button type="button" onClick={() => (moreOpen ? closeMoreMenu() : openMoreMenu())} className="rounded-md px-2 py-1 font-medium hover:bg-slate-100" aria-haspopup="menu" aria-expanded={moreOpen}>⋯ More</button>
+            </div>
           </div>
         )}
+
+        {moreMenuPosition ? createPortal(
+          <div
+            ref={moreMenuPanelRef}
+            role="menu"
+            className="fixed z-[100] max-h-[70vh] w-52 space-y-0.5 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1.5 text-start text-[10px] text-slate-500 shadow-2xl"
+            style={{ top: moreMenuPosition.top, left: moreMenuPosition.left }}
+          >
+            <button type="button" role="menuitem" onClick={() => { rememberMessage(); closeMoreMenu(); }} className="block w-full rounded-md px-2 py-1.5 text-start font-medium hover:bg-violet-50 hover:text-violet-700">🧠 Remember</button>
+            <MessageReviewActions roomId={roomId} message={message} onDone={closeMoreMenu} popoverRef={reviewPopoverRef} />
+            <button type="button" role="menuitem" onClick={() => { addTag(); closeMoreMenu(); }} className="block w-full rounded-md px-2 py-1.5 text-start font-medium hover:bg-slate-100"># Tag</button>
+            <button type="button" role="menuitem" onClick={() => { createBranch(); closeMoreMenu(); }} className="block w-full rounded-md px-2 py-1.5 text-start font-medium hover:bg-violet-50 hover:text-violet-700">⑂ {message.branchRoomId ? 'Open Branch' : 'Branch'}</button>
+            {(message.versions?.length ?? 0) > 0 ? <button type="button" role="menuitem" onClick={() => { setHistoryOpen(value => !value); closeMoreMenu(); }} className="block w-full rounded-md px-2 py-1.5 text-start font-medium hover:bg-slate-100">History ({message.versions?.length})</button> : null}
+            {isLast ? (
+              <>
+                <div className="my-1 h-px bg-slate-100" />
+                <button type="button" role="menuitem" onClick={() => { startEditing(); closeMoreMenu(); }} className="block w-full rounded-md px-2 py-1.5 text-start font-medium hover:bg-slate-100 hover:text-blue-600"><span aria-hidden="true">✎</span> Edit</button>
+                <button type="button" role="menuitem" onClick={() => { void handleCopy(); closeMoreMenu(); }} className="block w-full rounded-md px-2 py-1.5 text-start font-medium hover:bg-slate-100 hover:text-blue-600"><span aria-hidden="true">⧉</span> {copied ? 'Copied' : 'Copy'}</button>
+                <button type="button" role="menuitem" onClick={() => { handleDelete(); closeMoreMenu(); }} className="block w-full rounded-md px-2 py-1.5 text-start font-medium hover:bg-rose-50 hover:text-rose-600"><span aria-hidden="true">⌫</span> Delete</button>
+              </>
+            ) : null}
+          </div>,
+          document.body,
+        ) : null}
 
         {historyOpen && (message.versions?.length ?? 0) > 0 ? <div className="mt-2 rounded-lg border border-slate-200 bg-white p-3"><div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">Previous versions</div><div className="max-h-48 space-y-2 overflow-y-auto">{[...(message.versions ?? [])].reverse().map((version, index) => <details key={`${version.savedAt}-${index}`} className="rounded border border-slate-100 p-2"><summary className="cursor-pointer text-[10px] font-semibold text-slate-500">{new Date(version.savedAt).toLocaleString()}</summary><div className="mt-2 whitespace-pre-wrap text-xs leading-5 text-slate-600">{version.content}</div></details>)}</div></div> : null}
       </div>
