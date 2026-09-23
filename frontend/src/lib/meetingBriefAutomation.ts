@@ -1,4 +1,5 @@
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
+import { runWithLocalStorageQuotaRecovery } from '@/lib/localStorageQuota';
 import { loadMeetingOrchestration, setMeetingBrief } from '@/lib/meetingOrchestration';
 import type { Message } from '@/types/domain';
 
@@ -92,7 +93,12 @@ export function applyOliviaMeetingBrief(roomId: string, brief: OliviaMeetingBrie
     ...(!current.decisionQuestion?.trim() && brief.decisionQuestion ? { decisionQuestion: brief.decisionQuestion } : {}),
   };
   if (Object.keys(patch).length === 0) return false;
-  setMeetingBrief(roomId, patch);
+
+  const write = runWithLocalStorageQuotaRecovery(() => setMeetingBrief(roomId, patch));
+  if (!write.ok) {
+    console.error('[Virtual Company] Could not persist Olivia meeting brief after storage recovery.', write.error);
+    return false;
+  }
   return true;
 }
 

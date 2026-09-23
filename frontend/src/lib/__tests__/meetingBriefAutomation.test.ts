@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
 import {
   applyOliviaMeetingBrief,
@@ -15,6 +15,7 @@ describe('Olivia meeting brief automation', () => {
   beforeEach(() => {
     localStorage.clear();
     sessionStorage.clear();
+    vi.restoreAllMocks();
   });
 
   it('parses a structured VC_MEETING_BRIEF block', () => {
@@ -72,5 +73,45 @@ describe('Olivia meeting brief automation', () => {
     expect(meeting?.objective).toBe('User-approved objective.');
     expect(meeting?.expectedOutcome).toBe('AI inferred outcome');
     expect(meeting?.decisionQuestion).toBe('AI inferred question?');
+  });
+
+  it('compacts the canonical snapshot and retries when applying the brief hits localStorage quota', () => {
+    ensureMeetingRoom('room-a', [MEETING_FACILITATOR_AGENT_ID]);
+    localStorage.setItem('ai-team-chat:snapshot:v4', JSON.stringify({
+      version: 4,
+      rooms: [],
+      extensions: {
+        version: 1,
+        memoryV2: { large: 'x'.repeat(2_000) },
+        meetingOrchestration: { rooms: { 'room-a': { roundIndex: 0 } } },
+      },
+      savedAt: 1,
+    }));
+
+    const originalSetItem = Storage.prototype.setItem;
+    let meetingWriteAttempts = 0;
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function setItem(this: Storage, key: string, value: string) {
+      if (key === 'virtual-company:meeting-orchestration:v1') {
+        meetingWriteAttempts += 1;
+        if (meetingWriteAttempts === 1) {
+          throw new DOMException('Storage quota exceeded', 'QuotaExceededError');
+        }
+      }
+      return originalSetItem.call(this, key, value);
+    });
+
+    const applied = applyOliviaMeetingBrief('room-a', {
+      objective: 'Choose the safe production path.',
+      expectedOutcome: 'A prioritized plan with owners and controls.',
+      decisionQuestion: 'Can live execution be enabled now?',
+    });
+
+    const meeting = loadMeetingOrchestration().rooms['room-a'];
+    const compactSnapshot = JSON.parse(localStorage.getItem('ai-team-chat:snapshot:v4') ?? '{}') as Record<string, unknown>;
+
+    expect(applied).toBe(true);
+    expect(meetingWriteAttempts).toBe(2);
+    expect(meeting?.objective).toBe('Choose the safe production path.');
+    expect(compactSnapshot.extensions).toBeUndefined();
   });
 });
