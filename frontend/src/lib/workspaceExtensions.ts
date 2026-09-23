@@ -1,3 +1,4 @@
+import { normalizeMeetingOrchestrationValue } from '@/lib/meetingOrchestrationRecovery';
 import type { StorageSnapshot, WorkspaceExtensionSnapshot } from '@/types/domain';
 
 type ExtensionField = Exclude<keyof WorkspaceExtensionSnapshot, 'version'>;
@@ -80,8 +81,14 @@ export function restoreWorkspaceExtensions(value: unknown): boolean {
     if (!Object.prototype.hasOwnProperty.call(value, source.field)) continue;
     const next = value[source.field];
     try {
-      if (next == null) localStorage.removeItem(source.key);
-      else localStorage.setItem(source.key, JSON.stringify(next));
+      if (next == null) {
+        localStorage.removeItem(source.key);
+      } else {
+        const safeValue = source.field === 'meetingOrchestration'
+          ? normalizeMeetingOrchestrationValue(next)
+          : next;
+        localStorage.setItem(source.key, JSON.stringify(safeValue));
+      }
       window.dispatchEvent(new CustomEvent(source.event));
     } catch {
       // Keep the rest of the workspace restorable even if one extension is damaged.
