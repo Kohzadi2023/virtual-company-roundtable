@@ -1,3 +1,4 @@
+import { setLocalStorageWithQuotaRecovery } from '@/lib/localStorageQuota';
 import { normalizeMeetingOrchestrationValue } from '@/lib/meetingOrchestrationRecovery';
 import type { StorageSnapshot, WorkspaceExtensionSnapshot } from '@/types/domain';
 
@@ -87,7 +88,8 @@ export function restoreWorkspaceExtensions(value: unknown): boolean {
         const safeValue = source.field === 'meetingOrchestration'
           ? normalizeMeetingOrchestrationValue(next)
           : next;
-        localStorage.setItem(source.key, JSON.stringify(safeValue));
+        const result = setLocalStorageWithQuotaRecovery(source.key, JSON.stringify(safeValue));
+        if (!result.ok) continue;
       }
       window.dispatchEvent(new CustomEvent(source.event));
     } catch {
