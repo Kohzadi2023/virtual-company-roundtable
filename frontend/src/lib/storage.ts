@@ -1,6 +1,10 @@
 import { defaultRoles, defaultTeams } from '@/lib/defaultCompany';
 import { agentContextKey } from '@/lib/id';
 import {
+  setLocalStorageWithQuotaRecovery,
+  stripExtensionsForLocalSnapshot,
+} from '@/lib/localStorageQuota';
+import {
   restoreWorkspaceExtensions,
   withWorkspaceExtensions,
   WORKSPACE_EXTENSION_EVENTS,
@@ -209,7 +213,11 @@ function loadLocal(): StorageSnapshot | null {
 }
 
 function saveLocal(snapshot: StorageSnapshot): void {
-  localStorage.setItem(KEY, JSON.stringify(snapshot));
+  const localSnapshot = stripExtensionsForLocalSnapshot(snapshot);
+  const result = setLocalStorageWithQuotaRecovery(KEY, JSON.stringify(localSnapshot));
+  if (!result.ok) {
+    throw result.error instanceof Error ? result.error : new Error('Local snapshot write failed.');
+  }
 }
 
 async function loadRemote(): Promise<StorageSnapshot | null> {
@@ -244,9 +252,10 @@ export async function bootstrapPersistence(): Promise<void> {
 
   if (chosen) {
     try {
-      // Old v4 snapshots did not contain extension state. Preserve the existing
-      // local feature stores once, then fold them into the canonical snapshot.
-      saveLocal(withWorkspaceExtensions(chosen));
+      // Extension stores already have dedicated localStorage keys. Keep the
+      // local canonical snapshot compact; remote persistence still receives
+      // the complete extension-inclusive snapshot.
+      saveLocal(chosen);
     } catch {
       useWorkspaceStore.getState().setSyncState('error');
       return;
@@ -257,11 +266,12 @@ export async function bootstrapPersistence(): Promise<void> {
 
 async function persistNow(): Promise<void> {
   const snapshot = snapshotFromState();
+  let localSaved = true;
   try {
     saveLocal(snapshot);
   } catch {
+    localSaved = false;
     useWorkspaceStore.getState().setSyncState('error');
-    return;
   }
 
   useWorkspaceStore.getState().setSyncState('saving');
@@ -269,7 +279,7 @@ async function persistNow(): Promise<void> {
     await saveRemote(snapshot);
     useWorkspaceStore.getState().setSyncState('saved');
   } catch {
-    useWorkspaceStore.getState().setSyncState('offline');
+    useWorkspaceStore.getState().setSyncState(localSaved ? 'offline' : 'error');
   }
 }
 
