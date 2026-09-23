@@ -1,13 +1,22 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CompanyPanel } from '@/components/CompanyPanel';
 import { useClickOutside } from '@/lib/useClickOutside';
+import { useIsCompactViewport } from '@/lib/useIsCompactViewport';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
 export function CollapsibleCompanyDirectory() {
-  const [open, setOpen] = useState(true);
+  const compact = useIsCompactViewport();
+  const [open, setOpen] = useState(!compact);
   const panelRef = useRef<HTMLDivElement>(null);
   const agents = useWorkspaceStore(state => state.agents);
   const teams = useWorkspaceStore(state => state.teams);
+
+  // On a phone-width viewport the panel can't sit beside the room content
+  // (its fixed width alone is wider than the screen), so it starts closed
+  // there and opens as a full overlay instead of an in-flow column.
+  useEffect(() => {
+    if (compact) setOpen(false);
+  }, [compact]);
 
   useClickOutside(panelRef, open, () => setOpen(false));
 
@@ -37,17 +46,27 @@ export function CollapsibleCompanyDirectory() {
   }
 
   return (
-    <div ref={panelRef} className="relative flex w-[318px] shrink-0">
-      <CompanyPanel />
-      <button
-        type="button"
-        onClick={() => setOpen(false)}
-        className="absolute -end-3 top-1/2 z-30 grid h-10 w-6 -translate-y-1/2 place-items-center rounded-full border border-slate-200 bg-white text-sm font-bold text-slate-500 shadow-md transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
-        title="Collapse Company Directory"
-        aria-label="Collapse Company Directory"
+    <>
+      {compact ? (
+        <div className="fixed inset-0 z-40 bg-slate-950/40" onClick={() => setOpen(false)} aria-hidden="true" />
+      ) : null}
+      <div
+        ref={panelRef}
+        className={compact
+          ? 'fixed inset-y-0 start-0 z-50 flex w-[85vw] max-w-[318px] shadow-2xl'
+          : 'relative flex w-[318px] shrink-0'}
       >
-        ‹
-      </button>
-    </div>
+        <CompanyPanel />
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="absolute -end-3 top-1/2 z-30 grid h-10 w-6 -translate-y-1/2 place-items-center rounded-full border border-slate-200 bg-white text-sm font-bold text-slate-500 shadow-md transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
+          title="Collapse Company Directory"
+          aria-label="Collapse Company Directory"
+        >
+          ‹
+        </button>
+      </div>
+    </>
   );
 }

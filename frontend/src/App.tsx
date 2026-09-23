@@ -63,9 +63,9 @@ export default function App() {
   return (
     <AppLockGate>
       <main
-        dir={roomLanguage.dir}
+        dir="ltr"
         data-room-language={roomLanguage.code}
-        className="flex h-screen min-w-[1180px] flex-col overflow-hidden bg-[#f7f9fc] text-slate-900"
+        className="flex h-screen min-w-0 flex-col overflow-hidden bg-[#f7f9fc] text-slate-900 lg:min-w-[1180px]"
       >
         <MemoryV2Runtime />
         <OperationsCompletionRuntime />

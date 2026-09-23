@@ -12,7 +12,10 @@
     -webkit-font-smoothing: antialiased;
   }
   html, body, #root { width: 100%; height: 100%; }
-  body { min-width: 1180px; min-height: 100vh; margin: 0; overflow: hidden; background: #f7f9fc; color: #0f172a; }
+  body { min-height: 100vh; margin: 0; overflow: hidden; background: #f7f9fc; color: #0f172a; }
+  @media (min-width: 1024px) {
+    body { min-width: 1180px; }
+  }
   button, input, textarea, select { font: inherit; }
   :focus-visible { @apply outline outline-2 outline-offset-2 outline-blue-500; }
   ::selection { background: #bfdbfe; color: #0f172a; }

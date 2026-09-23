@@ -382,7 +382,7 @@ export function WorkspaceSuiteLauncher() {
   return (
     <>
       <button type="button" onClick={() => { setOpen(true); setTab('Dashboard'); }} className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-[13px] font-semibold text-violet-700 shadow-sm transition hover:bg-violet-100" title="Workspace Suite (Ctrl+K for search)">
-        <span aria-hidden="true">◆</span> Workspace
+        <span aria-hidden="true">◆</span> <span className="hidden sm:inline">Workspace</span>
       </button>
 
       {open && (

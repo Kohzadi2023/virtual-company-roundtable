@@ -5,8 +5,8 @@ import { MeetingBriefStatus } from '@/components/MeetingBriefStatus';
 import { MeetingOrchestrationBar } from '@/components/MeetingOrchestrationBar';
 import { MeetingPhaseTimerStrip } from '@/components/MeetingPhaseTimerStrip';
 import { OliviaStaffingCard } from '@/components/OliviaStaffingCard';
-import { RoomToolsBar } from '@/components/RoomToolsBar';
 import { TimelineMessage } from '@/components/TimelineMessage';
+import { getRoomLanguage } from '@/lib/languages';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
 function EmptyDiscussionState() {
@@ -42,16 +42,24 @@ export function ChatRoom({ roomId }: { roomId: string }) {
 
   if (!room) return <div className="grid h-full place-items-center text-slate-400">Room not found</div>;
 
+  const language = getRoomLanguage(room.languageCode);
+
   return (
     <section className="flex min-w-0 flex-1 flex-col bg-[#f8fafc]">
       <MeetingBriefRuntime roomId={room.id} />
-      <RoomToolsBar roomId={room.id} />
       <MeetingOrchestrationBar roomId={room.id} />
       <MeetingBriefStatus roomId={room.id} />
       <MeetingPhaseTimerStrip roomId={room.id} />
       <OliviaStaffingCard roomId={room.id} />
 
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 pb-2 pt-2" role="log" aria-live="polite" aria-label="Company discussion">
+      {/*
+        Only the conversation itself follows the room's language direction.
+        The bars above (meeting status, tools) are app chrome with untranslated
+        English labels — mirroring them to RTL just reorders English text and
+        reads as broken, not localized, so they stay LTR regardless of room
+        language.
+      */}
+      <div ref={scrollRef} dir={language.dir} className="min-h-0 flex-1 overflow-y-auto px-3 pb-2 pt-2" role="log" aria-live="polite" aria-label="Company discussion">
         <div className="min-h-full rounded-xl border border-slate-200 bg-white px-3 py-1 shadow-[0_1px_2px_rgba(15,23,42,0.02)]">
           {room.messages.length === 0 ? (
             <EmptyDiscussionState />

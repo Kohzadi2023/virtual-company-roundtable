@@ -4,6 +4,7 @@ import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
 import { keepTabFocusInsideDialog } from '@/lib/dialogFocus';
 import { normalizeExternalChatUrl } from '@/lib/externalChatLink';
 import { openOrFocusExternalChat } from '@/lib/externalChatWindow';
+import { defaultRoomLanguages, getRoomLanguage } from '@/lib/languages';
 import {
   ensureMeetingRoom,
   hasMeetingStarted,
@@ -30,6 +31,7 @@ import {
   OPERATIONS_SUITE_EVENT,
   type OperationsSuiteState,
 } from '@/lib/operationsSuite';
+import { setRoomLanguage } from '@/lib/roomActions';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
 const PHASES: Array<{ value: MeetingPhase; label: string }> = [
@@ -151,6 +153,7 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
 
   if (!room || !meeting) return null;
 
+  const language = getRoomLanguage(room.languageCode);
   const readiness = assessMeetingReadiness({ roomId: room.id, meeting, operations, decisions, actionItems });
   const meetingStarted = hasMeetingStarted(meeting);
   const specialistRows = agentRows.filter(row => !row.facilitator);
@@ -240,6 +243,18 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
         {meetingStarted && meeting.roundStage === 'complete' ? <button type="button" onClick={() => resetCurrentRound(room.id)} className="shrink-0 rounded-md border border-blue-200 bg-blue-50 px-2 py-1 font-semibold text-blue-700 hover:bg-blue-100">↻ Reset Round</button> : null}
         {finalRoundComplete && meeting.phase === 'decision' ? <button type="button" onClick={() => setMeetingPhase(room.id, 'actions')} className="shrink-0 rounded-md border border-slate-200 px-2 py-1 font-semibold text-slate-600 hover:bg-slate-50">Actions →</button> : null}
         {meeting.phase === 'actions' ? <button type="button" onClick={handleCloseMeeting} className={`shrink-0 rounded-md border px-2 py-1 font-semibold ${readiness.closeReady ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'}`}>{readiness.closeReady ? 'Close meeting' : 'Close blocked'}</button> : null}
+        <span className="ms-2 h-4 w-px shrink-0 bg-slate-200" aria-hidden="true" />
+        <select
+          value={language.code}
+          onChange={event => setRoomLanguage(room.id, event.target.value)}
+          className="shrink-0 rounded-md border border-slate-200 bg-white px-1.5 py-1 text-[10px] font-medium text-slate-700 outline-none transition hover:border-blue-200 focus:border-blue-400"
+          aria-label="Room language"
+          title="Room language"
+        >
+          {defaultRoomLanguages.map(item => (
+            <option key={item.code} value={item.code}>{item.nativeName} · {item.name}</option>
+          ))}
+        </select>
       </div>
 
       {open ? (
@@ -271,15 +286,15 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
               <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
                 <label className="block">
                   <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-400">Objective</span>
-                  <textarea value={meeting.objective ?? ''} onChange={event => setMeetingBrief(room.id, { objective: event.target.value })} rows={2} placeholder="What must this meeting accomplish?" className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs leading-4 outline-none focus:border-violet-400" />
+                  <textarea dir="auto" value={meeting.objective ?? ''} onChange={event => setMeetingBrief(room.id, { objective: event.target.value })} rows={2} placeholder="What must this meeting accomplish?" className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs leading-4 outline-none focus:border-violet-400" />
                 </label>
                 <label className="block">
                   <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-400">Expected outcome</span>
-                  <textarea value={meeting.expectedOutcome ?? ''} onChange={event => setMeetingBrief(room.id, { expectedOutcome: event.target.value })} rows={2} placeholder="What concrete output should exist?" className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs leading-4 outline-none focus:border-violet-400" />
+                  <textarea dir="auto" value={meeting.expectedOutcome ?? ''} onChange={event => setMeetingBrief(room.id, { expectedOutcome: event.target.value })} rows={2} placeholder="What concrete output should exist?" className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs leading-4 outline-none focus:border-violet-400" />
                 </label>
                 <label className="block">
                   <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-400">Decision question</span>
-                  <textarea value={meeting.decisionQuestion ?? ''} onChange={event => setMeetingBrief(room.id, { decisionQuestion: event.target.value })} rows={2} placeholder="What exact decision must be made?" className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs leading-4 outline-none focus:border-violet-400" />
+                  <textarea dir="auto" value={meeting.decisionQuestion ?? ''} onChange={event => setMeetingBrief(room.id, { decisionQuestion: event.target.value })} rows={2} placeholder="What exact decision must be made?" className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs leading-4 outline-none focus:border-violet-400" />
                 </label>
               </div>
 

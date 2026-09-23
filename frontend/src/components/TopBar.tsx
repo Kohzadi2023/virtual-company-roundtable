@@ -117,8 +117,8 @@ export function TopBar() {
 
   return (
     <>
-      <header className="relative z-40 flex h-16 shrink-0 border-b border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
-        <div className="flex w-[318px] shrink-0 items-center gap-3 border-e border-slate-200 px-5">
+      <header className="relative z-40 flex h-14 shrink-0 border-b border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+        <div className="hidden shrink-0 items-center gap-3 border-e border-slate-200 px-5 sm:flex sm:w-[318px]">
           <CompanyLogo />
           <div className="min-w-0">
             <div className="truncate text-[20px] font-bold tracking-tight text-[#111b3a]">Virtual Company</div>
@@ -126,7 +126,7 @@ export function TopBar() {
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-1 items-center gap-3 px-4">
+        <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto px-3 sm:gap-3 sm:px-4">
           <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-violet-50 text-violet-600" aria-hidden="true">▣</div>
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-[17px] font-bold text-[#111b3a]">{activeRoom?.name ?? 'Company Roundtable'}</h1>
@@ -137,16 +137,16 @@ export function TopBar() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <WorkspaceSuiteLauncher />
             <ProjectCenterLauncher />
-            <button type="button" onClick={copyFullChat} disabled={!activeRoom || activeRoom.messages.length === 0} className="inline-flex items-center gap-2 rounded-lg border border-blue-500 bg-white px-3 py-2 text-[13px] font-semibold text-blue-600 shadow-sm transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"><span aria-hidden="true">⧉</span> Copy Full Chat</button>
+            <button type="button" onClick={copyFullChat} disabled={!activeRoom || activeRoom.messages.length === 0} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-blue-500 bg-white px-3 py-2 text-[13px] font-semibold text-blue-600 shadow-sm transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"><span aria-hidden="true">⧉</span> <span className="hidden sm:inline">Copy Full Chat</span></button>
 
-            <div ref={roomMenuRef} className="relative">
-              <button type="button" onClick={() => setRoomMenuOpen(value => !value)} aria-expanded={roomMenuOpen} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[13px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"><span aria-hidden="true">⚙</span> Room Settings</button>
+            <div ref={roomMenuRef} className="relative shrink-0">
+              <button type="button" onClick={() => setRoomMenuOpen(value => !value)} aria-expanded={roomMenuOpen} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[13px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"><span aria-hidden="true">⚙</span> <span className="hidden sm:inline">Room Settings</span></button>
 
               {roomMenuOpen && (
-                <div className="absolute end-0 top-12 w-[460px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
+                <div className="fixed inset-x-3 top-16 w-auto overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl sm:absolute sm:inset-x-auto sm:end-0 sm:top-12 sm:w-[460px]">
                   <div className="border-b border-slate-200 p-3">
                     <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Rooms</div>
                     <div className="max-h-32 space-y-1 overflow-y-auto">

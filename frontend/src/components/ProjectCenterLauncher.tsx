@@ -157,7 +157,7 @@ export function ProjectCenterLauncher() {
         className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-[13px] font-semibold text-violet-700 shadow-sm transition hover:bg-violet-100"
         title="Projects, decisions and action items"
       >
-        <span aria-hidden="true">▦</span> Projects
+        <span aria-hidden="true">▦</span> <span className="hidden sm:inline">Projects</span>
       </button>
 
       {open && (

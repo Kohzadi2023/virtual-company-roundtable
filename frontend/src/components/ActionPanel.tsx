@@ -209,7 +209,7 @@ export function ActionPanel({ roomId }: { roomId: string }) {
         </div>
 
         {tab === 'user' ? (
-          <div className="flex items-stretch gap-3 p-2" role="tabpanel">
+          <div className="flex flex-col items-stretch gap-2 p-2 sm:flex-row sm:gap-3" role="tabpanel">
             <div className="min-w-0 flex-1 overflow-hidden rounded-lg border border-slate-300 bg-white focus-within:border-blue-400 focus-within:ring-1 focus-within:ring-blue-100">
               <textarea
                 id="user-message"
@@ -237,7 +237,7 @@ export function ActionPanel({ roomId }: { roomId: string }) {
                 <ToolButton label="☺" title="Emoji" onClick={() => setUserMessage(value => `${value} 🙂`)} />
               </div>
             </div>
-            <div className="flex w-40 shrink-0 flex-col items-stretch justify-end gap-2 pe-1 pb-1">
+            <div className="flex shrink-0 flex-col items-stretch justify-end gap-2 sm:w-40 sm:pe-1 sm:pb-1">
               <button type="button" onClick={sendUser} disabled={!userMessage.trim()} className="rounded-lg bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40">✈ Send Message</button>
               <span className="text-center text-xs text-slate-500">Ctrl + Enter</span>
             </div>
