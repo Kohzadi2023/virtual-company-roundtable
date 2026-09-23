@@ -11,6 +11,7 @@ function Boom(): never {
 describe('ErrorBoundary', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    sessionStorage.clear();
   });
 
   it('renders children when nothing throws', () => {
@@ -23,7 +24,7 @@ describe('ErrorBoundary', () => {
     expect(html).toContain('All good');
   });
 
-  it('renders a recovery screen instead of letting a client render crash the whole app', () => {
+  it('renders a recovery screen with actionable diagnostics instead of hiding the exception', () => {
     // getDerivedStateFromError only runs during the client reconciler's commit
     // path, not the legacy synchronous SSR renderer, so this exercises the
     // same createRoot path the real app uses in the browser.
@@ -42,6 +43,15 @@ describe('ErrorBoundary', () => {
 
     expect(container.textContent).toContain('Something went wrong');
     expect(container.textContent).toContain('Reload');
+    expect(container.textContent).toContain('Copy technical details');
+    expect(container.textContent).toContain('Error: boom');
+
+    const stored = JSON.parse(sessionStorage.getItem('virtual-company:last-ui-error') ?? '{}') as {
+      message?: string;
+      componentStack?: string;
+    };
+    expect(stored.message).toBe('boom');
+    expect(stored.componentStack).toContain('Boom');
 
     root.unmount();
     container.remove();
