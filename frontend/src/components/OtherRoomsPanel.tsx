@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { MeetingMinutesDialog } from '@/components/MeetingMinutesDialog';
 import { SyncBadge } from '@/components/SyncBadge';
 import { Toast, type ToastMessage } from '@/components/Toast';
@@ -6,6 +6,7 @@ import { copyText } from '@/lib/clipboard';
 import { buildFullChatText } from '@/lib/fullChat';
 import { deleteRoom } from '@/lib/roomActions';
 import { useClickOutside } from '@/lib/useClickOutside';
+import { useIsCompactViewport } from '@/lib/useIsCompactViewport';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
 const OPEN_ROOM_SETTINGS_EVENT = 'virtual-company:open-room-settings';
@@ -15,12 +16,20 @@ export function OtherRoomsPanel() {
   const projects = useWorkspaceStore(state => state.projects);
   const activeRoomId = useWorkspaceStore(state => state.activeRoomId);
   const setActiveRoom = useWorkspaceStore(state => state.setActiveRoom);
-  const [open, setOpen] = useState(true);
+  const compact = useIsCompactViewport();
+  const [open, setOpen] = useState(!compact);
   const [minutesRoomId, setMinutesRoomId] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const panelRef = useRef<HTMLElement>(null);
   const visibleRooms = rooms.filter(room => !room.archivedAt);
   const archivedCount = rooms.length - visibleRooms.length;
+
+  // Same reasoning as CollapsibleCompanyDirectory: on a phone-width viewport
+  // this panel's fixed width doesn't fit beside the room content, so it
+  // starts closed and opens as a full overlay instead of an in-flow column.
+  useEffect(() => {
+    if (compact) setOpen(false);
+  }, [compact]);
 
   useClickOutside(panelRef, open && !minutesRoomId, () => setOpen(false));
 
@@ -62,7 +71,16 @@ export function OtherRoomsPanel() {
 
   return (
     <>
-      <aside ref={panelRef} className="relative flex w-[338px] shrink-0 flex-col border-s border-slate-200 bg-[#fbfcfe]" aria-label="Other Rooms">
+      {compact ? (
+        <div className="fixed inset-0 z-40 bg-slate-950/40" onClick={() => setOpen(false)} aria-hidden="true" />
+      ) : null}
+      <aside
+        ref={panelRef}
+        className={compact
+          ? 'fixed inset-y-0 end-0 z-50 flex w-[85vw] max-w-[338px] flex-col bg-[#fbfcfe] shadow-2xl'
+          : 'relative flex w-[338px] shrink-0 flex-col border-s border-slate-200 bg-[#fbfcfe]'}
+        aria-label="Other Rooms"
+      >
         <button type="button" onClick={() => setOpen(false)} className="absolute -start-3 top-1/2 z-30 grid h-10 w-6 -translate-y-1/2 place-items-center rounded-full border border-slate-200 bg-white text-sm font-bold text-slate-500 shadow-md transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600" title="Collapse Other Rooms" aria-label="Collapse Other Rooms">›</button>
 
         <div className="border-b border-slate-200 bg-white px-4 py-3">
