@@ -90,7 +90,7 @@ describe('Olivia meeting brief automation', () => {
 
     const originalSetItem = Storage.prototype.setItem;
     let meetingWriteAttempts = 0;
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function setItem(key: string, value: string) {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function setItem(this: Storage, key: string, value: string) {
       if (key === 'virtual-company:meeting-orchestration:v1') {
         meetingWriteAttempts += 1;
         if (meetingWriteAttempts === 1) {
