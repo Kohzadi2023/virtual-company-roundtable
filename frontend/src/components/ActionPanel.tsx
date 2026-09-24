@@ -164,6 +164,7 @@ export function ActionPanel({ roomId }: { roomId: string }) {
         notify('Clipboard is empty.', 'error');
         return;
       }
+      if (clipboardText.trim() === agentResponse.trim()) return;
 
       const element = agentRef.current;
       const hasFocusedTextarea = element && document.activeElement === element;
