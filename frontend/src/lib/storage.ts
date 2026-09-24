@@ -21,6 +21,13 @@ let extensionListener: (() => void) | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
 const API_KEY = import.meta.env.VITE_API_KEY?.trim();
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL?.trim() ?? '').replace(/\/+$/, '');
+// A deployment with no backend at all (e.g. the static-only Azure Static Web
+// App) sets this to 'false' so the app never attempts /api/snapshot and
+// fails local-first straight away, instead of a guaranteed failing request
+// on every load and every save. Docker Compose and any deployment that does
+// run the FastAPI backend leave this unset and keep today's try-then-fall-
+// back behavior unchanged.
+const REMOTE_SYNC_ENABLED = import.meta.env.VITE_BACKEND_SYNC_ENABLED !== 'false';
 
 type SnapshotV3 = Omit<StorageSnapshot, 'version' | 'teams'> & { version: 3 };
 
@@ -239,11 +246,13 @@ async function saveRemote(snapshot: StorageSnapshot): Promise<void> {
 export async function bootstrapPersistence(): Promise<void> {
   const local = loadLocal();
   let remote: StorageSnapshot | null = null;
-  let remoteAvailable = true;
-  try {
-    remote = await loadRemote();
-  } catch {
-    remoteAvailable = false;
+  let remoteAvailable = REMOTE_SYNC_ENABLED;
+  if (REMOTE_SYNC_ENABLED) {
+    try {
+      remote = await loadRemote();
+    } catch {
+      remoteAvailable = false;
+    }
   }
 
   const chosen = remote && (!local || remote.savedAt > local.savedAt) ? remote : local;
@@ -272,6 +281,11 @@ async function persistNow(): Promise<void> {
   } catch {
     localSaved = false;
     useWorkspaceStore.getState().setSyncState('error');
+  }
+
+  if (!REMOTE_SYNC_ENABLED) {
+    if (localSaved) useWorkspaceStore.getState().setSyncState('offline');
+    return;
   }
 
   useWorkspaceStore.getState().setSyncState('saving');

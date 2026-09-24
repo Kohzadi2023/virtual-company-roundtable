@@ -15,8 +15,13 @@ export const MAX_AGENT_MEMORIES = 2000;
 
 // How many rolling automatic backups to retain. Each backup is a full,
 // non-delta copy of the entire workspace (including every extension store),
-// so this directly multiplies localStorage pressure -- keep it modest.
-const MAX_AUTOMATIC_BACKUPS = 5;
+// so this directly multiplies localStorage pressure -- keep it modest. A
+// production debug snapshot showed a single fresh session (2 rooms, 3
+// messages) already carrying ~168KB of backups at the previous cap of 5;
+// 3 backups 10 minutes apart keeps meaningful rollback depth while cutting
+// that footprint by roughly 40%.
+const MAX_AUTOMATIC_BACKUPS = 3;
+const MIN_BACKUP_INTERVAL_MS = 10 * 60 * 1000;
 
 type NonEmptyArray<T> = [T, ...T[]];
 
@@ -216,6 +221,18 @@ const defaultRoomTemplates: RoomTemplate[] = [
   },
 ];
 
+// A public deployment can bake in a default PIN lock at build time (see
+// scripts/generate-app-lock.mjs) so a fresh visitor to that specific build is
+// gated without anyone needing to configure a PIN by hand first. The PIN
+// itself never appears here or in source control — only its salted PBKDF2
+// verifier does, computed the same way configureAppLock() computes one at
+// runtime. Local dev and any deployment that doesn't set these env vars are
+// unaffected (appLock stays unset, matching prior behavior). Once a fresh
+// visitor unlocks with the default PIN, they can change it from Workspace
+// Suite → Backup & Security like any other PIN.
+const DEFAULT_APP_LOCK_SALT = import.meta.env.VITE_DEFAULT_APP_LOCK_SALT?.trim();
+const DEFAULT_APP_LOCK_VERIFIER = import.meta.env.VITE_DEFAULT_APP_LOCK_VERIFIER?.trim();
+
 function defaults(): WorkspaceSuiteState {
   return {
     companies: [defaultCompany],
@@ -225,6 +242,9 @@ function defaults(): WorkspaceSuiteState {
     auditLog: [],
     agentMemories: [],
     autoBackupEnabled: true,
+    ...(DEFAULT_APP_LOCK_SALT && DEFAULT_APP_LOCK_VERIFIER
+      ? { appLock: { salt: DEFAULT_APP_LOCK_SALT, verifier: DEFAULT_APP_LOCK_VERIFIER, createdAt: 1 } }
+      : {}),
   };
 }
 
@@ -383,7 +403,7 @@ export function saveAutomaticBackup(snapshot: StorageSnapshot): void {
   if (!suite.autoBackupEnabled) return;
   const existing = loadAutomaticBackups();
   const last = existing[0];
-  if (last && now() - last.createdAt < 5 * 60 * 1000) return;
+  if (last && now() - last.createdAt < MIN_BACKUP_INTERVAL_MS) return;
   const snapshotWithExtensions = withWorkspaceExtensions(snapshot);
   const next: AutomaticBackup[] = [
     { id: newId(), createdAt: now(), snapshot: snapshotWithExtensions, suite },

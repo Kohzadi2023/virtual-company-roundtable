@@ -147,15 +147,18 @@ describe('workspaceSuite', () => {
   });
 
   it('keeps automatic backups within the retained-backup limit', () => {
-    for (let index = 0; index < 3; index += 1) {
+    for (let index = 0; index < 5; index += 1) {
       updateWorkspaceSuite(state => ({ ...state, autoBackupEnabled: true }));
       saveAutomaticBackup(emptySnapshot(index));
-      // Force the next backup past the 5-minute throttle window.
+      // Force the next backup past the throttle window.
       const backups = loadAutomaticBackups();
       backups[0]!.createdAt = 0;
       localStorage.setItem('virtual-company:auto-backups:v1', JSON.stringify(backups));
     }
-    expect(loadAutomaticBackups().length).toBeLessThanOrEqual(5);
+    const backups = loadAutomaticBackups();
+    expect(backups.length).toBe(3);
+    // Newest first, oldest ones evicted.
+    expect(backups.map(item => item.snapshot.savedAt)).toEqual([4, 3, 2]);
   });
 
   it('recovers automatically instead of throwing when a save hits a simulated quota error', () => {

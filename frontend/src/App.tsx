@@ -18,6 +18,11 @@ import { bootstrapPersistence, startPersistence } from '@/lib/storage';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
 const APP_VERSION = import.meta.env.VITE_APP_VERSION?.trim() || '2.8.0';
+// Dev diagnostics export room/session data, so keep them out of any build
+// that opts out explicitly (a public deployment sets VITE_ENABLE_DEV_TOOLS=
+// 'false'). Local `npm run dev` and any other build keep the current
+// always-on behavior.
+const devToolsEnabled = import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEV_TOOLS !== 'false';
 
 export default function App() {
   const hydrated = useWorkspaceStore(state => state.hydrated);
@@ -89,8 +94,12 @@ export default function App() {
             <span className="font-medium text-slate-600">▣ Virtual Company v{APP_VERSION}</span>
             <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
             <FooterToolsMenu />
-            <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
-            <DevToolsMenu />
+            {devToolsEnabled ? (
+              <>
+                <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
+                <DevToolsMenu />
+              </>
+            ) : null}
           </div>
 
           <div className="flex min-w-0 flex-1 items-center justify-end gap-3 pe-1">
