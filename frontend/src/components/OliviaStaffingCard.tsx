@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { copyText } from '@/lib/clipboard';
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
 import { openOrFocusExternalChat } from '@/lib/externalChatWindow';
-import { getExternalAgentChat, loadMeetingOrchestration, restartMeeting } from '@/lib/meetingOrchestration';
+import { getExternalAgentChat, hasMeetingStarted, loadMeetingOrchestration, restartMeeting } from '@/lib/meetingOrchestration';
 import { advanceAfterAgentResponse } from '@/lib/meetingResponseFlow';
 import {
   applyOliviaStaffingPlan,
@@ -68,7 +68,7 @@ export function OliviaStaffingCard({ roomId }: { roomId: string }) {
 
   if (!plan) {
     if (!latestOliviaResponse) return null;
-    const advancedPastStaffing = Boolean(meeting && meeting.roundStage !== 'opening');
+    const advancedPastStaffing = Boolean(meeting && hasMeetingStarted(meeting));
     const olivia = agents.find(agent => agent.id === MEETING_FACILITATOR_AGENT_ID);
     const oliviaRole = olivia ? roles.find(role => role.id === olivia.roleId) : undefined;
 
@@ -176,15 +176,20 @@ export function OliviaStaffingCard({ roomId }: { roomId: string }) {
     name: agents.find(agent => agent.id === participant.agentId)?.name,
   })).filter(participant => Boolean(participant.name));
   const hasActionableStaffing = plan.participants.length > 0 || plan.hires.length > 0;
+  // roundStage cycles back through 'opening' at the start of every round
+  // (Round 2's opening, Round 3's opening, ...), not just once before the
+  // meeting's first round -- hasMeetingStarted() is the one signal that
+  // stays true for the rest of the meeting once it has actually begun.
+  const meetingStarted = Boolean(meeting) && hasMeetingStarted(meeting!);
   const canStartAppliedPlan = applied
     && readiness.effectiveReadiness === 'TEAM_READY'
-    && meeting?.roundStage === 'opening';
+    && !meetingStarted;
   // Once the team is active and specialists have actually started
   // discussing, the full plan (participants, hires, rationale) has no more
   // decisions left to make. Leaving it expanded permanently pushed the
   // message list down for the rest of the meeting; collapse it to a small
   // summary pill instead, expandable again on click.
-  const resolved = applied && readiness.effectiveReadiness === 'TEAM_READY' && meeting?.roundStage !== 'opening';
+  const resolved = applied && readiness.effectiveReadiness === 'TEAM_READY' && meetingStarted;
 
   if (resolved && !manuallyExpanded) {
     const hireNames = creatableHires.map(hire => hire.agentName).join(', ');
