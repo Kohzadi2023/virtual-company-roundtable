@@ -12,14 +12,12 @@ import {
   markSpeakerStatus,
   MEETING_ORCHESTRATION_EVENT,
   phaseForRound,
-  renameMeetingRound,
   resetCurrentRound,
   restartMeeting,
   setActiveSpeaker,
   setExternalAgentChat,
   setMeetingBrief,
   setMeetingPhase,
-  setMeetingRound,
   startNextRound,
   type MeetingPhase,
   type MeetingRoomState,
@@ -43,13 +41,6 @@ const PHASES: Array<{ value: MeetingPhase; label: string }> = [
   { value: 'actions', label: 'Actions' },
   { value: 'closed', label: 'Closed' },
 ];
-
-const ROUND_PHASE_INDEX: Partial<Record<MeetingPhase, number>> = {
-  collect: 0,
-  challenge: 1,
-  resolve: 2,
-  decision: 3,
-};
 
 function phaseLabel(value: MeetingPhase): string {
   return PHASES.find(item => item.value === value)?.label ?? value;
@@ -171,31 +162,6 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
     window.requestAnimationFrame(() => meetingButtonRef.current?.focus());
   };
 
-  const handleRoundSelection = (roundIndex: number) => {
-    if (phaseForRound(roundIndex) === 'decision' && !readiness.decisionReady) {
-      showReadinessBlockers('Decision round is blocked until readiness issues are resolved:', readiness.decisionBlockers);
-      return;
-    }
-    setMeetingRound(room.id, roundIndex);
-  };
-
-  const handlePhaseSelection = (phase: MeetingPhase) => {
-    if (phase === 'decision' && !readiness.decisionReady) {
-      showReadinessBlockers('Decision phase is blocked until readiness issues are resolved:', readiness.decisionBlockers);
-      return;
-    }
-    if (phase === 'closed' && !readiness.closeReady) {
-      showReadinessBlockers('Meeting close is blocked until readiness issues are resolved:', readiness.closeBlockers);
-      return;
-    }
-    const mappedRound = ROUND_PHASE_INDEX[phase];
-    if (mappedRound !== undefined && mappedRound < meeting.rounds.length) {
-      setMeetingRound(room.id, mappedRound);
-      return;
-    }
-    setMeetingPhase(room.id, phase);
-  };
-
   const handleStartNextRound = () => {
     const nextRoundIndex = meeting.roundIndex + 1;
     if (phaseForRound(nextRoundIndex) === 'decision' && !readiness.decisionReady) {
@@ -271,7 +237,7 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
             <header className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 bg-white px-3 py-3 sm:items-center sm:px-5 sm:py-4">
               <div className="min-w-0">
                 <h2 id="meeting-orchestration-title" className="text-base font-bold text-slate-900">Meeting Orchestration</h2>
-                <p id="meeting-orchestration-description" className="mt-0.5 text-xs text-slate-500">One operational view for meeting state, specialist turns and external AI chats.</p>
+                <p id="meeting-orchestration-description" className="mt-0.5 text-xs text-slate-500">One operational view for meeting state, specialist turns and external AI chats. Round and phase progression is controlled by the meeting workflow.</p>
               </div>
               <button type="button" onClick={closeMeetingModal} aria-label="Close meeting orchestration" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-slate-100">✕</button>
             </header>
@@ -300,16 +266,20 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
 
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <span className="me-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">Flow</span>
-                {PHASES.map(item => (
-                  <button
-                    key={item.value}
-                    type="button"
-                    onClick={() => handlePhaseSelection(item.value)}
-                    className={`rounded-md border px-2.5 py-1.5 text-[11px] font-semibold ${meeting.phase === item.value ? 'border-violet-300 bg-violet-50 text-violet-700' : item.value === 'decision' && !readiness.decisionReady || item.value === 'closed' && !readiness.closeReady ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
-                  >
-                    {item.label}
-                  </button>
-                ))}
+                {PHASES.map(item => {
+                  const active = meeting.phase === item.value;
+                  const blocked = (item.value === 'decision' && !readiness.decisionReady) || (item.value === 'closed' && !readiness.closeReady);
+                  return (
+                    <span
+                      key={item.value}
+                      aria-current={active ? 'step' : undefined}
+                      title="Meeting phases advance through controlled orchestration. Manual phase jumping is not available in the normal workflow."
+                      className={`rounded-md border px-2.5 py-1.5 text-[11px] font-semibold ${active ? 'border-violet-300 bg-violet-50 text-violet-700' : blocked ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-slate-200 bg-white text-slate-500'}`}
+                    >
+                      {item.label}
+                    </span>
+                  );
+                })}
                 <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold sm:ms-2 ${readiness.decisionReady ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>Decision {readiness.decisionReady ? 'READY' : `BLOCKED · ${readiness.decisionBlockers.length}`}</span>
                 <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${readiness.closeReady ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>Close {readiness.closeReady ? 'READY' : `BLOCKED · ${readiness.closeBlockers.length}`}</span>
               </div>
@@ -317,11 +287,17 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <span className="me-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">Rounds</span>
                 {meeting.rounds.map((round, index) => (
-                  <div key={`${index}-${round}`} className={`flex min-w-0 max-w-full items-center gap-1 rounded-md border px-1.5 py-1 ${meeting.roundIndex === index ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-white'}`}>
-                    <button type="button" onClick={() => handleRoundSelection(index)} className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-white text-[10px] font-bold text-slate-600 shadow-sm">{index + 1}</button>
-                    <input value={round} onChange={event => renameMeetingRound(room.id, index, event.target.value)} className="w-28 min-w-0 bg-transparent text-[11px] font-semibold text-slate-700 outline-none sm:w-32" />
+                  <div
+                    key={`${index}-${round}`}
+                    aria-current={meeting.roundIndex === index ? 'step' : undefined}
+                    title="Rounds advance in sequence. Debug jump/rename controls are available only from the Dev menu."
+                    className={`flex min-w-0 max-w-full items-center gap-1.5 rounded-md border px-2 py-1.5 ${meeting.roundIndex === index ? 'border-blue-300 bg-blue-50 text-blue-800' : index < meeting.roundIndex ? 'border-emerald-200 bg-emerald-50/60 text-slate-600' : 'border-slate-200 bg-white text-slate-500'}`}
+                  >
+                    <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-white text-[10px] font-bold text-slate-600 shadow-sm">{index + 1}</span>
+                    <span className="max-w-36 truncate text-[11px] font-semibold">{round}</span>
                   </div>
                 ))}
+                <span className="text-[10px] font-medium text-slate-400">Automatic sequence · manual override is in Dev</span>
               </div>
 
               {!readiness.decisionReady && readiness.decisionBlockers.length > 0 ? <div className="mt-2 break-words text-[10px] text-amber-700 sm:truncate" title={readiness.decisionBlockers.join(' · ')}>Decision blockers: {readiness.decisionBlockers.join(' · ')}</div> : null}

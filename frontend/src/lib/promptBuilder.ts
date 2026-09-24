@@ -2,6 +2,7 @@ import { MEETING_FACILITATOR_AGENT_ID, sharedAgentBehavior } from '@/lib/default
 import { getRoomLanguage } from '@/lib/languages';
 import { ensureMeetingRoom, type MeetingRoomState } from '@/lib/meetingOrchestration';
 import { assessMeetingReadiness } from '@/lib/meetingReadiness';
+import { getSpecialistRoundGuidance } from '@/lib/meetingRoundGuidance';
 import {
   buildMemoryDigest,
   rankMemoriesByRelevance,
@@ -359,6 +360,44 @@ function oliviaMeetingSection(agent: Agent, activeRoom: Room | undefined): strin
   ];
 }
 
+function specialistMeetingSection(agent: Agent, activeRoom: Room | undefined): string[] {
+  if (!activeRoom || agent.id === MEETING_FACILITATOR_AGENT_ID) return [];
+
+  const meeting = ensureMeetingRoom(activeRoom.id, activeRoom.agentIds);
+  const workspace = useWorkspaceStore.getState();
+  const roundName = meeting.rounds[meeting.roundIndex] ?? `Round ${meeting.roundIndex + 1}`;
+  const guidance = getSpecialistRoundGuidance(meeting);
+  const activeSpeaker = meeting.activeSpeakerId
+    ? workspace.agents.find(item => item.id === meeting.activeSpeakerId)
+    : undefined;
+
+  const turnInstruction = meeting.roundStage === 'opening'
+    ? 'Olivia is still opening this round. Do not act as the facilitator or claim that the specialist queue has started. If the user asks you to prepare, prepare specifically for the round task below.'
+    : meeting.roundStage === 'specialists'
+      ? meeting.activeSpeakerId === agent.id
+        ? 'You are the current specialist speaker. Give this round contribution now and keep it within your professional scope.'
+        : `The current specialist speaker is ${activeSpeaker?.name ?? 'another specialist'}. If the user explicitly invokes you out of sequence, contribute to the same round task but do not claim that it is your scheduled turn.`
+      : meeting.roundStage === 'synthesis'
+        ? 'Normal specialist turns for this round are complete and Olivia is synthesizing. If explicitly invoked, provide only a concise correction or clarification grounded in your specialty; do not restart the round.'
+        : 'This round is complete. If explicitly invoked, provide only a correction or newly discovered material fact; do not reopen settled discussion without new evidence.';
+
+  return xmlSection('MEETING_ROUND_INSTRUCTIONS', [
+    `Meeting: ${activeRoom.name}`,
+    `Objective: ${meeting.objective?.trim() || '(not set)'}`,
+    `Expected outcome: ${meeting.expectedOutcome?.trim() || '(not set)'}`,
+    `Decision question: ${meeting.decisionQuestion?.trim() || '(not set)'}`,
+    `Phase: ${meeting.phase}`,
+    `Round: ${meeting.roundIndex + 1}/${meeting.rounds.length} · ${roundName}`,
+    `Stage: ${meeting.roundStage}`,
+    `Current speaker: ${activeSpeaker?.name ?? '(none)'}`,
+    `Round purpose: ${guidance.purpose}`,
+    `Your task this round: ${guidance.instruction}`,
+    turnInstruction,
+    'Use the prior discussion as evidence and context. Address relevant earlier claims directly instead of producing a generic standalone answer.',
+    'Stay inside your professional scope and boundaries. Surface cross-functional dependencies, but do not impersonate or replace another specialist.',
+  ]);
+}
+
 export function buildExternalChatTitleHint(agent: Pick<Agent, 'name'>): string[] {
   return [
     `CHAT TITLE: ${agent.name}`,
@@ -392,7 +431,10 @@ export function buildAgentPrompt(agent: Agent, role: RoleDefinition, messages: M
     ...memorySection(`${agent.name.toUpperCase()} SYSTEM MEMORY — automatically maintained operating state:`, systemAgentMemories, entry => formatSharedMemory(entry, activeProject?.name)),
     ...memorySection('PERSISTENT AGENT MEMORY — durable professional memory separate from this room conversation:', agentMemories, entry => formatAgentMemory(entry, entry.projectId === activeProject?.id ? activeProject?.name : undefined)),
   ];
-  const meetingSections = oliviaMeetingSection(agent, activeRoom);
+  const meetingSections = [
+    ...oliviaMeetingSection(agent, activeRoom),
+    ...specialistMeetingSection(agent, activeRoom),
+  ];
 
   return [
     ...buildExternalChatTitleHint(agent),
