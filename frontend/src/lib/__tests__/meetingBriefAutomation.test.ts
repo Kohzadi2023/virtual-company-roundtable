@@ -88,9 +88,14 @@ describe('Olivia meeting brief automation', () => {
       savedAt: 1,
     }));
 
-    const originalSetItem = Storage.prototype.setItem;
+    // Some jsdom/Vitest environments do not route the window.localStorage
+    // instance through the global Storage.prototype object. Spy on the actual
+    // instance prototype so the quota simulation is deterministic on Windows
+    // and in CI.
+    const storagePrototype = Object.getPrototypeOf(localStorage) as Storage;
+    const originalSetItem = storagePrototype.setItem;
     let meetingWriteAttempts = 0;
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function setItem(this: Storage, key: string, value: string) {
+    vi.spyOn(storagePrototype, 'setItem').mockImplementation(function setItem(this: Storage, key: string, value: string) {
       if (key === 'virtual-company:meeting-orchestration:v1') {
         meetingWriteAttempts += 1;
         if (meetingWriteAttempts === 1) {
