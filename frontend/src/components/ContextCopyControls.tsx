@@ -8,11 +8,13 @@ import {
   preferredContextModeForMeetingTurn,
   type ContextCopyMode,
 } from '@/lib/contextModes';
+import { isValidExternalChatUrl, normalizeExternalChatUrl } from '@/lib/externalChatLink';
 import { openOrFocusExternalChat } from '@/lib/externalChatWindow';
 import {
   getExternalAgentChat,
   loadMeetingOrchestration,
   MEETING_ORCHESTRATION_EVENT,
+  setExternalAgentChat,
 } from '@/lib/meetingOrchestration';
 import { buildAgentPrompt } from '@/lib/promptBuilder';
 import { useWorkspaceStore } from '@/store/workspaceStore';
@@ -53,6 +55,14 @@ export function ContextCopyControls({ room, agent, role, cursor, onNotify }: Con
   const [mode, setMode] = useState<ContextCopyMode>(preferredMode);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [excludedIds, setExcludedIds] = useState<string[]>([]);
+  // The only other place to link an agent's external chat is the separate
+  // Meeting Orchestration modal. Someone who pastes a response here without
+  // having set that link first had no way to add it without leaving this
+  // panel, so offer the same save flow inline.
+  const [linkDraftOpen, setLinkDraftOpen] = useState(false);
+  const [linkDraft, setLinkDraft] = useState('');
+  const [linkSaving, setLinkSaving] = useState(false);
+  const [linkError, setLinkError] = useState('');
 
   const messages = useMemo(() => messagesForContextMode(room, agent.id, cursor, mode), [agent.id, cursor, mode, room]);
   const selectedMessages = useMemo(() => messages.filter(message => !excludedIds.includes(message.id)), [excludedIds, messages]);
@@ -76,6 +86,27 @@ export function ContextCopyControls({ room, agent, role, cursor, onNotify }: Con
   }, [agent.id, preferredMode, room.id]);
 
   useEffect(() => setExcludedIds([]), [agent.id, mode, room.id]);
+
+  useEffect(() => {
+    setLinkDraftOpen(false);
+    setLinkDraft('');
+    setLinkError('');
+  }, [agent.id, room.id]);
+
+  const saveLink = async () => {
+    const normalized = normalizeExternalChatUrl(linkDraft);
+    if (!isValidExternalChatUrl(normalized)) {
+      setLinkError('Enter a valid conversation URL.');
+      return;
+    }
+    setLinkError('');
+    setLinkSaving(true);
+    setExternalAgentChat(agent.id, normalized);
+    setLinkSaving(false);
+    setLinkDraftOpen(false);
+    setLinkDraft('');
+    onNotify(`Chat link saved for ${agent.name}.`);
+  };
 
   const copy = async () => {
     if (disabled) return;
@@ -103,7 +134,32 @@ export function ContextCopyControls({ room, agent, role, cursor, onNotify }: Con
           <button type="button" onClick={() => setPreviewOpen(true)} disabled={disabled} className="rounded-lg border border-slate-300 bg-white px-2 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40">Preview / Select</button>
           <button type="button" onClick={copy} disabled={disabled} className="rounded-lg border border-blue-500 bg-blue-50 px-2 py-2 text-[11px] font-bold text-blue-600 hover:bg-blue-100 disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400">⧉ Copy</button>
         </div>
-        {externalChat && externalChatUrl ? <button type="button" onClick={() => openOrFocusExternalChat(agent.id, externalChatUrl)} className="w-full rounded-lg border border-violet-200 bg-violet-50 px-2 py-2 text-[11px] font-bold text-violet-700 hover:bg-violet-100">Open / Focus {externalChat.provider} Chat ↗</button> : null}
+        {externalChat && externalChatUrl ? (
+          <button type="button" onClick={() => openOrFocusExternalChat(agent.id, externalChatUrl)} className="w-full rounded-lg border border-violet-200 bg-violet-50 px-2 py-2 text-[11px] font-bold text-violet-700 hover:bg-violet-100">Open / Focus {externalChat.provider} Chat ↗</button>
+        ) : linkDraftOpen ? (
+          <div className="space-y-1.5 rounded-lg border border-slate-200 bg-slate-50 p-2">
+            <input
+              autoFocus
+              value={linkDraft}
+              onChange={event => setLinkDraft(event.target.value)}
+              onKeyDown={event => {
+                if (event.key === 'Enter') void saveLink();
+                if (event.key === 'Escape') { setLinkDraftOpen(false); setLinkDraft(''); setLinkError(''); }
+              }}
+              disabled={linkSaving}
+              placeholder="chatgpt.com/c/..."
+              aria-label={`External chat URL for ${agent.name}`}
+              className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] text-slate-800 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100"
+            />
+            {linkError ? <div className="text-[10px] font-medium text-red-600">{linkError}</div> : null}
+            <div className="flex gap-1.5">
+              <button type="button" onClick={() => void saveLink()} disabled={linkSaving} className="flex-1 rounded-md bg-blue-600 px-2 py-1.5 text-[11px] font-bold text-white hover:bg-blue-700 disabled:opacity-50">{linkSaving ? 'Saving…' : 'Save'}</button>
+              <button type="button" onClick={() => { setLinkDraftOpen(false); setLinkDraft(''); setLinkError(''); }} disabled={linkSaving} className="rounded-md px-2 py-1.5 text-[11px] font-semibold text-slate-500 hover:bg-slate-100 disabled:opacity-50">Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <button type="button" onClick={() => setLinkDraftOpen(true)} className="w-full rounded-lg border border-dashed border-slate-300 bg-slate-50 px-2 py-2 text-[11px] font-semibold text-slate-500 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700">+ Add {agent.name}’s Chat Link</button>
+        )}
       </div>
 
       {previewOpen ? (
