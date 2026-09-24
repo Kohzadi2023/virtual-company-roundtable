@@ -10,7 +10,8 @@ import {
   type ExtensionResponseEvent,
 } from '@/lib/extensionBridge';
 import { agentContextKey } from '@/lib/id';
-import { getExternalAgentChat, loadMeetingOrchestration, markSpeakerStatus, MEETING_ORCHESTRATION_EVENT } from '@/lib/meetingOrchestration';
+import { getExternalAgentChat, loadMeetingOrchestration, MEETING_ORCHESTRATION_EVENT } from '@/lib/meetingOrchestration';
+import { advanceAfterAgentResponse } from '@/lib/meetingResponseFlow';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
 function useAutoResize(value: string) {
@@ -129,10 +130,29 @@ export function ActionPanel({ roomId }: { roomId: string }) {
     if (!selectedAgent || !agentResponse.trim()) return;
     if (addAgentMessage(room.id, selectedAgent.id, agentResponse)) {
       setAgentResponse('');
-      markSpeakerStatus(room.id, selectedAgent.id, 'responded');
-      const nextSpeaker = loadMeetingOrchestration().rooms[room.id]?.activeSpeakerId;
-      if (nextSpeaker && room.agentIds.includes(nextSpeaker)) setSelectedAgentId(nextSpeaker);
-      notify(`${selectedAgent.name}'s response added and speaking queue advanced.`);
+      const advance = advanceAfterAgentResponse(room.id, selectedAgent.id);
+
+      if (advance.advanced) {
+        const nextSpeaker = loadMeetingOrchestration().rooms[room.id]?.activeSpeakerId;
+        if (nextSpeaker && room.agentIds.includes(nextSpeaker)) setSelectedAgentId(nextSpeaker);
+        notify(`${selectedAgent.name}'s response added and speaking queue advanced.`);
+        return;
+      }
+
+      if (advance.reason === 'staffing-plan-missing') {
+        notify("Olivia's response was saved, but no valid staffing plan was detected. The meeting is paused in staffing.", 'info');
+        return;
+      }
+      if (advance.reason === 'staffing-plan-pending-approval') {
+        notify("Olivia's staffing plan is ready. Review it above and click Invite Team before the meeting continues.", 'info');
+        return;
+      }
+      if (advance.reason === 'staffing-not-ready') {
+        const blockerCount = advance.readiness?.blockers.length ?? 0;
+        notify(`Olivia's response was saved, but ${blockerCount || 'required'} staffing blocker${blockerCount === 1 ? '' : 's'} remain. The meeting is paused.`, 'info');
+        return;
+      }
+      notify("The response was saved, but the meeting room could not be advanced.", 'error');
     }
   };
 
