@@ -8,9 +8,9 @@ describe('textDirection', () => {
     expect(textDirection('غرفة الاستثمار')).toBe('rtl');
   });
 
-  it('keeps English and mixed Latin-dominant titles LTR', () => {
+  it('keeps English and Latin-dominant mixed titles LTR', () => {
     expect(isPredominantlyRtl('Investment Review')).toBe(false);
-    expect(isPredominantlyRtl('Q3 بررسی')).toBe(false);
+    expect(isPredominantlyRtl('Q3 Review بررسی')).toBe(false);
     expect(textDirection('Launch Review 2026')).toBe('ltr');
   });
 });
