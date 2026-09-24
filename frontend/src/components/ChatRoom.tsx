@@ -6,6 +6,7 @@ import { MeetingOrchestrationBar } from '@/components/MeetingOrchestrationBar';
 import { MeetingPhaseTimerStrip } from '@/components/MeetingPhaseTimerStrip';
 import { OliviaStaffingCard } from '@/components/OliviaStaffingCard';
 import { TimelineMessage } from '@/components/TimelineMessage';
+import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
 import { getRoomLanguage } from '@/lib/languages';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
@@ -43,6 +44,9 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   if (!room) return <div className="grid h-full place-items-center text-slate-400">Room not found</div>;
 
   const language = getRoomLanguage(room.languageCode);
+  const latestOliviaResponseId = [...room.messages]
+    .reverse()
+    .find(message => message.authorType === 'agent' && message.authorId === MEETING_FACILITATOR_AGENT_ID)?.id ?? 'none';
 
   return (
     <section className="flex min-w-0 flex-1 flex-col bg-[#f8fafc]">
@@ -50,7 +54,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
       <MeetingOrchestrationBar roomId={room.id} />
       <MeetingBriefStatus roomId={room.id} />
       <MeetingPhaseTimerStrip roomId={room.id} />
-      <OliviaStaffingCard roomId={room.id} />
+      <OliviaStaffingCard key={`${room.id}:${latestOliviaResponseId}`} roomId={room.id} />
 
       {/*
         Only the conversation itself follows the room's language direction.
