@@ -45,10 +45,12 @@ export function OliviaStaffingCard({ roomId }: { roomId: string }) {
   const teams = useWorkspaceStore(state => state.teams);
   const [message, setMessage] = useState('');
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [manuallyExpanded, setManuallyExpanded] = useState(false);
 
   useEffect(() => {
     setMessage('');
     setIsRegenerating(false);
+    setManuallyExpanded(false);
   }, [roomId]);
 
   const plan = useMemo(
@@ -177,6 +179,30 @@ export function OliviaStaffingCard({ roomId }: { roomId: string }) {
   const canStartAppliedPlan = applied
     && readiness.effectiveReadiness === 'TEAM_READY'
     && meeting?.roundStage === 'opening';
+  // Once the team is active and specialists have actually started
+  // discussing, the full plan (participants, hires, rationale) has no more
+  // decisions left to make. Leaving it expanded permanently pushed the
+  // message list down for the rest of the meeting; collapse it to a small
+  // summary pill instead, expandable again on click.
+  const resolved = applied && readiness.effectiveReadiness === 'TEAM_READY' && meeting?.roundStage !== 'opening';
+
+  if (resolved && !manuallyExpanded) {
+    const hireNames = creatableHires.map(hire => hire.agentName).join(', ');
+    return (
+      <section className="mx-3 mt-2" aria-label="Olivia meeting staffing plan">
+        <button
+          type="button"
+          onClick={() => setManuallyExpanded(true)}
+          className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-[11px] font-semibold text-teal-700 transition hover:bg-teal-100"
+          title="Show the full staffing plan"
+        >
+          <span aria-hidden="true">🧭</span>
+          <span className="truncate">{plan.teamName} active{hireNames ? ` · ${hireNames} hired` : ''}</span>
+          <span className="shrink-0 text-teal-400" aria-hidden="true">▾</span>
+        </button>
+      </section>
+    );
+  }
 
   const applyPlan = () => {
     if (applied) {
@@ -244,6 +270,16 @@ export function OliviaStaffingCard({ roomId }: { roomId: string }) {
             >
               {READINESS_LABEL[readiness.effectiveReadiness]}
             </span>
+            {resolved ? (
+              <button
+                type="button"
+                onClick={() => setManuallyExpanded(false)}
+                className="ms-auto shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-semibold text-teal-600 hover:bg-white hover:text-teal-800"
+                title="Collapse to a summary"
+              >
+                ▴ Collapse
+              </button>
+            ) : null}
           </div>
           {plan.rationale ? <p className="mt-1 text-xs leading-5 text-slate-600">{plan.rationale}</p> : null}
 
