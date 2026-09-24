@@ -5,6 +5,7 @@ import { Toast, type ToastMessage } from '@/components/Toast';
 import { copyText } from '@/lib/clipboard';
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
 import { buildFullChatText } from '@/lib/fullChat';
+import { getAgentRoomMembership } from '@/lib/roomMembership';
 import { addAllCompanyToRoom } from '@/lib/roomMembershipActions';
 import { useClickOutside } from '@/lib/useClickOutside';
 import { useWorkspaceStore } from '@/store/workspaceStore';
@@ -211,28 +212,29 @@ export function TopBar() {
                         </div>
                         <div className="max-h-72 space-y-1 overflow-y-auto">
                           {agents.map(agent => {
-                            const present = activeRoom.agentIds.includes(agent.id);
                             const isFacilitator = agent.id === MEETING_FACILITATOR_AGENT_ID;
-                            const selectedTeamIds = activeRoom.teamIds ?? [];
-                            const suppliedByTeam = selectedTeamIds.some(teamId => teamMap.get(teamId)?.agentIds.includes(agent.id));
-                            const explicitlySelected = activeRoom.individualAgentIds?.includes(agent.id) ?? false;
-                            const lockedByTeam = suppliedByTeam && !explicitlySelected;
+                            const membership = getAgentRoomMembership(activeRoom, agent.id, teams);
+                            const teamLabel = membership.teamNames.join(', ');
+                            const lockedByTeam = membership.kind === 'team';
                             const locked = isFacilitator || lockedByTeam;
                             const title = isFacilitator
                               ? 'Standing meeting facilitator — included in every room.'
                               : lockedByTeam
-                                ? 'Included by an active team. Remove the team first to remove this specialist.'
-                                : undefined;
+                                ? `Included via ${teamLabel}. Remove the team first to remove this specialist.`
+                                : membership.kind === 'direct-and-team'
+                                  ? `Included directly and via ${teamLabel}. Unchecking removes only the direct membership — ${agent.name} will remain via ${teamLabel}.`
+                                  : undefined;
                             return (
                               <label
                                 key={agent.id}
                                 title={title}
                                 className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-xs ${locked ? 'cursor-not-allowed bg-emerald-50/50' : 'cursor-pointer hover:bg-slate-50'}`}
                               >
-                                <input type="checkbox" checked={present} disabled={locked} onChange={() => toggleAgentInRoom(activeRoom.id, agent.id)} />
+                                <input type="checkbox" checked={membership.present} disabled={locked} onChange={() => toggleAgentInRoom(activeRoom.id, agent.id)} />
                                 <span className="min-w-0 flex-1 truncate font-medium text-slate-700">{agent.name}</span>
                                 {isFacilitator ? <span className="rounded bg-violet-100 px-1 py-0.5 text-[9px] font-semibold text-violet-700">FACILITATOR</span> : null}
-                                {!isFacilitator && suppliedByTeam ? <span className="rounded bg-emerald-100 px-1 py-0.5 text-[9px] font-semibold text-emerald-700">TEAM</span> : null}
+                                {!isFacilitator && membership.kind === 'team' ? <span className="rounded bg-emerald-100 px-1 py-0.5 text-[9px] font-semibold text-emerald-700">TEAM</span> : null}
+                                {!isFacilitator && membership.kind === 'direct-and-team' ? <span className="rounded bg-blue-100 px-1 py-0.5 text-[9px] font-semibold text-blue-700">DIRECT + TEAM</span> : null}
                                 <span className="max-w-24 truncate text-[10px] text-slate-400">{roleMap.get(agent.roleId)?.name}</span>
                               </label>
                             );

@@ -338,6 +338,20 @@ export function WorkspaceSuiteLauncher() {
     }
   };
 
+  // Keeps the visible active room in sync with whichever company is now
+  // active. If the company has no room of its own, the previously active
+  // room (which belongs to a different company) is cleared rather than left
+  // showing behind an unrelated "0 rooms" workspace context.
+  const reconcileActiveRoomForCompany = (companyId: string) => {
+    const defaultCompanyId = suite.companies[0]?.id ?? 'company-default';
+    const first = rooms.find(room => companyForRoom(room, defaultCompanyId) === companyId && !room.archivedAt);
+    if (first) {
+      setActiveRoom(first.id);
+    } else if (activeRoom && companyForRoom(activeRoom, defaultCompanyId) !== companyId) {
+      useWorkspaceStore.setState({ activeRoomId: null });
+    }
+  };
+
   const createCompany = () => {
     const name = companyName.trim();
     if (!name) return;
@@ -347,14 +361,14 @@ export function WorkspaceSuiteLauncher() {
       companies: [...state.companies, { id, name, emoji: '🏢', description: '', createdAt: Date.now() }],
       activeCompanyId: id,
     }));
+    reconcileActiveRoomForCompany(id);
     setCompanyName('');
     recordAudit('company.created', `Created company ${name}.`);
   };
 
   const switchCompany = (companyId: string) => {
     updateWorkspaceSuite(state => ({ ...state, activeCompanyId: companyId }));
-    const first = rooms.find(room => companyForRoom(room, suite.companies[0]?.id ?? 'company-default') === companyId && !room.archivedAt);
-    if (first) setActiveRoom(first.id);
+    reconcileActiveRoomForCompany(companyId);
     recordAudit('company.switched', `Switched active company workspace.`);
   };
 
