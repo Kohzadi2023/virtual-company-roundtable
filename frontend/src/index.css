@@ -38,6 +38,14 @@ main > header {
   z-index: 100 !important;
 }
 
+/* The desktop Room Settings popover is absolutely positioned inside this row.
+   Do not let the row's horizontal scrolling clip the popover below the header. */
+@media (min-width: 1024px) {
+  main > header > div:nth-child(2) {
+    overflow: visible !important;
+  }
+}
+
 /* Let mixed-language room titles follow their own first strong character. */
 main > header h1 {
   unicode-bidi: plaintext;
