@@ -21,6 +21,7 @@ export function CompanyPanel() {
   const roleMap = useMemo(() => new Map(roles.map(role => [role.id, role])), [roles]);
   const agentMap = useMemo(() => new Map(agents.map(agent => [agent.id, agent])), [agents]);
   const [directoryTab, setDirectoryTab] = useState<'members' | 'teams'>('members');
+  const [openTeamIds, setOpenTeamIds] = useState<Set<string>>(() => new Set());
   const [search, setSearch] = useState('');
   const [selectedMemberId, setSelectedMemberId] = useState(agents[0]?.id ?? '');
   const [manageOpen, setManageOpen] = useState(false);
@@ -48,6 +49,26 @@ export function CompanyPanel() {
         .some(value => value.toLocaleLowerCase().includes(query));
     });
   }, [agents, roleMap, search]);
+
+  const isSearching = search.trim().length > 0;
+
+  const groupedMembers = useMemo(() => {
+    const groupedAgentIds = new Set(teams.flatMap(team => team.agentIds));
+    const groups = teams
+      .map(team => ({ team, agents: visibleAgents.filter(agent => team.agentIds.includes(agent.id)) }))
+      .filter(group => group.agents.length > 0);
+    const unassigned = visibleAgents.filter(agent => !groupedAgentIds.has(agent.id));
+    return { groups, unassigned };
+  }, [teams, visibleAgents]);
+
+  const toggleTeamOpen = (teamId: string) => {
+    setOpenTeamIds(current => {
+      const next = new Set(current);
+      if (next.has(teamId)) next.delete(teamId);
+      else next.add(teamId);
+      return next;
+    });
+  };
 
   const visibleTeams = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
@@ -108,6 +129,65 @@ export function CompanyPanel() {
       : [...current, agentId]);
   };
 
+  const renderAgentRow = (agent: (typeof agents)[number]) => {
+    const role = roleMap.get(agent.roleId);
+    const membership = getAgentRoomMembership(room, agent.id, teams);
+    const present = membership.present;
+    const selected = selectedMemberId === agent.id;
+    const teamLabel = membership.teamNames.join(', ');
+    const membershipLabel = membership.kind === 'direct-and-team'
+      ? `Direct + ${teamLabel}`
+      : membership.kind === 'team'
+        ? `Via ${teamLabel}`
+        : membership.kind === 'direct'
+          ? 'Direct'
+          : 'Not in room';
+    const actionTitle = !room
+      ? 'Select a room first'
+      : membership.kind === 'team'
+        ? `Included via ${teamLabel}. Manage this membership from Teams.`
+        : membership.kind === 'direct-and-team'
+          ? `Remove direct membership; ${agent.name} will remain via ${teamLabel}.`
+          : membership.kind === 'direct'
+            ? 'Remove direct membership from room'
+            : 'Add directly to room';
+    const handleMembershipAction = () => {
+      if (!room) return;
+      if (membership.kind === 'team') {
+        setDirectoryTab('teams');
+        setSearch(membership.teamNames[0] ?? '');
+        return;
+      }
+      toggleAgentInRoom(room.id, agent.id);
+    };
+    return (
+      <div key={agent.id} className={`relative flex w-full items-center justify-between rounded-lg border px-2.5 py-1.5 transition ${selected ? 'border-blue-300 bg-blue-50 shadow-sm' : 'border-transparent bg-white/70 hover:bg-slate-50'}`}>
+        {selected && <span className="absolute inset-y-0 start-0 w-0.5 rounded-full bg-blue-600" />}
+        <button type="button" onClick={() => setSelectedMemberId(agent.id)} className="flex min-w-0 flex-1 items-center gap-2.5 text-start">
+          <span className="relative shrink-0">
+            <AgentAvatar agent={agent} role={role} size="md" />
+            <span className={`absolute -bottom-0.5 -end-0.5 h-3.5 w-3.5 rounded-full border-2 border-white ${present ? 'bg-emerald-500' : 'bg-slate-300'}`} aria-label={membershipLabel} />
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-[13px] font-bold text-[#111b3a]">{agent.name}</span>
+            <span className="block truncate text-[12px] text-slate-500">{role?.name ?? 'Specialist'}</span>
+            <span className={`block truncate text-[10px] font-semibold ${membership.kind === 'team' ? 'text-violet-600' : membership.kind === 'direct-and-team' ? 'text-emerald-600' : membership.kind === 'direct' ? 'text-blue-600' : 'text-slate-400'}`}>{membershipLabel}</span>
+          </span>
+        </button>
+        <button
+          type="button"
+          disabled={!room}
+          onClick={handleMembershipAction}
+          title={actionTitle}
+          aria-label={actionTitle}
+          className={`ms-2 grid h-7 w-7 shrink-0 place-items-center rounded-md text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${membership.kind === 'team' ? 'bg-violet-50 text-violet-700 hover:bg-violet-100' : membership.direct ? 'bg-emerald-50 text-emerald-700 hover:bg-red-50 hover:text-red-600' : 'bg-slate-100 text-slate-500 hover:bg-blue-50 hover:text-blue-600'}`}
+        >
+          {membership.kind === 'team' ? '👥' : membership.direct ? '−' : '+'}
+        </button>
+      </div>
+    );
+  };
+
   return (
     <aside className="flex w-[318px] shrink-0 flex-col border-e border-slate-200 bg-[#fbfcfe]" aria-label="Virtual Company directory">
       <div className="flex items-center justify-between px-5 pb-2 pt-3">
@@ -132,64 +212,40 @@ export function CompanyPanel() {
       </div>
 
       <div className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2.5 pb-2">
-        {directoryTab === 'members' ? visibleAgents.map(agent => {
-          const role = roleMap.get(agent.roleId);
-          const membership = getAgentRoomMembership(room, agent.id, teams);
-          const present = membership.present;
-          const selected = selectedMemberId === agent.id;
-          const teamLabel = membership.teamNames.join(', ');
-          const membershipLabel = membership.kind === 'direct-and-team'
-            ? `Direct + ${teamLabel}`
-            : membership.kind === 'team'
-              ? `Via ${teamLabel}`
-              : membership.kind === 'direct'
-                ? 'Direct'
-                : 'Not in room';
-          const actionTitle = !room
-            ? 'Select a room first'
-            : membership.kind === 'team'
-              ? `Included via ${teamLabel}. Manage this membership from Teams.`
-              : membership.kind === 'direct-and-team'
-                ? `Remove direct membership; ${agent.name} will remain via ${teamLabel}.`
-                : membership.kind === 'direct'
-                  ? 'Remove direct membership from room'
-                  : 'Add directly to room';
-          const handleMembershipAction = () => {
-            if (!room) return;
-            if (membership.kind === 'team') {
-              setDirectoryTab('teams');
-              setSearch(membership.teamNames[0] ?? '');
-              return;
-            }
-            toggleAgentInRoom(room.id, agent.id);
-          };
-          return (
-            <div key={agent.id} className={`relative flex w-full items-center justify-between rounded-lg border px-2.5 py-1.5 transition ${selected ? 'border-blue-300 bg-blue-50 shadow-sm' : 'border-transparent bg-white/70 hover:bg-slate-50'}`}>
-              {selected && <span className="absolute inset-y-0 start-0 w-0.5 rounded-full bg-blue-600" />}
-              <button type="button" onClick={() => setSelectedMemberId(agent.id)} className="flex min-w-0 flex-1 items-center gap-2.5 text-start">
-                <span className="relative shrink-0">
-                  <AgentAvatar agent={agent} role={role} size="md" />
-                  <span className={`absolute -bottom-0.5 -end-0.5 h-3.5 w-3.5 rounded-full border-2 border-white ${present ? 'bg-emerald-500' : 'bg-slate-300'}`} aria-label={membershipLabel} />
-                </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-[13px] font-bold text-[#111b3a]">{agent.name}</span>
-                  <span className="block truncate text-[12px] text-slate-500">{role?.name ?? 'Specialist'}</span>
-                  <span className={`block truncate text-[10px] font-semibold ${membership.kind === 'team' ? 'text-violet-600' : membership.kind === 'direct-and-team' ? 'text-emerald-600' : membership.kind === 'direct' ? 'text-blue-600' : 'text-slate-400'}`}>{membershipLabel}</span>
-                </span>
-              </button>
-              <button
-                type="button"
-                disabled={!room}
-                onClick={handleMembershipAction}
-                title={actionTitle}
-                aria-label={actionTitle}
-                className={`ms-2 grid h-7 w-7 shrink-0 place-items-center rounded-md text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${membership.kind === 'team' ? 'bg-violet-50 text-violet-700 hover:bg-violet-100' : membership.direct ? 'bg-emerald-50 text-emerald-700 hover:bg-red-50 hover:text-red-600' : 'bg-slate-100 text-slate-500 hover:bg-blue-50 hover:text-blue-600'}`}
-              >
-                {membership.kind === 'team' ? '👥' : membership.direct ? '−' : '+'}
-              </button>
-            </div>
-          );
-        }) : visibleTeams.map(team => {
+        {directoryTab === 'members' ? (
+          <>
+            {groupedMembers.groups.map(({ team, agents: teamAgents }) => {
+              const open = isSearching || openTeamIds.has(team.id);
+              return (
+                <div key={team.id} className="mb-1.5">
+                  <button
+                    type="button"
+                    onClick={() => toggleTeamOpen(team.id)}
+                    className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-start hover:bg-slate-100"
+                    aria-expanded={open}
+                  >
+                    <span className={`text-[10px] text-slate-400 transition-transform ${open ? 'rotate-90' : ''}`} aria-hidden="true">▸</span>
+                    <span className="text-sm" aria-hidden="true">{team.emoji}</span>
+                    <span className="min-w-0 flex-1 truncate text-[11px] font-bold uppercase tracking-wide text-slate-500">{team.name}</span>
+                    <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500">{teamAgents.length}</span>
+                  </button>
+                  {open ? <div className="mt-0.5 space-y-1 ps-1">{teamAgents.map(renderAgentRow)}</div> : null}
+                </div>
+              );
+            })}
+            {groupedMembers.unassigned.length > 0 ? (
+              <div className="mb-1.5">
+                <div className="px-2 py-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                  Unassigned <span className="ms-1 rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500">{groupedMembers.unassigned.length}</span>
+                </div>
+                <div className="space-y-1 ps-1">{groupedMembers.unassigned.map(renderAgentRow)}</div>
+              </div>
+            ) : null}
+            {isSearching && groupedMembers.groups.length === 0 && groupedMembers.unassigned.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-slate-300 bg-white p-4 text-center text-xs text-slate-400">No specialists match “{search.trim()}”.</div>
+            ) : null}
+          </>
+        ) : visibleTeams.map(team => {
           const inRoomCount = room ? team.agentIds.filter(id => room.agentIds.includes(id)).length : 0;
           const selectedInRoom = room?.teamIds?.includes(team.id) ?? false;
           return (

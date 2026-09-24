@@ -26,6 +26,19 @@ jobs:
         run: npm ci
       - name: Build
         run: npm run build
+        env:
+          # This deployment is static-only (no FastAPI backend behind it), so
+          # every /api/snapshot call would otherwise fail on every load/save.
+          VITE_BACKEND_SYNC_ENABLED: 'false'
+          # Dev diagnostics export room/session data; keep them out of the
+          # public build (see src/App.tsx).
+          VITE_ENABLE_DEV_TOOLS: 'false'
+          # Gates a fresh visitor behind the existing local PIN-lock feature
+          # by default (see scripts/generate-app-lock.mjs and the comment on
+          # defaults() in src/lib/workspaceSuite.ts). Only the salted PBKDF2
+          # verifier is stored here — never the PIN itself.
+          VITE_DEFAULT_APP_LOCK_SALT: ${{ secrets.ROUNDTABLE_APP_LOCK_SALT }}
+          VITE_DEFAULT_APP_LOCK_VERIFIER: ${{ secrets.ROUNDTABLE_APP_LOCK_VERIFIER }}
       - name: Deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
         with:

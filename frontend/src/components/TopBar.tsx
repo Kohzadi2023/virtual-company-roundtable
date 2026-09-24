@@ -1,6 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ProjectCenterLauncher } from '@/components/ProjectCenterLauncher';
-import { WorkspaceSuiteLauncher } from '@/components/WorkspaceSuiteLauncher';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Toast, type ToastMessage } from '@/components/Toast';
 import { copyText } from '@/lib/clipboard';
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
@@ -11,6 +9,19 @@ import { useClickOutside } from '@/lib/useClickOutside';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
 const OPEN_ROOM_SETTINGS_EVENT = 'virtual-company:open-room-settings';
+
+// Each of these modals is only rendered once its trigger is clicked, but the
+// always-visible header still had to download and parse their full module
+// (Vite's build flagged the resulting entry chunk at ~780KB). Deferring them
+// to their own chunk keeps the header's own load small; the loading skeleton
+// below only shows for the trigger button itself, for the instant it takes
+// the chunk to arrive.
+const WorkspaceSuiteLauncher = lazy(() => import('@/components/WorkspaceSuiteLauncher').then(m => ({ default: m.WorkspaceSuiteLauncher })));
+const ProjectCenterLauncher = lazy(() => import('@/components/ProjectCenterLauncher').then(m => ({ default: m.ProjectCenterLauncher })));
+
+function LauncherButtonSkeleton() {
+  return <span className="inline-block h-[34px] w-[72px] shrink-0 animate-pulse rounded-lg bg-slate-100" aria-hidden="true" />;
+}
 
 function CompanyLogo() {
   return (
@@ -139,8 +150,8 @@ export function TopBar() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            <WorkspaceSuiteLauncher />
-            <ProjectCenterLauncher />
+            <Suspense fallback={<LauncherButtonSkeleton />}><WorkspaceSuiteLauncher /></Suspense>
+            <Suspense fallback={<LauncherButtonSkeleton />}><ProjectCenterLauncher /></Suspense>
             <button type="button" onClick={copyFullChat} disabled={!activeRoom || activeRoom.messages.length === 0} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-blue-500 bg-white px-3 py-2 text-[13px] font-semibold text-blue-600 shadow-sm transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"><span aria-hidden="true">⧉</span> <span className="hidden sm:inline">Copy Full Chat</span></button>
 
             <div ref={roomMenuRef} className="relative shrink-0">
