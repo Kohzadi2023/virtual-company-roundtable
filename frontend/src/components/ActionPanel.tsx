@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AgentAvatar } from '@/components/AgentAvatar';
 import { ContextCopyControls } from '@/components/ContextCopyControls';
 import { Toast, type ToastMessage } from '@/components/Toast';
 import { readText } from '@/lib/clipboard';
@@ -20,7 +19,7 @@ function useAutoResize(value: string) {
     const element = ref.current;
     if (!element) return;
     element.style.height = 'auto';
-    element.style.height = `${Math.min(Math.max(element.scrollHeight, 72), 260)}px`;
+    element.style.height = `${Math.min(Math.max(element.scrollHeight, 56), 220)}px`;
   }, [value]);
   return ref;
 }
@@ -31,7 +30,7 @@ function ToolButton({ label, title, onClick }: { label: string; title: string; o
       type="button"
       onClick={onClick}
       title={title}
-      className="grid h-9 min-w-9 place-items-center rounded-lg px-1.5 text-sm font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+      className="grid h-8 min-w-8 place-items-center rounded-md px-1.5 text-sm font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
     >
       {label}
     </button>
@@ -93,7 +92,7 @@ export function ActionPanel({ roomId }: { roomId: string }) {
       if (!agent) return;
 
       if (agent.id !== selectedAgentId) {
-        setToast({ id: Date.now(), text: `Captured a response for ${agent.name}, but they aren't selected. Switch to ${agent.name} in the Agent Response tab to review it.`, tone: 'info' });
+        setToast({ id: Date.now(), text: `Captured a response for ${agent.name}, but they aren't selected. Switch the response selector to ${agent.name} to review it.`, tone: 'info' });
         return;
       }
 
@@ -152,7 +151,7 @@ export function ActionPanel({ roomId }: { roomId: string }) {
         notify(`Olivia's response was saved, but ${blockerCount || 'required'} staffing blocker${blockerCount === 1 ? '' : 's'} remain. The meeting is paused.`, 'info');
         return;
       }
-      notify("The response was saved, but the meeting room could not be advanced.", 'error');
+      notify('The response was saved, but the meeting room could not be advanced.', 'error');
     }
   };
 
@@ -198,38 +197,50 @@ export function ActionPanel({ roomId }: { roomId: string }) {
     requestAnimationFrame(() => element.focus());
   };
 
-  const tabClass = (active: boolean) => `relative px-4 py-3 text-center transition ${active
-    ? 'bg-white text-slate-900 shadow-[inset_0_-2px_0_#2563eb]'
-    : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700'}`;
-
   return (
     <section className="shrink-0 bg-[#f8fafc] px-4 pb-3" aria-label="Discussion actions">
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.05)]">
-        <div className="grid grid-cols-2 border-b border-slate-200 bg-slate-50" role="tablist" aria-label="Action type">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'user'}
-            onClick={() => setTab('user')}
-            className={tabClass(tab === 'user')}
+        <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50 px-2 py-1.5">
+          <label htmlFor="message-mode" className="sr-only">Message type</label>
+          <select
+            id="message-mode"
+            value={tab}
+            onChange={event => setTab(event.target.value as 'user' | 'agent')}
+            className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
           >
-            <span className="block text-sm font-semibold">👤 User Message</span>
-            <span className={`mt-0.5 block text-xs ${tab === 'user' ? 'text-blue-600' : 'text-slate-400'}`}>Send a new message as User</span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'agent'}
-            onClick={() => setTab('agent')}
-            className={`${tabClass(tab === 'agent')} border-s border-slate-200`}
-          >
-            <span className="block text-sm font-semibold">🤖 Agent Response</span>
-            <span className={`mt-0.5 block text-xs ${tab === 'agent' ? 'text-blue-600' : 'text-slate-400'}`}>Facilitator first · then specialist contributions</span>
-          </button>
+            <option value="user">👤 User Message</option>
+            <option value="agent">🤖 Agent Response</option>
+          </select>
+
+          {tab === 'agent' ? (
+            <>
+              <label htmlFor="agent-select" className="sr-only">Agent response source</label>
+              <select
+                id="agent-select"
+                value={selectedAgentId}
+                onChange={event => setSelectedAgentId(event.target.value)}
+                disabled={roomAgents.length === 0}
+                className="min-w-0 max-w-[360px] rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 disabled:opacity-50"
+              >
+                {roomAgents.map(agent => {
+                  const role = roles.find(item => item.id === agent.roleId);
+                  const facilitator = agent.id === MEETING_FACILITATOR_AGENT_ID;
+                  return <option key={agent.id} value={agent.id}>{facilitator ? '★ ' : ''}{agent.name} · {facilitator ? 'Meeting Facilitator' : role?.name ?? 'Specialist'}</option>;
+                })}
+              </select>
+              {selectedAgent ? (
+                <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${selectedIsFacilitator ? 'bg-violet-100 text-violet-700' : 'bg-slate-200 text-slate-600'}`}>
+                  {selectedIsFacilitator ? 'FACILITATOR' : selectedRole?.name ?? 'SPECIALIST'}
+                </span>
+              ) : null}
+            </>
+          ) : (
+            <span className="text-[11px] text-slate-400">Send a new message as User</span>
+          )}
         </div>
 
         {tab === 'user' ? (
-          <div className="flex flex-col items-stretch gap-2 p-2 sm:flex-row sm:gap-3" role="tabpanel">
+          <div className="flex flex-col items-stretch gap-2 p-2 sm:flex-row" role="tabpanel">
             <div className="min-w-0 flex-1 overflow-hidden rounded-lg border border-slate-300 bg-white focus-within:border-blue-400 focus-within:ring-1 focus-within:ring-blue-100">
               <textarea
                 id="user-message"
@@ -244,52 +255,30 @@ export function ActionPanel({ roomId }: { roomId: string }) {
                   }
                 }}
                 placeholder="Type your message here..."
-                className="block w-full resize-none overflow-y-auto border-0 bg-transparent px-3 py-3 text-start text-sm text-slate-800 outline-none placeholder:text-slate-400"
+                className="block w-full resize-none overflow-y-auto border-0 bg-transparent px-3 py-2.5 text-start text-sm text-slate-800 outline-none placeholder:text-slate-400"
               />
-              <div className="flex items-center gap-2 border-t border-slate-100 px-2 py-1.5">
+              <div className="flex items-center gap-1.5 border-t border-slate-100 px-2 py-1">
                 <ToolButton label="B" title="Bold" onClick={() => formatUser('**')} />
                 <ToolButton label="I" title="Italic" onClick={() => formatUser('_')} />
                 <ToolButton label="</>" title="Inline code" onClick={() => formatUser('`')} />
                 <ToolButton label="❝" title="Quote" onClick={() => setUserMessage(value => `${value}${value ? '\n' : ''}> `)} />
-                <span className="mx-1 h-5 w-px bg-slate-200" />
+                <span className="mx-1 h-4 w-px bg-slate-200" />
                 <ToolButton label="☷" title="List" onClick={() => setUserMessage(value => `${value}${value ? '\n' : ''}- `)} />
                 <ToolButton label="🔗" title="Link" onClick={() => formatUser('[', '](https://)')} />
                 <ToolButton label="☺" title="Emoji" onClick={() => setUserMessage(value => `${value} 🙂`)} />
               </div>
             </div>
-            <div className="flex shrink-0 flex-col items-stretch justify-end gap-2 sm:w-40 sm:pe-1 sm:pb-1">
-              <button type="button" onClick={sendUser} disabled={!userMessage.trim()} className="rounded-lg bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40">✈ Send Message</button>
-              <span className="text-center text-xs text-slate-500">Ctrl + Enter</span>
+            <div className="flex shrink-0 items-center gap-2 sm:w-36 sm:flex-col sm:justify-end">
+              <button type="button" onClick={sendUser} disabled={!userMessage.trim()} className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40">✈ Send</button>
+              <span className="hidden text-center text-[10px] text-slate-400 sm:block">Ctrl + Enter</span>
             </div>
           </div>
         ) : (
-          <div className="p-3" role="tabpanel">
+          <div className="p-2" role="tabpanel">
             {roomAgents.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-slate-300 p-5 text-center text-sm text-slate-500">No specialists are in this room.</div>
+              <div className="rounded-lg border border-dashed border-slate-300 p-4 text-center text-sm text-slate-500">No specialists are in this room.</div>
             ) : (
-              <div className="grid gap-3 xl:grid-cols-[280px_1fr_230px]">
-                <div className="space-y-2">
-                  <select id="agent-select" value={selectedAgentId} onChange={event => setSelectedAgentId(event.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800">
-                    {roomAgents.map(agent => {
-                      const role = roles.find(item => item.id === agent.roleId);
-                      const facilitator = agent.id === MEETING_FACILITATOR_AGENT_ID;
-                      return <option key={agent.id} value={agent.id}>{facilitator ? '★ ' : ''}{agent.name} · {facilitator ? 'Meeting Facilitator' : role?.name ?? 'Specialist'}</option>;
-                    })}
-                  </select>
-                  {selectedAgent && selectedRole && (
-                    <div className={`flex items-center gap-3 rounded-lg p-2.5 ${selectedIsFacilitator ? 'border border-violet-200 bg-violet-50' : 'bg-slate-50'}`}>
-                      <AgentAvatar agent={selectedAgent} role={selectedRole} size="md" />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <div className="truncate text-sm font-bold text-slate-900">{selectedAgent.name}</div>
-                          {selectedIsFacilitator ? <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold text-violet-700">FACILITATOR</span> : null}
-                        </div>
-                        <div className="truncate text-xs text-slate-500">{selectedIsFacilitator ? 'Meeting Facilitator · Operations' : selectedRole.name}</div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
+              <div className="grid gap-2 xl:grid-cols-[1fr_220px]">
                 <textarea
                   id="agent-response"
                   ref={agentRef}
@@ -308,9 +297,11 @@ export function ActionPanel({ roomId }: { roomId: string }) {
 
                 <div className="flex flex-col justify-center gap-2">
                   {selectedAgent && selectedRole ? <ContextCopyControls room={room} agent={selectedAgent} role={selectedRole} cursor={cursor} onNotify={notify} /> : null}
-                  <button type="button" onClick={pasteAgentResponse} disabled={!selectedAgent} className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm font-bold text-amber-700 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-40">📋 Paste Response</button>
-                  <button type="button" onClick={submitAgent} disabled={!selectedAgent || !agentResponse.trim()} className="rounded-lg bg-emerald-600 px-3 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">Add Response</button>
-                  <span className="text-center text-[11px] text-slate-400">Paste does not submit · Ctrl + Enter adds</span>
+                  <div className="grid grid-cols-2 gap-2 xl:grid-cols-1">
+                    <button type="button" onClick={pasteAgentResponse} disabled={!selectedAgent} className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-40">📋 Paste</button>
+                    <button type="button" onClick={submitAgent} disabled={!selectedAgent || !agentResponse.trim()} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">Add Response</button>
+                  </div>
+                  <span className="text-center text-[10px] text-slate-400">Ctrl + Enter adds response</span>
                 </div>
               </div>
             )}
