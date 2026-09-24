@@ -69,7 +69,7 @@ export function CollapsibleCompanyDirectory() {
           <button
             type="button"
             onClick={() => setPinned(value => !value)}
-            className={`absolute end-3 top-3 z-40 grid h-8 w-8 place-items-center rounded-lg border text-sm shadow-sm transition ${pinned ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-400 hover:bg-slate-50 hover:text-slate-700'}`}
+            className={`absolute end-12 top-3 z-40 grid h-8 w-8 place-items-center rounded-lg border text-sm shadow-sm transition ${pinned ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-400 hover:bg-slate-50 hover:text-slate-700'}`}
             title={pinned ? 'Unpin Company Directory' : 'Pin Company Directory'}
             aria-label={pinned ? 'Unpin Company Directory' : 'Pin Company Directory'}
             aria-pressed={pinned}
