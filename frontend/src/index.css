@@ -33,6 +33,17 @@
   scrollbar-color: #cbd5e1 transparent;
 }
 
+/* The top navigation owns Room Settings; keep its stacking context above side panels. */
+main > header {
+  z-index: 100 !important;
+}
+
+/* Let mixed-language room titles follow their own first strong character. */
+main > header h1 {
+  unicode-bidi: plaintext;
+  text-align: start;
+}
+
 /* Workspace-level dialogs should visually and interactively dominate the chat underneath. */
 [class~="z-[90]"],
 [class~="z-[120]"] {
@@ -46,6 +57,35 @@
   width: min(1500px, calc(100vw - 2rem)) !important;
   height: calc(100vh - 2rem) !important;
   max-width: none !important;
+}
+
+/* Keep warning/staffing actions in the same central reading column as the meeting. */
+section[aria-label="Olivia staffing plan missing"],
+section[aria-label="Olivia meeting staffing plan"] {
+  width: 100%;
+  max-width: 1000px;
+  margin-inline: auto !important;
+}
+
+section[aria-label="Olivia staffing plan missing"] > div {
+  justify-content: flex-start;
+  gap: 1.5rem;
+}
+
+/* Keep the composer aligned with the constrained conversation thread. */
+section[aria-label="Discussion actions"] > div {
+  width: 100%;
+  max-width: 1000px;
+  margin-inline: auto;
+}
+
+/* Content-based bidi fallback for user-generated text. */
+.message-markdown,
+textarea[dir="auto"],
+input[dir="auto"],
+[dir="auto"] {
+  text-align: start;
+  unicode-bidi: plaintext;
 }
 
 /* Keep the message action visually integrated with the composer instead of floating beside it. */
