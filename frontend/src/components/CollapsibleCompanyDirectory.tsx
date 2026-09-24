@@ -4,21 +4,37 @@ import { useClickOutside } from '@/lib/useClickOutside';
 import { useIsCompactViewport } from '@/lib/useIsCompactViewport';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
+const COMPANY_DIRECTORY_PIN_KEY = 'virtual-company:ui:company-directory-pinned';
+
+function initialPinnedState(): boolean {
+  try {
+    return localStorage.getItem(COMPANY_DIRECTORY_PIN_KEY) !== 'false';
+  } catch {
+    return true;
+  }
+}
+
 export function CollapsibleCompanyDirectory() {
   const compact = useIsCompactViewport();
   const [open, setOpen] = useState(!compact);
+  const [pinned, setPinned] = useState(initialPinnedState);
   const panelRef = useRef<HTMLDivElement>(null);
   const agents = useWorkspaceStore(state => state.agents);
   const teams = useWorkspaceStore(state => state.teams);
 
-  // On a phone-width viewport the panel can't sit beside the room content
-  // (its fixed width alone is wider than the screen), so it starts closed
-  // there and opens as a full overlay instead of an in-flow column.
   useEffect(() => {
     if (compact) setOpen(false);
   }, [compact]);
 
-  useClickOutside(panelRef, open, () => setOpen(false));
+  useEffect(() => {
+    try {
+      localStorage.setItem(COMPANY_DIRECTORY_PIN_KEY, String(pinned));
+    } catch {
+      // Pinning is a UI preference; storage failure must not affect the panel.
+    }
+  }, [pinned]);
+
+  useClickOutside(panelRef, open && (compact || !pinned), () => setOpen(false));
 
   if (!open) {
     return (
@@ -30,16 +46,10 @@ export function CollapsibleCompanyDirectory() {
           title="Open Company Directory"
           aria-label="Open Company Directory"
         >
-          <span className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-lg text-slate-500 shadow-sm transition group-hover:border-blue-200 group-hover:text-blue-600" aria-hidden="true">
-            ›
-          </span>
+          <span className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-lg text-slate-500 shadow-sm transition group-hover:border-blue-200 group-hover:text-blue-600" aria-hidden="true">›</span>
           <span className="mt-3 text-base" aria-hidden="true">👥</span>
-          <span className="mt-2 [writing-mode:vertical-rl] rotate-180 text-[10px] font-semibold uppercase tracking-wide">
-            Company Directory
-          </span>
-          <span className="mt-3 rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-600" title={`${agents.length} specialists · ${teams.length} teams`}>
-            {agents.length}
-          </span>
+          <span className="mt-2 [writing-mode:vertical-rl] rotate-180 text-[10px] font-semibold uppercase tracking-wide">Company Directory</span>
+          <span className="mt-3 rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-600" title={`${agents.length} specialists · ${teams.length} teams`}>{agents.length}</span>
         </button>
       </aside>
     );
@@ -47,9 +57,7 @@ export function CollapsibleCompanyDirectory() {
 
   return (
     <>
-      {compact ? (
-        <div className="fixed inset-0 z-40 bg-slate-950/40" onClick={() => setOpen(false)} aria-hidden="true" />
-      ) : null}
+      {compact ? <div className="fixed inset-0 z-40 bg-slate-950/40" onClick={() => setOpen(false)} aria-hidden="true" /> : null}
       <div
         ref={panelRef}
         className={compact
@@ -57,6 +65,18 @@ export function CollapsibleCompanyDirectory() {
           : 'relative flex w-[318px] shrink-0'}
       >
         <CompanyPanel />
+        {!compact ? (
+          <button
+            type="button"
+            onClick={() => setPinned(value => !value)}
+            className={`absolute end-12 top-3 z-40 grid h-8 w-8 place-items-center rounded-lg border text-sm shadow-sm transition ${pinned ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-400 hover:bg-slate-50 hover:text-slate-700'}`}
+            title={pinned ? 'Unpin Company Directory' : 'Pin Company Directory'}
+            aria-label={pinned ? 'Unpin Company Directory' : 'Pin Company Directory'}
+            aria-pressed={pinned}
+          >
+            📌
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => setOpen(false)}

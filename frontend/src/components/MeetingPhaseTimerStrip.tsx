@@ -99,15 +99,15 @@ export function MeetingPhaseTimerStrip({ roomId }: { roomId: string }) {
   if (phase === 'closed' && !timer) return null;
 
   return (
-    <div className="flex h-9 shrink-0 items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 text-[10px] text-slate-500">
-      <span className="font-bold text-slate-600">⏱ {PHASE_LABELS[phase]}</span>
-      {phase !== 'closed' ? <span className="rounded bg-white px-2 py-1 shadow-sm ring-1 ring-slate-200">Preset {phaseMinutes} min</span> : null}
-      {timer ? <span className={`font-mono text-xs font-bold ${remaining === 0 ? 'text-rose-600' : 'text-slate-700'}`}>{String(Math.floor(remaining / 60)).padStart(2, '0')}:{String(remaining % 60).padStart(2, '0')}</span> : <span className="text-slate-400">Not started</span>}
-      <div className="ms-auto flex items-center gap-1.5">
-        {phase !== 'closed' ? <button type="button" onClick={startPreset} className="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 font-bold text-emerald-700">Start {phaseMinutes}m</button> : null}
-        {running ? <button type="button" onClick={pause} className="rounded border border-amber-200 bg-amber-50 px-2 py-1 font-bold text-amber-700">Pause</button> : null}
-        {paused ? <button type="button" onClick={resume} className="rounded border border-blue-200 bg-blue-50 px-2 py-1 font-bold text-blue-700">Resume</button> : null}
-        {timer ? <button type="button" onClick={() => clearMeetingTimer(roomId)} className="rounded border border-slate-200 bg-white px-2 py-1 font-semibold text-slate-500">Reset</button> : null}
+    <div className="flex min-h-10 shrink-0 flex-wrap items-center gap-2 bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
+      <span className="rounded-full bg-white px-2.5 py-1 font-bold text-slate-700 ring-1 ring-slate-200">⏱ {PHASE_LABELS[phase]}</span>
+      {phase !== 'closed' ? <span className="rounded-full bg-white px-2.5 py-1 font-semibold text-slate-500 ring-1 ring-slate-200">Preset {phaseMinutes} min</span> : null}
+      {timer ? <span className={`rounded-full bg-white px-2.5 py-1 font-mono text-xs font-bold ring-1 ring-slate-200 ${remaining === 0 ? 'text-rose-600' : 'text-slate-700'}`}>{String(Math.floor(remaining / 60)).padStart(2, '0')}:{String(remaining % 60).padStart(2, '0')}</span> : <span className="rounded-full bg-white px-2.5 py-1 text-slate-400 ring-1 ring-slate-200">Not started</span>}
+      <div className="ms-auto flex flex-wrap items-center gap-1.5">
+        {phase !== 'closed' ? <button type="button" onClick={startPreset} className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 font-bold text-emerald-700">Start {phaseMinutes}m</button> : null}
+        {running ? <button type="button" onClick={pause} className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 font-bold text-amber-700">Pause</button> : null}
+        {paused ? <button type="button" onClick={resume} className="rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 font-bold text-blue-700">Resume</button> : null}
+        {timer ? <button type="button" onClick={() => clearMeetingTimer(roomId)} className="rounded-md border border-slate-200 bg-white px-2.5 py-1 font-semibold text-slate-500">Reset</button> : null}
       </div>
     </div>
   );

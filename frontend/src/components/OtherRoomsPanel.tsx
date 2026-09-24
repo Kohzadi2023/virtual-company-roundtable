@@ -5,12 +5,20 @@ import { Toast, type ToastMessage } from '@/components/Toast';
 import { copyText } from '@/lib/clipboard';
 import { buildFullChatText } from '@/lib/fullChat';
 import { deleteRoom } from '@/lib/roomActions';
-import { textDirection } from '@/lib/textDirection';
 import { useClickOutside } from '@/lib/useClickOutside';
 import { useIsCompactViewport } from '@/lib/useIsCompactViewport';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
 const OPEN_ROOM_SETTINGS_EVENT = 'virtual-company:open-room-settings';
+const OTHER_ROOMS_PIN_KEY = 'virtual-company:ui:other-rooms-pinned';
+
+function initialPinnedState(): boolean {
+  try {
+    return localStorage.getItem(OTHER_ROOMS_PIN_KEY) !== 'false';
+  } catch {
+    return true;
+  }
+}
 
 export function OtherRoomsPanel() {
   const rooms = useWorkspaceStore(state => state.rooms);
@@ -19,20 +27,26 @@ export function OtherRoomsPanel() {
   const setActiveRoom = useWorkspaceStore(state => state.setActiveRoom);
   const compact = useIsCompactViewport();
   const [open, setOpen] = useState(!compact);
+  const [pinned, setPinned] = useState(initialPinnedState);
   const [minutesRoomId, setMinutesRoomId] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const panelRef = useRef<HTMLElement>(null);
   const visibleRooms = rooms.filter(room => !room.archivedAt);
   const archivedCount = rooms.length - visibleRooms.length;
 
-  // Same reasoning as CollapsibleCompanyDirectory: on a phone-width viewport
-  // this panel's fixed width doesn't fit beside the room content, so it
-  // starts closed and opens as a full overlay instead of an in-flow column.
   useEffect(() => {
     if (compact) setOpen(false);
   }, [compact]);
 
-  useClickOutside(panelRef, open && !minutesRoomId, () => setOpen(false));
+  useEffect(() => {
+    try {
+      localStorage.setItem(OTHER_ROOMS_PIN_KEY, String(pinned));
+    } catch {
+      // Pinning is a UI preference; storage failure must not affect the panel.
+    }
+  }, [pinned]);
+
+  useClickOutside(panelRef, open && !minutesRoomId && (compact || !pinned), () => setOpen(false));
 
   const handleDelete = (roomId: string, roomName: string) => {
     if (!window.confirm(`Delete room “${roomName}” and all of its messages? This cannot be undone.`)) return;
@@ -72,9 +86,7 @@ export function OtherRoomsPanel() {
 
   return (
     <>
-      {compact ? (
-        <div className="fixed inset-0 z-40 bg-slate-950/40" onClick={() => setOpen(false)} aria-hidden="true" />
-      ) : null}
+      {compact ? <div className="fixed inset-0 z-40 bg-slate-950/40" onClick={() => setOpen(false)} aria-hidden="true" /> : null}
       <aside
         ref={panelRef}
         className={compact
@@ -87,7 +99,21 @@ export function OtherRoomsPanel() {
         <div className="border-b border-slate-200 bg-white px-4 py-3">
           <div className="flex items-center justify-between gap-3">
             <div><h2 className="text-[14px] font-bold text-[#111b3a]">Other Rooms</h2><p className="mt-0.5 text-[11px] text-slate-400">Active discussion rooms</p></div>
-            <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-600">{visibleRooms.length}</span>
+            <div className="flex items-center gap-2">
+              {!compact ? (
+                <button
+                  type="button"
+                  onClick={() => setPinned(value => !value)}
+                  className={`grid h-8 w-8 place-items-center rounded-lg border text-sm shadow-sm transition ${pinned ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-400 hover:bg-slate-50 hover:text-slate-700'}`}
+                  title={pinned ? 'Unpin Other Rooms' : 'Pin Other Rooms'}
+                  aria-label={pinned ? 'Unpin Other Rooms' : 'Pin Other Rooms'}
+                  aria-pressed={pinned}
+                >
+                  📌
+                </button>
+              ) : null}
+              <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-600">{visibleRooms.length}</span>
+            </div>
           </div>
         </div>
 
@@ -100,13 +126,12 @@ export function OtherRoomsPanel() {
                 const active = room.id === activeRoomId;
                 const hasMessages = room.messages.length > 0;
                 const project = projects.find(item => item.id === room.projectId);
-                const roomDir = textDirection(room.name);
                 return (
                   <div key={room.id} className={`rounded-lg border p-2.5 transition ${active ? 'border-blue-300 bg-blue-50 shadow-sm' : 'border-slate-200 bg-white hover:border-blue-200 hover:bg-blue-50/50'}`}>
                     <div className="flex items-center gap-1">
                       <button type="button" onClick={() => setActiveRoom(room.id)} className="min-w-0 flex flex-1 items-center gap-2 text-start" title={`Open ${room.name}`}>
                         <span className="shrink-0 text-base" aria-hidden="true">{room.emoji}</span>
-                        <span dir={roomDir} className="min-w-0 flex-1 truncate text-start text-[12px] font-semibold text-slate-800">{room.name}</span>
+                        <span dir="auto" className="min-w-0 flex-1 truncate text-start text-[12px] font-semibold text-slate-800">{room.name}</span>
                       </button>
                       <button type="button" onClick={() => setMinutesRoomId(room.id)} disabled={!hasMessages} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[13px] text-blue-600 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent" title={hasMessages ? 'Meeting Minutes' : 'No messages for Meeting Minutes'} aria-label={`Meeting Minutes for ${room.name}`}>▤</button>
                       <button type="button" onClick={() => void handleCopyFullChat(room.id)} disabled={!hasMessages} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[13px] text-indigo-600 transition hover:bg-indigo-50 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent" title={hasMessages ? 'Copy Full Chat' : 'No messages to copy'} aria-label={`Copy Full Chat for ${room.name}`}>⧉</button>

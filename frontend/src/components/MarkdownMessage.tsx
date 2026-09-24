@@ -3,7 +3,7 @@ import remarkGfm from 'remark-gfm';
 
 export function MarkdownMessage({ content }: { content: string }) {
   return (
-    <div className="message-markdown text-[15px] leading-7 text-slate-800">
+    <div dir="auto" className="message-markdown text-start text-[15px] leading-7 text-slate-800">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
