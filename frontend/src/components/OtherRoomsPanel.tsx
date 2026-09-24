@@ -5,6 +5,7 @@ import { Toast, type ToastMessage } from '@/components/Toast';
 import { copyText } from '@/lib/clipboard';
 import { buildFullChatText } from '@/lib/fullChat';
 import { deleteRoom } from '@/lib/roomActions';
+import { textDirection } from '@/lib/textDirection';
 import { useClickOutside } from '@/lib/useClickOutside';
 import { useIsCompactViewport } from '@/lib/useIsCompactViewport';
 import { useWorkspaceStore } from '@/store/workspaceStore';
@@ -99,10 +100,14 @@ export function OtherRoomsPanel() {
                 const active = room.id === activeRoomId;
                 const hasMessages = room.messages.length > 0;
                 const project = projects.find(item => item.id === room.projectId);
+                const roomDir = textDirection(room.name);
                 return (
                   <div key={room.id} className={`rounded-lg border p-2.5 transition ${active ? 'border-blue-300 bg-blue-50 shadow-sm' : 'border-slate-200 bg-white hover:border-blue-200 hover:bg-blue-50/50'}`}>
                     <div className="flex items-center gap-1">
-                      <button type="button" onClick={() => setActiveRoom(room.id)} className="min-w-0 flex flex-1 items-center gap-2 text-start" title={`Open ${room.name}`}><span className="text-base" aria-hidden="true">{room.emoji}</span><span className="truncate text-[12px] font-semibold text-slate-800">{room.name}</span></button>
+                      <button type="button" onClick={() => setActiveRoom(room.id)} className="min-w-0 flex flex-1 items-center gap-2 text-start" title={`Open ${room.name}`}>
+                        <span className="shrink-0 text-base" aria-hidden="true">{room.emoji}</span>
+                        <span dir={roomDir} className="min-w-0 flex-1 truncate text-start text-[12px] font-semibold text-slate-800">{room.name}</span>
+                      </button>
                       <button type="button" onClick={() => setMinutesRoomId(room.id)} disabled={!hasMessages} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[13px] text-blue-600 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent" title={hasMessages ? 'Meeting Minutes' : 'No messages for Meeting Minutes'} aria-label={`Meeting Minutes for ${room.name}`}>▤</button>
                       <button type="button" onClick={() => void handleCopyFullChat(room.id)} disabled={!hasMessages} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[13px] text-indigo-600 transition hover:bg-indigo-50 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent" title={hasMessages ? 'Copy Full Chat' : 'No messages to copy'} aria-label={`Copy Full Chat for ${room.name}`}>⧉</button>
                       <button type="button" onClick={() => handleOpenSettings(room.id)} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[13px] text-slate-500 transition hover:bg-slate-100 hover:text-slate-800" title="Room Settings" aria-label={`Room Settings for ${room.name}`}>⚙</button>
