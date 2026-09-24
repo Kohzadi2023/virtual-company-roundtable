@@ -1,6 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { copyText } from '@/lib/clipboard';
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
-import { loadMeetingOrchestration, restartMeeting } from '@/lib/meetingOrchestration';
+import { openOrFocusExternalChat } from '@/lib/externalChatWindow';
+import { getExternalAgentChat, loadMeetingOrchestration, restartMeeting } from '@/lib/meetingOrchestration';
 import { advanceAfterAgentResponse } from '@/lib/meetingResponseFlow';
 import {
   applyOliviaStaffingPlan,
@@ -10,6 +12,7 @@ import {
   type StaffingBlocker,
   type StaffingReadiness,
 } from '@/lib/meetingStaffing';
+import { buildOliviaStaffingRecoveryPrompt } from '@/lib/oliviaRegeneration';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
 const READINESS_LABEL: Record<StaffingReadiness, string> = {
@@ -41,6 +44,12 @@ export function OliviaStaffingCard({ roomId }: { roomId: string }) {
   const roles = useWorkspaceStore(state => state.roles);
   const teams = useWorkspaceStore(state => state.teams);
   const [message, setMessage] = useState('');
+  const [isRegenerating, setIsRegenerating] = useState(false);
+
+  useEffect(() => {
+    setMessage('');
+    setIsRegenerating(false);
+  }, [roomId]);
 
   const plan = useMemo(
     () => room ? findLatestOliviaStaffingPlan(room.messages, MEETING_FACILITATOR_AGENT_ID) : null,
@@ -58,12 +67,49 @@ export function OliviaStaffingCard({ roomId }: { roomId: string }) {
   if (!plan) {
     if (!latestOliviaResponse) return null;
     const advancedPastStaffing = Boolean(meeting && meeting.roundStage !== 'opening');
+    const olivia = agents.find(agent => agent.id === MEETING_FACILITATOR_AGENT_ID);
+    const oliviaRole = olivia ? roles.find(role => role.id === olivia.roleId) : undefined;
 
     const returnToStaffing = () => {
       if (restartMeeting(room.id)) {
-        setMessage('Meeting returned to the staffing stage. Request a fresh Olivia response before continuing.');
+        setMessage('Meeting returned to the staffing stage. Regenerate Olivia’s response to continue.');
       } else {
         setMessage('The meeting is already waiting for Olivia to provide a staffing plan.');
+      }
+    };
+
+    const regenerateResponse = async () => {
+      if (!olivia || !oliviaRole) {
+        setMessage('Olivia or her role configuration is missing, so a recovery prompt cannot be generated.');
+        return;
+      }
+
+      if (advancedPastStaffing) restartMeeting(room.id);
+      setIsRegenerating(true);
+      setMessage('Preparing Olivia’s staffing recovery prompt…');
+
+      try {
+        const prompt = buildOliviaStaffingRecoveryPrompt(olivia, oliviaRole, room.messages);
+        await copyText(prompt);
+
+        const chat = getExternalAgentChat(MEETING_FACILITATOR_AGENT_ID);
+        if (!chat?.url) {
+          setIsRegenerating(false);
+          setMessage('Recovery prompt copied. Add Olivia’s external chat link in Meeting controls, then open that chat and paste the prompt.');
+          return;
+        }
+
+        const openResult = await openOrFocusExternalChat(MEETING_FACILITATOR_AGENT_ID, chat.url);
+        if (openResult === 'blocked') {
+          setIsRegenerating(false);
+          setMessage(`Recovery prompt copied, but ${chat.provider} could not be opened automatically. Open Olivia’s saved chat and paste the prompt manually.`);
+          return;
+        }
+
+        setMessage(`Recovery prompt copied and Olivia’s ${chat.provider} chat opened. Send the prompt there. This warning will disappear automatically after a valid staffing response is added to the room.`);
+      } catch {
+        setIsRegenerating(false);
+        setMessage('Could not prepare the regeneration prompt. Try again or use Dev → Export Debug Snapshot.');
       }
     };
 
@@ -77,27 +123,43 @@ export function OliviaStaffingCard({ roomId }: { roomId: string }) {
               <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800 ring-1 ring-amber-200">Meeting paused</span>
             </div>
             <p className="mt-1 text-xs leading-5 text-slate-700">
-              Olivia's latest response was saved, but no valid staffing plan was detected. No specialists have been invited and the meeting will not advance until Olivia provides a staffing plan.
+              Olivia’s latest response was saved, but no valid staffing plan was detected. No specialists have been invited and the meeting will not advance until Olivia provides a staffing plan.
             </p>
             <p className="mt-1 text-[11px] leading-5 text-slate-500">
-              Request a fresh Olivia response using the current room context, then add that response here again.
+              Use Regenerate Response to prepare the correct staffing request and open Olivia’s linked AI chat. The meeting stays paused until a valid VC_STAFFING_PLAN is added.
             </p>
             {advancedPastStaffing ? (
               <p className="mt-2 text-[11px] font-semibold text-rose-700">
-                This room previously advanced past staffing without a valid plan. Return it to staffing before retrying Olivia.
+                This room previously advanced past staffing without a valid plan. Regeneration will return it to staffing first.
               </p>
             ) : null}
             {message ? <p className="mt-2 text-[11px] font-medium text-amber-900" role="status">{message}</p> : null}
           </div>
-          {advancedPastStaffing ? (
+          <div className="flex shrink-0 flex-col gap-2">
             <button
               type="button"
-              onClick={returnToStaffing}
-              className="shrink-0 rounded-lg bg-amber-700 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-amber-800"
+              onClick={() => void regenerateResponse()}
+              disabled={isRegenerating}
+              className="inline-flex min-w-[150px] items-center justify-center gap-2 rounded-lg bg-amber-700 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-amber-800 disabled:cursor-wait disabled:bg-amber-500"
             >
-              Return to Staffing
+              {isRegenerating ? (
+                <>
+                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" />
+                  Regenerating…
+                </>
+              ) : 'Regenerate Response'}
             </button>
-          ) : null}
+            {advancedPastStaffing ? (
+              <button
+                type="button"
+                onClick={returnToStaffing}
+                disabled={isRegenerating}
+                className="rounded-lg border border-amber-400 bg-white px-3 py-2 text-xs font-bold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
+              >
+                Return to Staffing
+              </button>
+            ) : null}
+          </div>
         </div>
       </section>
     );
