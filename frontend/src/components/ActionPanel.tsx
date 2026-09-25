@@ -63,7 +63,7 @@ export function ActionPanel({ roomId }: { roomId: string }) {
   const [agentResponse, setAgentResponse] = useState('');
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const userRef = useAutoResize(userMessage);
-  const agentRef = useAutoResize(agentResponse);
+  const agentRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (roomAgents.some(agent => agent.id === selectedAgentId)) return;
@@ -293,7 +293,7 @@ export function ActionPanel({ roomId }: { roomId: string }) {
                     }
                   }}
                   placeholder={`Paste ${selectedAgent?.name ?? 'Agent'}'s response here...`}
-                  className="w-full resize-none overflow-y-auto rounded-lg border border-slate-300 bg-white p-3 text-start text-sm text-slate-800 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
+                  className="h-[180px] w-full resize-none overflow-y-auto rounded-lg border border-slate-300 bg-white p-3 text-start text-sm text-slate-800 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
                 />
 
                 <div className="flex flex-col justify-center gap-2">
