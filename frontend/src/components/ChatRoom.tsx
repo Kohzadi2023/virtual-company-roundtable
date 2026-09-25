@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { ActionPanel } from '@/components/ActionPanel';
+import { DecisionVoteCard } from '@/components/DecisionVoteCard';
+import { DecisionVoteRuntime } from '@/components/DecisionVoteRuntime';
 import { MeetingBriefRuntime } from '@/components/MeetingBriefRuntime';
 import { MeetingBriefStatus } from '@/components/MeetingBriefStatus';
 import { MeetingOrchestrationBar } from '@/components/MeetingOrchestrationBar';
@@ -49,6 +51,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   return (
     <section className="flex min-w-0 flex-1 flex-col bg-[#f8fafc]">
       <MeetingBriefRuntime roomId={room.id} />
+      <DecisionVoteRuntime roomId={room.id} />
 
       <div className="shrink-0 space-y-2 bg-[#f8fafc] px-3 pt-2">
         <div className="mx-auto w-full max-w-[1000px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.05)]">
@@ -57,6 +60,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
           <MeetingPhaseTimerStrip roomId={room.id} />
         </div>
         <OliviaStaffingCard key={`${room.id}:${latestOliviaResponseId}`} roomId={room.id} />
+        <DecisionVoteCard roomId={room.id} />
       </div>
 
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 pb-2 pt-2" role="log" aria-live="polite" aria-label="Company discussion">
