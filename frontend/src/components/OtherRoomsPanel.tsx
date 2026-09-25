@@ -1,13 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { MeetingMinutesDialog } from '@/components/MeetingMinutesDialog';
 import { SyncBadge } from '@/components/SyncBadge';
 import { Toast, type ToastMessage } from '@/components/Toast';
 import { copyText } from '@/lib/clipboard';
 import { buildFullChatText } from '@/lib/fullChat';
 import { deleteRoom } from '@/lib/roomActions';
+import { groupRoomsByProject } from '@/lib/roomGrouping';
 import { useClickOutside } from '@/lib/useClickOutside';
 import { useIsCompactViewport } from '@/lib/useIsCompactViewport';
-import { useWorkspaceStore } from '@/store/workspaceStore';
+import { DEFAULT_PROJECT_ID, useWorkspaceStore } from '@/store/workspaceStore';
 
 const OPEN_ROOM_SETTINGS_EVENT = 'virtual-company:open-room-settings';
 const OTHER_ROOMS_PIN_KEY = 'virtual-company:ui:other-rooms-pinned';
@@ -25,14 +26,37 @@ export function OtherRoomsPanel() {
   const projects = useWorkspaceStore(state => state.projects);
   const activeRoomId = useWorkspaceStore(state => state.activeRoomId);
   const setActiveRoom = useWorkspaceStore(state => state.setActiveRoom);
+  const setRoomProject = useWorkspaceStore(state => state.setRoomProject);
   const compact = useIsCompactViewport();
   const [open, setOpen] = useState(!compact);
   const [pinned, setPinned] = useState(initialPinnedState);
   const [minutesRoomId, setMinutesRoomId] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastMessage | null>(null);
+  const [collapsedProjectIds, setCollapsedProjectIds] = useState<Set<string>>(() => new Set());
+  const [draggedRoomId, setDraggedRoomId] = useState<string | null>(null);
+  const [dragOverProjectId, setDragOverProjectId] = useState<string | null>(null);
   const panelRef = useRef<HTMLElement>(null);
   const visibleRooms = rooms.filter(room => !room.archivedAt);
   const archivedCount = rooms.length - visibleRooms.length;
+
+  const groupedRooms = useMemo(
+    () => groupRoomsByProject(visibleRooms, projects, DEFAULT_PROJECT_ID),
+    [projects, visibleRooms],
+  );
+
+  const toggleProjectOpen = (projectId: string) => {
+    setCollapsedProjectIds(current => {
+      const next = new Set(current);
+      if (next.has(projectId)) next.delete(projectId); else next.add(projectId);
+      return next;
+    });
+  };
+
+  const handleDropOnProject = (projectId: string) => {
+    if (draggedRoomId) setRoomProject(draggedRoomId, projectId);
+    setDraggedRoomId(null);
+    setDragOverProjectId(null);
+  };
 
   useEffect(() => {
     if (compact) setOpen(false);
@@ -121,24 +145,80 @@ export function OtherRoomsPanel() {
           {visibleRooms.length === 0 ? (
             <div className="rounded-lg border border-dashed border-slate-300 bg-white p-4 text-center text-xs text-slate-400">No active rooms. Create one from Room Settings or restore an archived room from Workspace.</div>
           ) : (
-            <div className="space-y-1.5">
-              {visibleRooms.map(room => {
-                const active = room.id === activeRoomId;
-                const hasMessages = room.messages.length > 0;
-                const project = projects.find(item => item.id === room.projectId);
+            <div className="space-y-2">
+              {groupedRooms.map(({ project, rooms: projectRooms }) => {
+                const groupOpen = !collapsedProjectIds.has(project.id);
+                const dropTarget = dragOverProjectId === project.id;
                 return (
-                  <div key={room.id} className={`rounded-lg border p-2.5 transition ${active ? 'border-blue-300 bg-blue-50 shadow-sm' : 'border-slate-200 bg-white hover:border-blue-200 hover:bg-blue-50/50'}`}>
-                    <div className="flex items-center gap-1">
-                      <button type="button" onClick={() => setActiveRoom(room.id)} className="min-w-0 flex flex-1 items-center gap-2 text-start" title={`Open ${room.name}`}>
-                        <span className="shrink-0 text-base" aria-hidden="true">{room.emoji}</span>
-                        <span dir="auto" className="min-w-0 flex-1 truncate text-start text-[12px] font-semibold text-slate-800">{room.name}</span>
-                      </button>
-                      <button type="button" onClick={() => setMinutesRoomId(room.id)} disabled={!hasMessages} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[13px] text-blue-600 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent" title={hasMessages ? 'Meeting Minutes' : 'No messages for Meeting Minutes'} aria-label={`Meeting Minutes for ${room.name}`}>▤</button>
-                      <button type="button" onClick={() => void handleCopyFullChat(room.id)} disabled={!hasMessages} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[13px] text-indigo-600 transition hover:bg-indigo-50 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent" title={hasMessages ? 'Copy Full Chat' : 'No messages to copy'} aria-label={`Copy Full Chat for ${room.name}`}>⧉</button>
-                      <button type="button" onClick={() => handleOpenSettings(room.id)} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[13px] text-slate-500 transition hover:bg-slate-100 hover:text-slate-800" title="Room Settings" aria-label={`Room Settings for ${room.name}`}>⚙</button>
-                      <button type="button" onClick={() => handleDelete(room.id, room.name)} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[13px] text-slate-400 transition hover:bg-rose-50 hover:text-rose-600" title="Delete Room" aria-label={`Delete ${room.name}`}>⌫</button>
-                    </div>
-                    <button type="button" onClick={() => setActiveRoom(room.id)} className="mt-1.5 flex w-full items-center justify-between gap-2 text-start"><span className="min-w-0 truncate text-[10px] text-slate-400">{project ? `${project.emoji} ${project.name} · ` : ''}{room.agentIds.length} specialists · {room.messages.length} messages</span>{active ? <span className="text-[9px] font-semibold text-blue-600">ACTIVE</span> : null}</button>
+                  <div
+                    key={project.id}
+                    className={`rounded-lg transition ${dropTarget ? 'bg-blue-50 ring-2 ring-blue-300' : ''}`}
+                    onDragOver={event => {
+                      if (!draggedRoomId) return;
+                      event.preventDefault();
+                      event.dataTransfer.dropEffect = 'move';
+                      if (dragOverProjectId !== project.id) setDragOverProjectId(project.id);
+                    }}
+                    onDragLeave={() => setDragOverProjectId(current => current === project.id ? null : current)}
+                    onDrop={event => {
+                      event.preventDefault();
+                      handleDropOnProject(project.id);
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => toggleProjectOpen(project.id)}
+                      className="flex w-full items-center gap-2 rounded-lg px-1.5 py-1.5 text-start hover:bg-slate-100"
+                      aria-expanded={groupOpen}
+                    >
+                      <span className={`text-[10px] text-slate-400 transition-transform ${groupOpen ? 'rotate-90' : ''}`} aria-hidden="true">▸</span>
+                      <span className="text-sm" aria-hidden="true">{project.emoji}</span>
+                      <span className="min-w-0 flex-1 truncate text-[11px] font-bold uppercase tracking-wide text-slate-500">{project.name}</span>
+                      <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500">{projectRooms.length}</span>
+                    </button>
+
+                    {groupOpen ? (
+                      projectRooms.length === 0 ? (
+                        <div className="ms-1 mt-1 rounded-lg border border-dashed border-slate-200 px-2.5 py-2 text-[10px] text-slate-400">
+                          Drag a room here to move it into {project.name}.
+                        </div>
+                      ) : (
+                        <div className="ms-1 mt-1 space-y-1.5">
+                          {projectRooms.map(room => {
+                            const active = room.id === activeRoomId;
+                            const hasMessages = room.messages.length > 0;
+                            return (
+                              <div
+                                key={room.id}
+                                draggable
+                                onDragStart={event => {
+                                  event.dataTransfer.effectAllowed = 'move';
+                                  event.dataTransfer.setData('text/plain', room.id);
+                                  setDraggedRoomId(room.id);
+                                }}
+                                onDragEnd={() => {
+                                  setDraggedRoomId(null);
+                                  setDragOverProjectId(null);
+                                }}
+                                className={`cursor-grab rounded-lg border p-2.5 transition active:cursor-grabbing ${active ? 'border-blue-300 bg-blue-50 shadow-sm' : 'border-slate-200 bg-white hover:border-blue-200 hover:bg-blue-50/50'}`}
+                              >
+                                <div className="flex items-center gap-1">
+                                  <button type="button" onClick={() => setActiveRoom(room.id)} className="min-w-0 flex flex-1 items-center gap-2 text-start" title={`Open ${room.name}`}>
+                                    <span className="shrink-0 text-base" aria-hidden="true">{room.emoji}</span>
+                                    <span dir="auto" className="min-w-0 flex-1 truncate text-start text-[12px] font-semibold text-slate-800">{room.name}</span>
+                                  </button>
+                                  <button type="button" onClick={() => setMinutesRoomId(room.id)} disabled={!hasMessages} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[13px] text-blue-600 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent" title={hasMessages ? 'Meeting Minutes' : 'No messages for Meeting Minutes'} aria-label={`Meeting Minutes for ${room.name}`}>▤</button>
+                                  <button type="button" onClick={() => void handleCopyFullChat(room.id)} disabled={!hasMessages} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[13px] text-indigo-600 transition hover:bg-indigo-50 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent" title={hasMessages ? 'Copy Full Chat' : 'No messages to copy'} aria-label={`Copy Full Chat for ${room.name}`}>⧉</button>
+                                  <button type="button" onClick={() => handleOpenSettings(room.id)} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[13px] text-slate-500 transition hover:bg-slate-100 hover:text-slate-800" title="Room Settings" aria-label={`Room Settings for ${room.name}`}>⚙</button>
+                                  <button type="button" onClick={() => handleDelete(room.id, room.name)} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[13px] text-slate-400 transition hover:bg-rose-50 hover:text-rose-600" title="Delete Room" aria-label={`Delete ${room.name}`}>⌫</button>
+                                </div>
+                                <button type="button" onClick={() => setActiveRoom(room.id)} className="mt-1.5 flex w-full items-center justify-between gap-2 text-start"><span className="min-w-0 truncate text-[10px] text-slate-400">{room.agentIds.length} specialists · {room.messages.length} messages</span>{active ? <span className="text-[9px] font-semibold text-blue-600">ACTIVE</span> : null}</button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )
+                    ) : null}
                   </div>
                 );
               })}
