@@ -7,6 +7,7 @@ import { MeetingBriefStatus } from '@/components/MeetingBriefStatus';
 import { MeetingOrchestrationBar } from '@/components/MeetingOrchestrationBar';
 import { MeetingPhaseTimerStrip } from '@/components/MeetingPhaseTimerStrip';
 import { OliviaStaffingCard } from '@/components/OliviaStaffingCard';
+import { RoomMetadataAutofillRuntime } from '@/components/RoomMetadataAutofillRuntime';
 import { TimelineMessage } from '@/components/TimelineMessage';
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
 import { useWorkspaceStore } from '@/store/workspaceStore';
@@ -52,6 +53,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     <section className="flex min-w-0 flex-1 flex-col bg-[#f8fafc]">
       <MeetingBriefRuntime roomId={room.id} />
       <DecisionVoteRuntime roomId={room.id} />
+      <RoomMetadataAutofillRuntime roomId={room.id} />
 
       <div className="shrink-0 space-y-2 bg-[#f8fafc] px-3 pt-2">
         <div className="mx-auto w-full max-w-[1000px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.05)]">
