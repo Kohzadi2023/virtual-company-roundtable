@@ -1,6 +1,6 @@
 import { MEETING_FACILITATOR_AGENT_ID, sharedAgentBehavior } from '@/lib/defaultCompany';
 import { getRoomLanguage } from '@/lib/languages';
-import { ensureMeetingRoom, type MeetingRoomState } from '@/lib/meetingOrchestration';
+import { ensureMeetingRoom, hasMeetingStarted, type MeetingRoomState } from '@/lib/meetingOrchestration';
 import { assessMeetingReadiness } from '@/lib/meetingReadiness';
 import { getSpecialistRoundGuidance } from '@/lib/meetingRoundGuidance';
 import {
@@ -223,8 +223,8 @@ function formatRosterEntry(entry: MeetingStaffingRosterEntry): string {
     + ` | ${workload}${roomStatus}`;
 }
 
-function buildAvailableRoster(activeRoom: Room, workspace: WorkspaceState, roundStage: string): string[] {
-  if (roundStage !== 'opening') return [];
+function buildAvailableRoster(activeRoom: Room, workspace: WorkspaceState, meeting: MeetingRoomState): string[] {
+  if (meeting.roundStage !== 'opening' || hasMeetingStarted(meeting)) return [];
   const roster = workspace.agents.map(agent => formatRosterEntry(buildRosterEntry(agent, workspace, activeRoom)));
   return xmlSection('AVAILABLE_ORGANIZATION_ROSTER', roster);
 }
@@ -240,8 +240,8 @@ function buildCurrentParticipants(activeRoom: Room, workspace: WorkspaceState): 
   return xmlSection('CURRENT_PARTICIPANTS', lines.length > 0 ? lines : ['(none)']);
 }
 
-function buildStaffingRules(activeRoom: Room, roundStage: string): string[] {
-  if (roundStage !== 'opening') return [];
+function buildStaffingRules(activeRoom: Room, meeting: MeetingRoomState): string[] {
+  if (meeting.roundStage !== 'opening' || hasMeetingStarted(meeting)) return [];
   const solo = isOliviaAloneInRoom(activeRoom);
 
   return xmlSection('MEETING_STAFFING_RULES', [
@@ -351,8 +351,8 @@ function oliviaMeetingSection(agent: Agent, activeRoom: Room | undefined): strin
     ]),
     ...oliviaMeetingBriefInstructions(activeRoom, meeting),
     ...buildCurrentParticipants(activeRoom, workspace),
-    ...buildAvailableRoster(activeRoom, workspace, meeting.roundStage),
-    ...buildStaffingRules(activeRoom, meeting.roundStage),
+    ...buildAvailableRoster(activeRoom, workspace, meeting),
+    ...buildStaffingRules(activeRoom, meeting),
     ...xmlSection('MEETING_FACILITATION_INSTRUCTIONS', [
       stageInstruction,
       'Treat the readiness state in MEETING_CONTEXT as workflow guardrails. Do not claim a blocker is resolved unless the supplied workspace state or discussion shows that it is resolved.',
