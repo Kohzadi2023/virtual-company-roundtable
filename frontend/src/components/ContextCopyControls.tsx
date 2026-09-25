@@ -70,7 +70,15 @@ export function ContextCopyControls({ room, agent, role, cursor, onNotify }: Con
   const size = useMemo(() => estimatePromptSize(prompt), [prompt]);
   const externalChat = getExternalAgentChat(agent.id);
   const externalChatUrl = canOpen(externalChat?.url) ? externalChat.url : null;
-  const disabled = mode === 'continue' && selectedMessages.length === 0;
+  // buildAgentPrompt() always injects a round-aware section for whichever
+  // agent this is -- oliviaMeetingSection() for the facilitator,
+  // specialistMeetingSection() for everyone else -- regardless of whether
+  // any messages are new. So the prompt is never actually empty even at
+  // 0/0 messages; blocking Copy purely on the message-delta count left an
+  // agent unreachable right when a new round opened with no fresh messages
+  // yet (reported live for Olivia, but the same unconditional-section
+  // pattern now applies to every agent).
+  const disabled = false;
   const large = size.approxTokens >= 8000;
   const veryLarge = size.approxTokens >= 16000;
 
