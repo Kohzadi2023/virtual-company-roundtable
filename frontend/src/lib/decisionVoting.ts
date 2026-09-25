@@ -126,6 +126,7 @@ export function syncDecisionVoting(roomId: string): void {
 
   const evidence = decisionEvidenceForMessage(record.message.id);
   let decision = state.decisions.find(item => item.roomId === roomId && item.evidence === evidence);
+  const expectedDetails = `[${record.proposal.outcome}] ${record.proposal.details}`;
 
   if (!decision) {
     for (const older of state.decisions.filter(item => (
@@ -140,16 +141,19 @@ export function syncDecisionVoting(roomId: string): void {
       projectId,
       roomId,
       title: record.proposal.title,
-      details: `[${record.proposal.outcome}] ${record.proposal.details}`,
+      details: expectedDetails,
       evidence,
       status: 'proposed',
     });
     if (!decisionId) return;
     decision = useWorkspaceStore.getState().decisions.find(item => item.id === decisionId);
-  } else if (decision.status === 'proposed') {
+  } else if (
+    decision.status === 'proposed'
+    && (decision.title !== record.proposal.title || decision.details !== expectedDetails)
+  ) {
     state.updateDecision(decision.id, {
       title: record.proposal.title,
-      details: `[${record.proposal.outcome}] ${record.proposal.details}`,
+      details: expectedDetails,
     });
   }
 
