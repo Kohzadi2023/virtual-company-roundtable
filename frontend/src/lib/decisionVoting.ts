@@ -98,6 +98,7 @@ export function parseSpecialistDecisionVote(content: string): SpecialistDecision
 export function findLatestDecisionProposal(messages: Message[]): DecisionProposalRecord | null {
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const message = messages[index];
+    if (!message) continue;
     if (message.authorType !== 'agent' || message.authorId !== MEETING_FACILITATOR_AGENT_ID) continue;
     const proposal = parseOliviaDecisionProposal(message.content);
     if (proposal) return { message, proposal };
