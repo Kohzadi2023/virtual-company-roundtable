@@ -93,10 +93,68 @@ export function contextModeInstruction(mode: ContextCopyMode): string | null {
   }
 }
 
+function finalDecisionWorkflowInstruction(prompt: string): string | null {
+  if (!prompt.includes('Round: 4/4')) return null;
+  const isOlivia = prompt.includes('You are Olivia,');
+  const opening = prompt.includes('Stage: opening');
+  const specialists = prompt.includes('Stage: specialists');
+  const synthesis = prompt.includes('Stage: synthesis');
+
+  if (isOlivia && opening) {
+    return [
+      'This is the final decision round. Before specialists vote, draft ONE concrete decision proposal from the evidence and unresolved conditions accumulated in prior rounds.',
+      'Do not ask the user to rewrite the decision title or details. You own the proposal draft; the user remains the final approver after the specialist vote.',
+      'Present the proposal clearly in prose, then append exactly one machine-readable block at the END of your response:',
+      'VC_DECISION_PROPOSAL',
+      '```json',
+      '{',
+      '  "title": "Concise decision title",',
+      '  "outcome": "GO | NO_GO | CONDITIONAL_GO | DEFER",',
+      '  "details": "The exact decision being proposed and what it means operationally",',
+      '  "checklist": [',
+      '    { "item": "Specific decision condition or readiness criterion", "status": "satisfied | condition | blocker", "evidence": "Evidence or reason from the discussion" }',
+      '  ],',
+      '  "voteQuestion": "Do you support this decision proposal as written?"',
+      '}',
+      '```',
+      'Checklist rules: include the material criteria needed to approve or reject the decision; do not pad the list with generic items. Use satisfied only when evidence supports it, condition when it must be completed/verified, and blocker when it currently prevents proceeding.',
+      'Do not put comments inside the JSON and do not write anything after the closing code fence.',
+    ].join('\n');
+  }
+
+  if (!isOlivia && specialists) {
+    return [
+      'This is the final decision vote. Review Olivia’s latest VC_DECISION_PROPOSAL from your professional scope.',
+      'Your normal Round 4 contribution should explain whether the proposal is supportable, what evidence matters, and any conditions or objections.',
+      'At the END of your response append exactly one machine-readable vote block:',
+      'VC_DECISION_VOTE',
+      '```json',
+      '{',
+      '  "choice": "agree | concern | disagree | abstain",',
+      '  "rationale": "Short evidence-based reason for your vote",',
+      '  "conditions": ["Any condition that must be met; empty when none"]',
+      '}',
+      '```',
+      'Vote on the proposal as written. Use concern when you can support it only with material conditions; use disagree when the proposal should not be approved in its current form. Do not write anything after the closing code fence.',
+    ].join('\n');
+  }
+
+  if (isOlivia && synthesis) {
+    return [
+      'Synthesize the final-round specialist votes. State the tally, the material reasons behind concerns/disagreements, and whether the proposal should be presented to the user unchanged or revised.',
+      'Do not claim the decision is approved: specialist votes are advisory evidence and the user remains the final approver.',
+      'If the proposal needs material revision, explain exactly what must change so a fresh proposal can be put to a new vote.',
+    ].join('\n');
+  }
+
+  return null;
+}
+
 export function decoratePromptForContextMode(prompt: string, mode: ContextCopyMode): string {
   const instruction = contextModeInstruction(mode);
-  if (!instruction) return prompt;
-  return `${prompt}\n\nCONTEXT MODE INSTRUCTION:\n${instruction}`;
+  const withMode = instruction ? `${prompt}\n\nCONTEXT MODE INSTRUCTION:\n${instruction}` : prompt;
+  const finalDecision = finalDecisionWorkflowInstruction(withMode);
+  return finalDecision ? `${withMode}\n\nFINAL DECISION WORKFLOW:\n${finalDecision}` : withMode;
 }
 
 export function estimatePromptSize(value: string): { words: number; chars: number; approxTokens: number } {
