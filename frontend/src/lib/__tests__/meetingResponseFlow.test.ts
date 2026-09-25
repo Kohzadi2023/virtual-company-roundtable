@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { defaultAgents, defaultRoles, defaultTeams, MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
-import { ensureMeetingRoom, loadMeetingOrchestration } from '@/lib/meetingOrchestration';
+import { ensureMeetingRoom, loadMeetingOrchestration, setMeetingRound } from '@/lib/meetingOrchestration';
 import { advanceAfterAgentResponse } from '@/lib/meetingResponseFlow';
 import { applyOliviaStaffingPlan, findLatestOliviaStaffingPlan } from '@/lib/meetingStaffing';
 import { useWorkspaceStore } from '@/store/workspaceStore';
@@ -147,5 +147,21 @@ describe('Olivia opening staffing gate', () => {
       { type: 'human-staffing-required', role: 'Canadian Legal Counsel', hireType: 'human' },
     ]);
     expect(meeting?.roundStage).toBe('opening');
+  });
+
+  it('advances Olivia normally when a later round reopens, without re-requiring a staffing plan', () => {
+    setMeetingRound('room-1', 1);
+    setOliviaMessage('Opening round 2: recapping where we left off and what this round must resolve.');
+
+    const result = advanceAfterAgentResponse('room-1', MEETING_FACILITATOR_AGENT_ID);
+    const meeting = loadMeetingOrchestration().rooms['room-1'];
+
+    expect(result).toEqual({ advanced: true, reason: 'advanced' });
+    expect(meeting?.roundIndex).toBe(1);
+    // No specialists in this room, so the queue moves straight to synthesis —
+    // the key assertion is `advanced: true`, proving the round-2 opening gate
+    // did not stall the queue waiting for a staffing plan that was already
+    // resolved before round 1 started.
+    expect(meeting?.roundStage).toBe('synthesis');
   });
 });

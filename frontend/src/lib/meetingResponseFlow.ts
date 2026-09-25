@@ -1,5 +1,5 @@
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
-import { ensureMeetingRoom, markSpeakerStatus } from '@/lib/meetingOrchestration';
+import { ensureMeetingRoom, hasMeetingStarted, markSpeakerStatus } from '@/lib/meetingOrchestration';
 import {
   deriveStaffingReadiness,
   findLatestOliviaStaffingPlan,
@@ -38,10 +38,13 @@ export function advanceAfterAgentResponse(roomId: string, agentId: string): Meet
 
   const meeting = ensureMeetingRoom(room.id, room.agentIds);
 
-  // The staffing gate is only for Olivia's opening turn. Specialist turns,
-  // Olivia synthesis, and rooms without Olivia retain the existing queue
-  // behavior.
-  if (agentId !== MEETING_FACILITATOR_AGENT_ID || meeting.roundStage !== 'opening') {
+  // The staffing gate is only for Olivia's very first turn, before the
+  // meeting has ever started. roundStage cycles back to 'opening' at the
+  // start of every round (not just round 1), so gating on roundStage alone
+  // re-triggers the staffing check on every round's opening (rounds 2, 3, …)
+  // and stalls the speaker queue there. hasMeetingStarted is the correct
+  // "has this meeting actually begun" signal.
+  if (agentId !== MEETING_FACILITATOR_AGENT_ID || meeting.roundStage !== 'opening' || hasMeetingStarted(meeting)) {
     markSpeakerStatus(room.id, agentId, 'responded');
     return { advanced: true, reason: 'advanced' };
   }
