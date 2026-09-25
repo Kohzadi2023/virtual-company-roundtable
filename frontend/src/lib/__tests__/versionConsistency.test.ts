@@ -16,7 +16,7 @@ describe('application version consistency', () => {
     const cargoVersion = cargoToml.match(/^version = "([^"]+)"/m)?.[1];
     const visibleFallback = appSource.match(/VITE_APP_VERSION\?\.trim\(\) \|\| '([^']+)'/)?.[1];
 
-    expect(packageJson.version).toBe('2.8.3');
+    expect(packageJson.version).toBe('2.8.4');
     expect(tauriConfig.version).toBe(packageJson.version);
     expect(cargoVersion).toBe(packageJson.version);
     expect(visibleFallback).toBe(packageJson.version);

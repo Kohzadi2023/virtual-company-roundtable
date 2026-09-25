@@ -60,25 +60,32 @@ export function ChatRoom({ roomId }: { roomId: string }) {
           <MeetingPhaseTimerStrip roomId={room.id} />
         </div>
         <OliviaStaffingCard key={`${room.id}:${latestOliviaResponseId}`} roomId={room.id} />
-        <DecisionVoteCard roomId={room.id} />
       </div>
 
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 pb-2 pt-2" role="log" aria-live="polite" aria-label="Company discussion">
-        <div className="mx-auto min-h-full w-full max-w-[960px] rounded-xl border border-slate-200 bg-white px-3 py-1 shadow-[0_1px_2px_rgba(15,23,42,0.02)]">
-          {room.messages.length === 0 ? (
-            <EmptyDiscussionState />
-          ) : (
-            <div className="space-y-0.5">
-              {room.messages.map((message, index) => (
-                <TimelineMessage
-                  key={message.id}
-                  roomId={room.id}
-                  message={message}
-                  isLast={index === room.messages.length - 1}
-                />
-              ))}
-            </div>
-          )}
+        <div className="mx-auto w-full max-w-[1000px] space-y-2">
+          {/* A decision proposal and its vote tally can run long (checklist,
+              per-specialist rationale) and has no height cap of its own; it
+              belongs in the scrollable conversation, not the shrink-0
+              header, or its height competes directly with ActionPanel for
+              fixed space and can push the compose box off-screen. */}
+          <DecisionVoteCard roomId={room.id} />
+          <div className="min-h-full w-full rounded-xl border border-slate-200 bg-white px-3 py-1 shadow-[0_1px_2px_rgba(15,23,42,0.02)]">
+            {room.messages.length === 0 ? (
+              <EmptyDiscussionState />
+            ) : (
+              <div className="space-y-0.5">
+                {room.messages.map((message, index) => (
+                  <TimelineMessage
+                    key={message.id}
+                    roomId={room.id}
+                    message={message}
+                    isLast={index === room.messages.length - 1}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
