@@ -33,30 +33,6 @@
   scrollbar-color: #cbd5e1 transparent;
 }
 
-.decision-vote-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 transparent;
-  scrollbar-gutter: stable;
-}
-
-.decision-vote-scroll::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-.decision-vote-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.decision-vote-scroll::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 9999px;
-}
-
-.decision-vote-scroll::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-
 /* The top navigation owns Room Settings; keep its stacking context above side panels. */
 main > header {
   z-index: 100 !important;
