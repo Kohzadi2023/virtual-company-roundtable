@@ -93,6 +93,8 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
         </div>
       </header>
 
+      <p className="px-4 pt-3 text-xs text-slate-600" dir="auto">{record.proposal.voteQuestion}</p>
+
       <div className="grid gap-4 p-4 lg:grid-cols-[1.15fr_0.85fr]">
         <div>
           <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Decision checklist</h4>
@@ -113,7 +115,6 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
 
         <div>
           <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Team vote</h4>
-          <p className="mt-1 text-xs text-slate-600" dir="auto">{record.proposal.voteQuestion}</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {tally.map(([choice, count]) => <span key={choice} className={`rounded-full border px-2 py-1 text-[10px] font-bold ${voteTone[choice]}`}>{choice}: {count}</span>)}
           </div>
