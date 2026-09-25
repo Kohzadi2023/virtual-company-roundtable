@@ -244,6 +244,7 @@ export function ActionPanel({ roomId }: { roomId: string }) {
           <div className="flex flex-col items-stretch gap-2 p-2 sm:flex-row" role="tabpanel">
             <div className="min-w-0 flex-1 overflow-hidden rounded-lg border border-slate-300 bg-white focus-within:border-blue-400 focus-within:ring-1 focus-within:ring-blue-100">
               <textarea
+                key="user-message"
                 id="user-message"
                 ref={userRef}
                 dir="auto"
@@ -281,6 +282,7 @@ export function ActionPanel({ roomId }: { roomId: string }) {
             ) : (
               <div className="grid gap-2 xl:grid-cols-[1fr_220px]">
                 <textarea
+                  key="agent-response"
                   id="agent-response"
                   ref={agentRef}
                   dir="auto"
@@ -293,7 +295,7 @@ export function ActionPanel({ roomId }: { roomId: string }) {
                     }
                   }}
                   placeholder={`Paste ${selectedAgent?.name ?? 'Agent'}'s response here...`}
-                  className="h-[180px] w-full resize-none overflow-y-auto rounded-lg border border-slate-300 bg-white p-3 text-start text-sm text-slate-800 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
+                  className="h-[180px] w-full resize-none overflow-y-auto rounded-lg border border-slate-300 bg-white p-3 text-start text-sm text-slate-800 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 xl:h-full"
                 />
 
                 <div className="flex flex-col justify-center gap-2">
