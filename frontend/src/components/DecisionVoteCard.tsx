@@ -88,13 +88,21 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
 
   const continueChecklistItemInFollowUp = (itemText: string, itemEvidence: string | undefined, itemStatus: DecisionChecklistStatus) => {
     if (!decision) return;
-    const confirmed = window.confirm(`Open a follow-up meeting to continue "${itemText}"?`);
+    const confirmed = window.confirm(`Open a follow-up meeting to continue "${itemText}"? Olivia will assess whether the existing team or a new specialist is needed before discussion starts.`);
     if (!confirmed) return;
+    // Deliberately does not inherit the parent room's roster: a follow-up on
+    // one narrow checklist item may need a different (often smaller, or
+    // entirely new) team than the meeting it was raised in. Starting the
+    // room with only the facilitator routes it through the same staffing
+    // assessment every fresh meeting gets, so Olivia weighs the roster
+    // against this specific item and can also propose an internal hire or
+    // flag a human/contractor need, instead of the item silently discussed
+    // by whoever happened to be in the original room.
     const followUpRoomId = createRoom(
       buildChecklistFollowUpRoomName(itemText),
       '🔁',
-      room.individualAgentIds ?? [],
-      room.teamIds ?? [],
+      [MEETING_FACILITATOR_AGENT_ID],
+      [],
       decision.projectId,
     );
     addUserMessage(followUpRoomId, buildChecklistFollowUpSeedMessage(decision.title, record.proposal.outcome, itemText, itemEvidence));
