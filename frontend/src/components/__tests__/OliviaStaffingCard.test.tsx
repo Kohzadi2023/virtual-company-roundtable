@@ -1,4 +1,5 @@
-import { renderToStaticMarkup } from 'react-dom/server';
+import { flushSync } from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { OliviaStaffingCard } from '@/components/OliviaStaffingCard';
 import { defaultAgents, defaultRoles, defaultTeams, MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
@@ -69,13 +70,23 @@ beforeEach(() => {
 
 describe('OliviaStaffingCard', () => {
   it('describes required pre-approval changes as pending actions rather than failed operations', () => {
-    const html = renderToStaticMarkup(<OliviaStaffingCard roomId="room-voice" />);
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
 
-    expect(html).toContain('2 pending staffing actions');
-    expect(html).toContain('These are planned changes awaiting your approval, not failed operations.');
-    expect(html).toContain('Emma will be added to the room when you approve Invite Team.');
-    expect(html).toContain('Voice AI &amp; Messaging Integrations Specialist will be created and added to the room when you approve Invite Team.');
-    expect(html).not.toContain('could not be added to the room');
-    expect(html).not.toContain('could not be created');
+    flushSync(() => {
+      root.render(<OliviaStaffingCard roomId="room-voice" />);
+    });
+
+    const text = container.textContent ?? '';
+    expect(text).toContain('2 pending staffing actions');
+    expect(text).toContain('These are planned changes awaiting your approval, not failed operations.');
+    expect(text).toContain('Emma will be added to the room when you approve Invite Team.');
+    expect(text).toContain('Voice AI & Messaging Integrations Specialist will be created and added to the room when you approve Invite Team.');
+    expect(text).not.toContain('could not be added to the room');
+    expect(text).not.toContain('could not be created');
+
+    root.unmount();
+    container.remove();
   });
 });
