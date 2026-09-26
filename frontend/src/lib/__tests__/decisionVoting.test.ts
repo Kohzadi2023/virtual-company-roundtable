@@ -1,12 +1,16 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  buildChecklistFollowUpRoomName,
+  buildChecklistFollowUpSeedMessage,
   decisionEvidenceForMessage,
   decisionVoteIdForMessage,
+  findChecklistFollowUp,
   parseOliviaDecisionProposal,
   parseSpecialistDecisionVote,
   syncDecisionVoting,
 } from '@/lib/decisionVoting';
 import { useWorkspaceStore } from '@/store/workspaceStore';
+import type { ActionItem } from '@/types/domain';
 
 const proposalContent = `Final proposal\n\nVC_DECISION_PROPOSAL\n\`\`\`json\n{\n  "title": "Genesisco Canadian Production Launch Decision",\n  "outcome": "NO_GO",\n  "details": "Do not launch until Phase Zero evidence is complete.",\n  "checklist": [\n    { "item": "Phase Zero evidence complete", "status": "blocker", "evidence": "Missing production proof" },\n    { "item": "Scope freeze agreed", "status": "satisfied", "evidence": "Accepted in Round 3" }\n  ],\n  "voteQuestion": "Do you support this NO-GO decision as written?"\n}\n\`\`\``;
 
@@ -69,5 +73,54 @@ describe('decision voting workflow', () => {
     expect(decision?.status).toBe('proposed');
     expect(decision?.title).toBe('Genesisco Canadian Production Launch Decision');
     expect(vote?.votes['agent-emma']).toBe('agree');
+  });
+});
+
+describe('checklist item follow-up', () => {
+  const actionItems: ActionItem[] = [{
+    id: 'action-1',
+    projectId: 'project-a',
+    roomId: 'room-followup',
+    sourceDecisionId: 'decision-1',
+    title: 'Phase Zero evidence complete',
+    status: 'in-progress',
+    priority: 'high',
+    createdAt: 1,
+    updatedAt: 1,
+  }];
+
+  it('finds an existing follow-up action item for a checklist item', () => {
+    expect(findChecklistFollowUp(actionItems, 'decision-1', 'Phase Zero evidence complete')).toBe(actionItems[0]);
+    expect(findChecklistFollowUp(actionItems, 'decision-1', 'Some other item')).toBeUndefined();
+    expect(findChecklistFollowUp(actionItems, 'decision-2', 'Phase Zero evidence complete')).toBeUndefined();
+  });
+
+  it('builds a follow-up room name, truncating long checklist item text', () => {
+    expect(buildChecklistFollowUpRoomName('Scope freeze agreed')).toBe('Follow-up: Scope freeze agreed');
+
+    const longItem = 'A'.repeat(80);
+    const name = buildChecklistFollowUpRoomName(longItem);
+    expect(name.startsWith('Follow-up: ')).toBe(true);
+    expect(name.length).toBeLessThan(80);
+    expect(name.endsWith('…')).toBe(true);
+  });
+
+  it('builds a seed message referencing the decision and checklist item', () => {
+    const message = buildChecklistFollowUpSeedMessage(
+      'Genesisco Canadian Production Launch Decision',
+      'NO_GO',
+      'Phase Zero evidence complete',
+      'Missing production proof',
+    );
+
+    expect(message).toContain('Genesisco Canadian Production Launch Decision');
+    expect(message).toContain('NO GO');
+    expect(message).toContain('Phase Zero evidence complete');
+    expect(message).toContain('Missing production proof');
+  });
+
+  it('omits the evidence line when the checklist item has no evidence', () => {
+    const message = buildChecklistFollowUpSeedMessage('Title', 'DEFER', 'Item text', undefined);
+    expect(message).not.toContain('Evidence noted');
   });
 });
