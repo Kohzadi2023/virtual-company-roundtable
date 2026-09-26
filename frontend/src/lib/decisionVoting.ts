@@ -1,6 +1,6 @@
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
 import { useWorkspaceStore } from '@/store/workspaceStore';
-import type { Message, RoomVote, VoteChoice } from '@/types/domain';
+import type { ActionItem, Message, RoomVote, VoteChoice } from '@/types/domain';
 
 export type DecisionOutcome = 'GO' | 'NO_GO' | 'CONDITIONAL_GO' | 'DEFER';
 export type DecisionChecklistStatus = 'satisfied' | 'condition' | 'blocker';
@@ -108,6 +108,41 @@ export function findLatestDecisionProposal(messages: Message[]): DecisionProposa
 
 export function decisionEvidenceForMessage(messageId: string): string {
   return `${DECISION_EVIDENCE_PREFIX}${messageId}`;
+}
+
+const CHECKLIST_ROOM_NAME_MAX = 60;
+
+/** An action item already tracking this checklist item's follow-up, if one was created. */
+export function findChecklistFollowUp(
+  actionItems: ActionItem[],
+  decisionId: string,
+  checklistItemText: string,
+): ActionItem | undefined {
+  return actionItems.find(action => action.sourceDecisionId === decisionId && action.title === checklistItemText);
+}
+
+export function buildChecklistFollowUpRoomName(checklistItemText: string): string {
+  const label = checklistItemText.length > CHECKLIST_ROOM_NAME_MAX
+    ? `${checklistItemText.slice(0, CHECKLIST_ROOM_NAME_MAX - 1).trimEnd()}…`
+    : checklistItemText;
+  return `Follow-up: ${label}`;
+}
+
+export function buildChecklistFollowUpSeedMessage(
+  decisionTitle: string,
+  outcome: DecisionOutcome,
+  checklistItemText: string,
+  checklistItemEvidence: string | undefined,
+): string {
+  return [
+    `Follow-up requested from the decision "${decisionTitle}" (${outcome.replaceAll('_', ' ')}).`,
+    '',
+    'Checklist item to resolve:',
+    checklistItemText,
+    ...(checklistItemEvidence ? ['', `Evidence noted: ${checklistItemEvidence}`] : []),
+    '',
+    'Continue the discussion here until this item is resolved.',
+  ].join('\n');
 }
 
 export function decisionVoteIdForMessage(messageId: string): string {

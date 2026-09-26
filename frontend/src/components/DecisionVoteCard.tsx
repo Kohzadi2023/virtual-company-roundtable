@@ -1,13 +1,23 @@
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
 import {
+  buildChecklistFollowUpRoomName,
+  buildChecklistFollowUpSeedMessage,
   decisionEvidenceForMessage,
   decisionVoteIdForMessage,
+  findChecklistFollowUp,
   findLatestDecisionProposal,
   parseSpecialistDecisionVote,
+  type DecisionChecklistStatus,
 } from '@/lib/decisionVoting';
 import { loadMeetingOrchestration, resetCurrentRound } from '@/lib/meetingOrchestration';
 import { useWorkspaceStore } from '@/store/workspaceStore';
-import type { VoteChoice } from '@/types/domain';
+import type { ActionItemStatus, VoteChoice } from '@/types/domain';
+
+const followUpStatusLabel: Record<ActionItemStatus, string> = {
+  todo: 'Todo',
+  'in-progress': 'In progress',
+  done: 'Done',
+};
 
 const voteTone: Record<VoteChoice, string> = {
   agree: 'border-emerald-200 bg-emerald-50 text-emerald-700',
@@ -26,8 +36,12 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
   const room = useWorkspaceStore(state => state.rooms.find(item => item.id === roomId));
   const agents = useWorkspaceStore(state => state.agents);
   const decisions = useWorkspaceStore(state => state.decisions);
+  const actionItems = useWorkspaceStore(state => state.actionItems);
   const updateDecision = useWorkspaceStore(state => state.updateDecision);
   const addUserMessage = useWorkspaceStore(state => state.addUserMessage);
+  const addActionItem = useWorkspaceStore(state => state.addActionItem);
+  const createRoom = useWorkspaceStore(state => state.createRoom);
+  const setActiveRoom = useWorkspaceStore(state => state.setActiveRoom);
 
   if (!room) return null;
   const record = findLatestDecisionProposal(room.messages);
@@ -72,6 +86,29 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
     resetCurrentRound(room.id);
   };
 
+  const continueChecklistItemInFollowUp = (itemText: string, itemEvidence: string | undefined, itemStatus: DecisionChecklistStatus) => {
+    if (!decision) return;
+    const confirmed = window.confirm(`Open a follow-up meeting to continue "${itemText}"?`);
+    if (!confirmed) return;
+    const followUpRoomId = createRoom(
+      buildChecklistFollowUpRoomName(itemText),
+      '🔁',
+      room.individualAgentIds ?? [],
+      room.teamIds ?? [],
+      decision.projectId,
+    );
+    addUserMessage(followUpRoomId, buildChecklistFollowUpSeedMessage(decision.title, record.proposal.outcome, itemText, itemEvidence));
+    addActionItem({
+      projectId: decision.projectId,
+      roomId: followUpRoomId,
+      sourceDecisionId: decision.id,
+      title: itemText,
+      evidence: itemEvidence,
+      status: 'todo',
+      priority: itemStatus === 'blocker' ? 'high' : 'medium',
+    });
+  };
+
   const tally = (['agree', 'concern', 'disagree', 'abstain'] as VoteChoice[])
     .map(choice => [choice, Object.values(vote?.votes ?? {}).filter(value => value === choice).length] as const);
 
@@ -99,17 +136,43 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
         <div>
           <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Decision checklist</h4>
           <div className="mt-2 space-y-2">
-            {record.proposal.checklist.map((item, index) => (
-              <div key={`${index}-${item.item}`} className={`rounded-lg border px-3 py-2 text-xs ${checklistTone[item.status]}`}>
-                <div className="flex items-start gap-2">
-                  <span className="mt-0.5 font-bold">{item.status === 'satisfied' ? '✓' : item.status === 'condition' ? '△' : '!'}</span>
-                  <div className="min-w-0 flex-1">
-                    <div className="font-semibold" dir="auto">{item.item}</div>
-                    {item.evidence ? <div className="mt-1 text-[10px] opacity-75" dir="auto">{item.evidence}</div> : null}
+            {record.proposal.checklist.map((item, index) => {
+              const followUp = decision ? findChecklistFollowUp(actionItems, decision.id, item.item) : undefined;
+              return (
+                <div key={`${index}-${item.item}`} className={`rounded-lg border px-3 py-2 text-xs ${checklistTone[item.status]}`}>
+                  <div className="flex items-start gap-2">
+                    <span className="mt-0.5 font-bold">{item.status === 'satisfied' ? '✓' : item.status === 'condition' ? '△' : '!'}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold" dir="auto">{item.item}</div>
+                      {item.evidence ? <div className="mt-1 text-[10px] opacity-75" dir="auto">{item.evidence}</div> : null}
+                      {item.status !== 'satisfied' ? (
+                        <div className="mt-1.5">
+                          {followUp ? (
+                            <button
+                              type="button"
+                              onClick={() => followUp.roomId && setActiveRoom(followUp.roomId)}
+                              disabled={!followUp.roomId}
+                              className="rounded-full border border-current/30 bg-white/60 px-2 py-0.5 text-[10px] font-bold hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              ↪ Follow-up: {followUpStatusLabel[followUp.status]}
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => continueChecklistItemInFollowUp(item.item, item.evidence, item.status)}
+                              disabled={!decision}
+                              className="rounded-full border border-current/30 bg-white/60 px-2 py-0.5 text-[10px] font-bold hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              Continue in follow-up meeting
+                            </button>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
