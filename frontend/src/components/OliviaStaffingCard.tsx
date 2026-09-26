@@ -27,14 +27,18 @@ const READINESS_CLASS: Record<StaffingReadiness, string> = {
   INSUFFICIENT_CONTEXT: 'bg-rose-50 text-rose-700 ring-rose-200',
 };
 
-function describeBlocker(blocker: StaffingBlocker): string {
+function describeStaffingAction(blocker: StaffingBlocker, pendingApproval: boolean): string {
   switch (blocker.type) {
     case 'required-participant-missing':
-      return `${blocker.name ?? blocker.participantId} could not be added to the room.`;
+      return pendingApproval
+        ? `${blocker.name ?? blocker.participantId} will be added to the room when you approve Invite Team.`
+        : `${blocker.name ?? blocker.participantId} is still missing from the room after the staffing action.`;
     case 'required-ai-hire-failed':
-      return `${blocker.role} could not be created.`;
+      return pendingApproval
+        ? `${blocker.role} will be created and added to the room when you approve Invite Team.`
+        : `${blocker.role} is still missing after the staffing action.`;
     case 'human-staffing-required':
-      return `Human ${blocker.hireType} required: ${blocker.role}.`;
+      return `Human ${blocker.hireType} required: ${blocker.role}. Invite Team cannot create this role.`;
   }
 }
 
@@ -46,11 +50,13 @@ export function OliviaStaffingCard({ roomId }: { roomId: string }) {
   const [message, setMessage] = useState('');
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [manuallyExpanded, setManuallyExpanded] = useState(false);
+  const [applyAttempted, setApplyAttempted] = useState(false);
 
   useEffect(() => {
     setMessage('');
     setIsRegenerating(false);
     setManuallyExpanded(false);
+    setApplyAttempted(false);
   }, [roomId]);
 
   const plan = useMemo(
@@ -169,6 +175,7 @@ export function OliviaStaffingCard({ roomId }: { roomId: string }) {
 
   const readiness = deriveStaffingReadiness(room.id, plan);
   const applied = isOliviaStaffingPlanApplied(room.id, plan);
+  const pendingApproval = !applied && !applyAttempted;
   const creatableHires = plan.hires.filter(hire => hire.type === 'ai-agent' || hire.type === 'temporary-specialist');
   const blockedHires = plan.hires.filter(hire => hire.type === 'human' || hire.type === 'contractor');
   const participants = plan.participants.map(participant => ({
@@ -222,6 +229,7 @@ export function OliviaStaffingCard({ roomId }: { roomId: string }) {
       return;
     }
 
+    setApplyAttempted(true);
     const result = applyOliviaStaffingPlan(room.id, plan);
     if (!result) {
       setMessage('Could not invite this staffing plan to the room.');
@@ -291,15 +299,22 @@ export function OliviaStaffingCard({ roomId }: { roomId: string }) {
           {readiness.blockers.length > 0 ? (
             <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-2.5">
               <p className="text-[11px] font-bold text-amber-800">
-                {readiness.blockers.length} blocker{readiness.blockers.length === 1 ? '' : 's'}
+                {pendingApproval
+                  ? `${readiness.blockers.length} pending staffing action${readiness.blockers.length === 1 ? '' : 's'}`
+                  : `${readiness.blockers.length} unresolved staffing blocker${readiness.blockers.length === 1 ? '' : 's'}`}
               </p>
+              {pendingApproval ? (
+                <p className="mt-1 text-[11px] leading-4 text-amber-700">
+                  These are planned changes awaiting your approval, not failed operations. Review Olivia’s plan, then choose Invite Team.
+                </p>
+              ) : null}
               <ul className="mt-1 space-y-0.5">
                 {readiness.blockers.map(blocker => (
                   <li
                     key={blocker.type === 'required-participant-missing' ? `p:${blocker.participantId}` : `h:${blocker.role}`}
                     className="text-[11px] text-amber-800"
                   >
-                    • {describeBlocker(blocker)}
+                    • {describeStaffingAction(blocker, pendingApproval)}
                   </li>
                 ))}
               </ul>
