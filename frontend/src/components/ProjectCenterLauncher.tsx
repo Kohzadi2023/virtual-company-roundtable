@@ -5,6 +5,11 @@ import type { ActionItemPriority, ActionItemStatus, DecisionStatus, Room } from 
 
 type ProjectTab = 'overview' | 'decisions' | 'actions';
 
+/** Sentinel `projectId` selecting the cross-project dashboard view instead of
+ *  a single real project. Never persisted -- only ever held in this
+ *  component's own `projectId` state. */
+const ALL_PROJECTS_ID = '__all_projects__';
+
 const decisionStatusLabel: Record<DecisionStatus, string> = {
   proposed: 'Proposed',
   approved: 'Approved',
@@ -57,14 +62,20 @@ export function ProjectCenterLauncher() {
   const [actionPriority, setActionPriority] = useState<ActionItemPriority>('medium');
   const [actionEvidence, setActionEvidence] = useState('');
   const [actionRoomId, setActionRoomId] = useState('');
+  const [decisionStatusFilter, setDecisionStatusFilter] = useState<DecisionStatus | 'all'>('all');
+  const [actionStatusFilter, setActionStatusFilter] = useState<ActionItemStatus | 'all'>('all');
 
   const activeRoom = rooms.find(room => room.id === activeRoomId);
-  const resolvedProjectId = projects.some(project => project.id === projectId)
-    ? projectId
-    : activeRoom?.projectId && projects.some(project => project.id === activeRoom.projectId)
-      ? activeRoom.projectId
-      : projects[0]?.id ?? '';
+  const isAllProjects = projectId === ALL_PROJECTS_ID;
+  const resolvedProjectId = isAllProjects
+    ? ALL_PROJECTS_ID
+    : projects.some(project => project.id === projectId)
+      ? projectId
+      : activeRoom?.projectId && projects.some(project => project.id === activeRoom.projectId)
+        ? activeRoom.projectId
+        : projects[0]?.id ?? '';
   const selectedProject = projects.find(project => project.id === resolvedProjectId);
+  const projectById = useMemo(() => new Map(projects.map(project => [project.id, project])), [projects]);
 
   const projectRooms = useMemo(
     () => roomsForProject(rooms, resolvedProjectId),
@@ -75,18 +86,28 @@ export function ProjectCenterLauncher() {
     [rooms, resolvedProjectId],
   );
   const projectDecisions = useMemo(
-    () => decisions.filter(decision => decision.projectId === resolvedProjectId),
-    [decisions, resolvedProjectId],
+    () => (isAllProjects ? decisions : decisions.filter(decision => decision.projectId === resolvedProjectId)),
+    [decisions, isAllProjects, resolvedProjectId],
   );
   const projectActions = useMemo(
-    () => actionItems.filter(actionItem => actionItem.projectId === resolvedProjectId),
-    [actionItems, resolvedProjectId],
+    () => (isAllProjects ? actionItems : actionItems.filter(actionItem => actionItem.projectId === resolvedProjectId)),
+    [actionItems, isAllProjects, resolvedProjectId],
+  );
+  const visibleDecisions = useMemo(
+    () => (decisionStatusFilter === 'all' ? projectDecisions : projectDecisions.filter(decision => decision.status === decisionStatusFilter)),
+    [projectDecisions, decisionStatusFilter],
+  );
+  const visibleActions = useMemo(
+    () => (actionStatusFilter === 'all' ? projectActions : projectActions.filter(actionItem => actionItem.status === actionStatusFilter)),
+    [projectActions, actionStatusFilter],
   );
 
   const chooseProject = (id: string) => {
     setProjectId(id);
     setDecisionRoomId('');
     setActionRoomId('');
+    setDecisionStatusFilter('all');
+    setActionStatusFilter('all');
   };
 
   const openCenter = () => {
@@ -187,6 +208,18 @@ export function ProjectCenterLauncher() {
                 </div>
 
                 <div className="min-h-0 flex-1 overflow-y-auto p-3">
+                  <button
+                    type="button"
+                    onClick={() => { chooseProject(ALL_PROJECTS_ID); setTab('decisions'); }}
+                    className={`mb-3 flex w-full items-center gap-2 rounded-lg border px-3 py-2.5 text-start transition ${isAllProjects ? 'border-violet-300 bg-white shadow-sm' : 'border-transparent hover:border-slate-200 hover:bg-white'}`}
+                  >
+                    <span className="text-lg" aria-hidden="true">🗂️</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-xs font-semibold text-slate-800">All Projects</span>
+                      <span className="mt-0.5 block text-[10px] text-slate-400">Dashboard across every project</span>
+                    </span>
+                  </button>
+
                   <div className="mb-2 px-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Projects</div>
                   <div className="space-y-1.5">
                     {projects.map(project => {
@@ -215,10 +248,10 @@ export function ProjectCenterLauncher() {
                 <header className="flex items-center gap-4 border-b border-slate-200 px-5 py-4">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-xl" aria-hidden="true">{selectedProject?.emoji ?? '📁'}</span>
-                      <h3 className="truncate text-lg font-bold text-slate-900">{selectedProject?.name ?? 'Project'}</h3>
+                      <span className="text-xl" aria-hidden="true">{isAllProjects ? '🗂️' : selectedProject?.emoji ?? '📁'}</span>
+                      <h3 className="truncate text-lg font-bold text-slate-900">{isAllProjects ? 'All Projects' : selectedProject?.name ?? 'Project'}</h3>
                     </div>
-                    <p className="mt-1 truncate text-xs text-slate-500">{selectedProject?.description || 'No project description yet.'}</p>
+                    <p className="mt-1 truncate text-xs text-slate-500">{isAllProjects ? 'Every decision and action item across the workspace.' : selectedProject?.description || 'No project description yet.'}</p>
                   </div>
                   {activeRoom && selectedProject && activeRoom.projectId !== selectedProject.id ? (
                     <button
@@ -231,7 +264,7 @@ export function ProjectCenterLauncher() {
                     </button>
                   ) : null}
                   <div className="flex gap-2 text-[11px]">
-                    <span className="rounded-full bg-blue-50 px-2.5 py-1 font-semibold text-blue-700">{projectRooms.length} rooms</span>
+                    <span className="rounded-full bg-blue-50 px-2.5 py-1 font-semibold text-blue-700">{isAllProjects ? rooms.length : projectRooms.length} rooms</span>
                     <span className="rounded-full bg-amber-50 px-2.5 py-1 font-semibold text-amber-700">{projectDecisions.length} decisions</span>
                     <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">{projectActions.filter(item => item.status !== 'done').length} open actions</span>
                   </div>
@@ -249,7 +282,27 @@ export function ProjectCenterLauncher() {
                 </div>
 
                 <div className="min-h-0 flex-1 overflow-y-auto p-5">
-                  {tab === 'overview' && (
+                  {tab === 'overview' && isAllProjects && (
+                    <div className="space-y-4">
+                      <p className="text-xs text-slate-500">Room management is per project -- pick one from the sidebar. This is the workspace total.</p>
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-xl border border-slate-200 bg-white p-4">
+                          <div className="text-2xl font-bold text-slate-800">{projects.length}</div>
+                          <div className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Projects</div>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 bg-white p-4">
+                          <div className="text-2xl font-bold text-amber-700">{decisions.length}</div>
+                          <div className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Decisions</div>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 bg-white p-4">
+                          <div className="text-2xl font-bold text-emerald-700">{actionItems.filter(item => item.status !== 'done').length}</div>
+                          <div className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Open action items</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {tab === 'overview' && !isAllProjects && (
                     <div className="space-y-7">
                       <section className="space-y-3">
                         <div>
@@ -311,24 +364,44 @@ export function ProjectCenterLauncher() {
                   )}
 
                   {tab === 'decisions' && (
-                    <div className="grid gap-5 xl:grid-cols-[360px_1fr]">
-                      <div className="h-fit rounded-xl border border-slate-200 bg-slate-50 p-4">
-                        <h4 className="text-sm font-bold text-slate-800">Record a decision</h4>
-                        <p className="mt-1 text-[11px] text-slate-500">Start as Proposed, then explicitly approve or reverse it.</p>
-                        <input value={decisionTitle} onChange={event => setDecisionTitle(event.target.value)} placeholder="Decision title" className="mt-3 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs" />
-                        <textarea value={decisionDetails} onChange={event => setDecisionDetails(event.target.value)} placeholder="Decision details / rationale" rows={4} className="mt-2 w-full resize-y rounded-md border border-slate-300 bg-white px-3 py-2 text-xs" />
-                        <select value={decisionRoomId} onChange={event => setDecisionRoomId(event.target.value)} className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs">
-                          <option value="">Project-level decision</option>
-                          {projectRooms.map(room => <option key={room.id} value={room.id}>{room.emoji} {room.name}</option>)}
-                        </select>
-                        <input value={decisionEvidence} onChange={event => setDecisionEvidence(event.target.value)} placeholder="Evidence, message ID or note (optional)" className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs" />
-                        <button type="button" onClick={submitDecision} disabled={!decisionTitle.trim()} className="mt-3 w-full rounded-md bg-amber-500 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">Add Proposed Decision</button>
-                      </div>
+                    <div className={isAllProjects ? '' : 'grid gap-5 xl:grid-cols-[360px_1fr]'}>
+                      {isAllProjects ? null : (
+                        <div className="h-fit rounded-xl border border-slate-200 bg-slate-50 p-4">
+                          <h4 className="text-sm font-bold text-slate-800">Record a decision</h4>
+                          <p className="mt-1 text-[11px] text-slate-500">Start as Proposed, then explicitly approve or reverse it.</p>
+                          <input value={decisionTitle} onChange={event => setDecisionTitle(event.target.value)} placeholder="Decision title" className="mt-3 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs" />
+                          <textarea value={decisionDetails} onChange={event => setDecisionDetails(event.target.value)} placeholder="Decision details / rationale" rows={4} className="mt-2 w-full resize-y rounded-md border border-slate-300 bg-white px-3 py-2 text-xs" />
+                          <select value={decisionRoomId} onChange={event => setDecisionRoomId(event.target.value)} className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs">
+                            <option value="">Project-level decision</option>
+                            {projectRooms.map(room => <option key={room.id} value={room.id}>{room.emoji} {room.name}</option>)}
+                          </select>
+                          <input value={decisionEvidence} onChange={event => setDecisionEvidence(event.target.value)} placeholder="Evidence, message ID or note (optional)" className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs" />
+                          <button type="button" onClick={submitDecision} disabled={!decisionTitle.trim()} className="mt-3 w-full rounded-md bg-amber-500 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">Add Proposed Decision</button>
+                        </div>
+                      )}
 
-                      <div className="space-y-2">
-                        {projectDecisions.length === 0 ? <EmptyProjectState>No decisions recorded for this project.</EmptyProjectState> : null}
-                        {projectDecisions.map(decision => {
+                      <div className="space-y-3">
+                        <div className="flex flex-wrap gap-1.5">
+                          {(['all', ...Object.keys(decisionStatusLabel)] as Array<DecisionStatus | 'all'>).map(status => (
+                            <button
+                              key={status}
+                              type="button"
+                              onClick={() => setDecisionStatusFilter(status)}
+                              className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${decisionStatusFilter === status ? 'border-violet-300 bg-violet-100 text-violet-800' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'}`}
+                            >
+                              {status === 'all' ? 'All' : decisionStatusLabel[status]} ({status === 'all' ? projectDecisions.length : projectDecisions.filter(decision => decision.status === status).length})
+                            </button>
+                          ))}
+                        </div>
+
+                        {projectDecisions.length === 0 ? (
+                          <EmptyProjectState>{isAllProjects ? 'No decisions recorded anywhere in the workspace yet.' : 'No decisions recorded for this project.'}</EmptyProjectState>
+                        ) : visibleDecisions.length === 0 ? (
+                          <EmptyProjectState>No decisions match this filter.</EmptyProjectState>
+                        ) : null}
+                        {visibleDecisions.map(decision => {
                           const room = rooms.find(item => item.id === decision.roomId);
+                          const decisionProject = isAllProjects ? projectById.get(decision.projectId) : undefined;
                           return (
                             <article key={decision.id} className="rounded-xl border border-slate-200 bg-white p-4">
                               <div className="flex items-start gap-3">
@@ -336,6 +409,7 @@ export function ProjectCenterLauncher() {
                                   <h5 className="text-sm font-bold text-slate-800">{decision.title}</h5>
                                   {decision.details ? <p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-slate-600">{decision.details}</p> : null}
                                   <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-slate-400">
+                                    {decisionProject ? <span className="font-semibold text-violet-600">{decisionProject.emoji} {decisionProject.name}</span> : null}
                                     {room ? <span>{room.emoji} {room.name}</span> : <span>Project level</span>}
                                     {decision.evidence ? <span>Evidence: {decision.evidence}</span> : null}
                                   </div>
@@ -353,39 +427,60 @@ export function ProjectCenterLauncher() {
                   )}
 
                   {tab === 'actions' && (
-                    <div className="grid gap-5 xl:grid-cols-[360px_1fr]">
-                      <div className="h-fit rounded-xl border border-slate-200 bg-slate-50 p-4">
-                        <h4 className="text-sm font-bold text-slate-800">Create an action item</h4>
-                        <input value={actionTitle} onChange={event => setActionTitle(event.target.value)} placeholder="Action / task" className="mt-3 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs" />
-                        <div className="mt-2 grid grid-cols-2 gap-2">
-                          <input value={actionOwner} onChange={event => setActionOwner(event.target.value)} placeholder="Owner" className="rounded-md border border-slate-300 bg-white px-3 py-2 text-xs" />
-                          <input type="date" value={actionDeadline} onChange={event => setActionDeadline(event.target.value)} className="rounded-md border border-slate-300 bg-white px-3 py-2 text-xs" />
+                    <div className={isAllProjects ? '' : 'grid gap-5 xl:grid-cols-[360px_1fr]'}>
+                      {isAllProjects ? null : (
+                        <div className="h-fit rounded-xl border border-slate-200 bg-slate-50 p-4">
+                          <h4 className="text-sm font-bold text-slate-800">Create an action item</h4>
+                          <input value={actionTitle} onChange={event => setActionTitle(event.target.value)} placeholder="Action / task" className="mt-3 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs" />
+                          <div className="mt-2 grid grid-cols-2 gap-2">
+                            <input value={actionOwner} onChange={event => setActionOwner(event.target.value)} placeholder="Owner" className="rounded-md border border-slate-300 bg-white px-3 py-2 text-xs" />
+                            <input type="date" value={actionDeadline} onChange={event => setActionDeadline(event.target.value)} className="rounded-md border border-slate-300 bg-white px-3 py-2 text-xs" />
+                          </div>
+                          <div className="mt-2 grid grid-cols-2 gap-2">
+                            <select value={actionPriority} onChange={event => setActionPriority(event.target.value as ActionItemPriority)} className="rounded-md border border-slate-300 bg-white px-3 py-2 text-xs">
+                              <option value="low">Low priority</option>
+                              <option value="medium">Medium priority</option>
+                              <option value="high">High priority</option>
+                            </select>
+                            <select value={actionRoomId} onChange={event => setActionRoomId(event.target.value)} className="rounded-md border border-slate-300 bg-white px-3 py-2 text-xs">
+                              <option value="">Project level</option>
+                              {projectRooms.map(room => <option key={room.id} value={room.id}>{room.emoji} {room.name}</option>)}
+                            </select>
+                          </div>
+                          <input value={actionEvidence} onChange={event => setActionEvidence(event.target.value)} placeholder="Evidence or source note (optional)" className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs" />
+                          <button type="button" onClick={submitAction} disabled={!actionTitle.trim()} className="mt-3 w-full rounded-md bg-emerald-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">+ Add Action Item</button>
                         </div>
-                        <div className="mt-2 grid grid-cols-2 gap-2">
-                          <select value={actionPriority} onChange={event => setActionPriority(event.target.value as ActionItemPriority)} className="rounded-md border border-slate-300 bg-white px-3 py-2 text-xs">
-                            <option value="low">Low priority</option>
-                            <option value="medium">Medium priority</option>
-                            <option value="high">High priority</option>
-                          </select>
-                          <select value={actionRoomId} onChange={event => setActionRoomId(event.target.value)} className="rounded-md border border-slate-300 bg-white px-3 py-2 text-xs">
-                            <option value="">Project level</option>
-                            {projectRooms.map(room => <option key={room.id} value={room.id}>{room.emoji} {room.name}</option>)}
-                          </select>
-                        </div>
-                        <input value={actionEvidence} onChange={event => setActionEvidence(event.target.value)} placeholder="Evidence or source note (optional)" className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs" />
-                        <button type="button" onClick={submitAction} disabled={!actionTitle.trim()} className="mt-3 w-full rounded-md bg-emerald-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">+ Add Action Item</button>
-                      </div>
+                      )}
 
-                      <div className="space-y-2">
-                        {projectActions.length === 0 ? <EmptyProjectState>No action items for this project.</EmptyProjectState> : null}
-                        {projectActions.map(actionItem => {
+                      <div className="space-y-3">
+                        <div className="flex flex-wrap gap-1.5">
+                          {(['all', ...Object.keys(actionStatusLabel)] as Array<ActionItemStatus | 'all'>).map(status => (
+                            <button
+                              key={status}
+                              type="button"
+                              onClick={() => setActionStatusFilter(status)}
+                              className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${actionStatusFilter === status ? 'border-violet-300 bg-violet-100 text-violet-800' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'}`}
+                            >
+                              {status === 'all' ? 'All' : actionStatusLabel[status]} ({status === 'all' ? projectActions.length : projectActions.filter(actionItem => actionItem.status === status).length})
+                            </button>
+                          ))}
+                        </div>
+
+                        {projectActions.length === 0 ? (
+                          <EmptyProjectState>{isAllProjects ? 'No action items recorded anywhere in the workspace yet.' : 'No action items for this project.'}</EmptyProjectState>
+                        ) : visibleActions.length === 0 ? (
+                          <EmptyProjectState>No action items match this filter.</EmptyProjectState>
+                        ) : null}
+                        {visibleActions.map(actionItem => {
                           const room = rooms.find(item => item.id === actionItem.roomId);
+                          const actionProject = isAllProjects ? projectById.get(actionItem.projectId) : undefined;
                           return (
                             <article key={actionItem.id} className="rounded-xl border border-slate-200 bg-white p-4">
                               <div className="flex items-start gap-3">
                                 <div className="min-w-0 flex-1">
                                   <h5 className={`text-sm font-bold ${actionItem.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{actionItem.title}</h5>
                                   <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-500">
+                                    {actionProject ? <span className="font-semibold text-violet-600">{actionProject.emoji} {actionProject.name}</span> : null}
                                     <span>Owner: {actionItem.owner || 'Not assigned'}</span>
                                     <span>Deadline: {actionItem.deadline || 'Not set'}</span>
                                     <span className="font-semibold uppercase">{actionItem.priority}</span>
