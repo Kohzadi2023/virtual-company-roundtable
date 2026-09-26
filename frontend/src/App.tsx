@@ -17,7 +17,7 @@ import { ensureMeetingFacilitatorMembership } from '@/lib/roomMembershipActions'
 import { bootstrapPersistence, startPersistence } from '@/lib/storage';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
-const APP_VERSION = import.meta.env.VITE_APP_VERSION?.trim() || '2.8.10';
+const APP_VERSION = import.meta.env.VITE_APP_VERSION?.trim() || '2.8.11';
 // Dev diagnostics export room/session data, so keep them out of any build
 // that opts out explicitly (a public deployment sets VITE_ENABLE_DEV_TOOLS=
 // 'false'). Local `npm run dev` and any other build keep the current

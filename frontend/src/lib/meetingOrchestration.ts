@@ -187,16 +187,36 @@ export function ensureMeetingRoom(roomId: string, agentIds: string[]): MeetingRo
     return created;
   }
 
-  const roundStage = existing.roundStage ?? inferRoundStage(existing);
-  const phase = synchronizedPhase({ ...existing, roundStage });
-  const speakerStatus = statuses(order, existing.speakerStatus);
-  const activeSpeakerId = existing.activeSpeakerId && order.includes(existing.activeSpeakerId)
-    ? existing.activeSpeakerId
-    : roundStage === 'complete'
-      ? undefined
-      : order[0];
+  let roundStage = existing.roundStage ?? inferRoundStage(existing);
 
-  const unchanged = existing.phase === phase
+  // roundStage 'specialists' in round one is only ever reachable by
+  // markSpeakerStatus finding an actual specialist waiting in speakerOrder,
+  // so if every specialist that was once staffed has since left the room
+  // (agentIds now synced down to just the facilitator, or none at all),
+  // this combination is impossible by construction -- not a legitimate
+  // state. Nothing else clears it: buildStaffingRules/buildAvailableRoster
+  // gate on roundStage === 'opening', so a room stuck like this would never
+  // ask Olivia for a staffing plan again. Self-heal it back to the opening
+  // stage instead of leaving it stuck until someone notices and manually
+  // regenerates.
+  const staleSpecialistStage = existing.roundIndex === 0
+    && roundStage === 'specialists'
+    && specialistIds(order).length === 0;
+  const healedRound = staleSpecialistStage ? freshRoundState(order) : undefined;
+  if (healedRound) roundStage = healedRound.roundStage;
+
+  const phase = healedRound ? 'open' : synchronizedPhase({ ...existing, roundStage });
+  const speakerStatus = healedRound ? healedRound.speakerStatus : statuses(order, existing.speakerStatus);
+  const activeSpeakerId = healedRound
+    ? healedRound.activeSpeakerId
+    : existing.activeSpeakerId && order.includes(existing.activeSpeakerId)
+      ? existing.activeSpeakerId
+      : roundStage === 'complete'
+        ? undefined
+        : order[0];
+
+  const unchanged = !staleSpecialistStage
+    && existing.phase === phase
     && existing.roundStage === roundStage
     && arraysEqual(existing.speakerOrder, order)
     && speakerStatusesEqual(existing.speakerStatus, speakerStatus)
@@ -215,6 +235,7 @@ export function ensureMeetingRoom(roomId: string, agentIds: string[]): MeetingRo
     speakerOrder: order,
     speakerStatus,
     activeSpeakerId,
+    ...(staleSpecialistStage ? { startedAt: undefined, closedAt: undefined } : {}),
     updatedAt: Date.now(),
   };
   saveMeetingOrchestration({ ...state, rooms: { ...state.rooms, [roomId]: next } });

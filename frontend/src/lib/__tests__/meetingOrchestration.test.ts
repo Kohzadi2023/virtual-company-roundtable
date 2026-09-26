@@ -179,6 +179,37 @@ describe('meeting orchestration', () => {
     expect(restarted?.closedAt).toBeUndefined();
   });
 
+  it('self-heals a room stuck on the specialists stage after every specialist is removed', () => {
+    ensureMeetingRoom('room-a', [OLIVIA, EMMA]);
+    markSpeakerStatus('room-a', OLIVIA, 'responded');
+    const staffed = loadMeetingOrchestration().rooms['room-a'];
+    expect(staffed?.roundStage).toBe('specialists');
+    expect(staffed?.startedAt).toEqual(expect.any(Number));
+
+    // Emma leaves the room (e.g. removed from company directory), leaving
+    // only the facilitator -- this is the impossible combination.
+    const healed = ensureMeetingRoom('room-a', [OLIVIA]);
+    expect(healed.roundStage).toBe('opening');
+    expect(healed.speakerOrder).toEqual([OLIVIA]);
+    expect(healed.speakerStatus[OLIVIA]).toBe('waiting');
+    expect(healed.activeSpeakerId).toBe(OLIVIA);
+    expect(healed.startedAt).toBeUndefined();
+    expect(hasMeetingStarted(healed)).toBe(false);
+
+    const persisted = loadMeetingOrchestration().rooms['room-a'];
+    expect(persisted?.roundStage).toBe('opening');
+    expect(persisted?.startedAt).toBeUndefined();
+  });
+
+  it('leaves a legitimate specialists stage untouched while specialists are still present', () => {
+    ensureMeetingRoom('room-a', [OLIVIA, EMMA, MIKE]);
+    markSpeakerStatus('room-a', OLIVIA, 'responded');
+
+    const stillStaffed = ensureMeetingRoom('room-a', [OLIVIA, EMMA, MIKE]);
+    expect(stillStaffed.roundStage).toBe('specialists');
+    expect(stillStaffed.startedAt).toEqual(expect.any(Number));
+  });
+
   it('infers supported external chat providers directly from conversation URLs', () => {
     const cases = [
       ['https://chatgpt.com/c/example', 'ChatGPT'],
