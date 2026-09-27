@@ -6,6 +6,7 @@ import { copyText } from '@/lib/clipboard';
 import { buildFullChatText } from '@/lib/fullChat';
 import { deleteRoom } from '@/lib/roomActions';
 import { groupRoomsByProject } from '@/lib/roomGrouping';
+import { daysSinceActivity, isRoomStale } from '@/lib/roomStaleness';
 import { useClickOutside } from '@/lib/useClickOutside';
 import { useIsCompactViewport } from '@/lib/useIsCompactViewport';
 import { DEFAULT_PROJECT_ID, useWorkspaceStore } from '@/store/workspaceStore';
@@ -99,6 +100,7 @@ export function OtherRoomsPanel() {
   const renderRoomCard = (room: Room, nested: boolean) => {
     const active = room.id === activeRoomId;
     const hasMessages = room.messages.length > 0;
+    const stale = isRoomStale(room);
     return (
       <div
         key={room.id}
@@ -125,7 +127,13 @@ export function OtherRoomsPanel() {
           <button type="button" onClick={() => handleOpenSettings(room.id)} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[13px] text-slate-500 transition hover:bg-slate-100 hover:text-slate-800" title="Room Settings" aria-label={`Room Settings for ${room.name}`}>⚙</button>
           <button type="button" onClick={() => handleDelete(room.id, room.name)} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[13px] text-slate-400 transition hover:bg-rose-50 hover:text-rose-600" title="Delete Room" aria-label={`Delete ${room.name}`}>⌫</button>
         </div>
-        <button type="button" onClick={() => setActiveRoom(room.id)} className="mt-1.5 flex w-full items-center justify-between gap-2 text-start"><span className="min-w-0 truncate text-[10px] text-slate-400">{room.agentIds.length} specialists · {room.messages.length} messages</span>{active ? <span className="text-[9px] font-semibold text-blue-600">ACTIVE</span> : null}</button>
+        <button type="button" onClick={() => setActiveRoom(room.id)} className="mt-1.5 flex w-full items-center justify-between gap-2 text-start">
+          <span className="min-w-0 truncate text-[10px] text-slate-400">{room.agentIds.length} specialists · {room.messages.length} messages</span>
+          <span className="flex shrink-0 items-center gap-1.5">
+            {stale ? <span className="rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold text-amber-700" title="No new messages in a while">⏱ {daysSinceActivity(room)}d inactive</span> : null}
+            {active ? <span className="text-[9px] font-semibold text-blue-600">ACTIVE</span> : null}
+          </span>
+        </button>
       </div>
     );
   };
