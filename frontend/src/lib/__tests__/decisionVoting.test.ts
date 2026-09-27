@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   buildChecklistFollowUpRoomName,
   buildChecklistFollowUpSeedMessage,
+  buildDecisionFollowUpSeedMessage,
   decisionEvidenceForMessage,
   decisionVoteIdForMessage,
   findChecklistFollowUp,
@@ -122,5 +123,65 @@ describe('checklist item follow-up', () => {
   it('omits the evidence line when the checklist item has no evidence', () => {
     const message = buildChecklistFollowUpSeedMessage('Title', 'DEFER', 'Item text', undefined);
     expect(message).not.toContain('Evidence noted');
+  });
+});
+
+describe('Olivia decision follow-up recommendation', () => {
+  it('parses a follow-up recommendation when followUpNeeded is true', () => {
+    const content = `VC_DECISION_PROPOSAL\n\`\`\`json\n{
+      "title": "AI Secretary Agent Foundation",
+      "outcome": "CONDITIONAL_GO",
+      "details": "Foundation implementation only.",
+      "checklist": [{ "item": "Privacy contracts executable", "status": "blocker", "evidence": "PIA/TIA pending." }],
+      "voteQuestion": "Do you support this?",
+      "followUpNeeded": true,
+      "followUpTitle": "Privacy & Provider Readiness Review",
+      "followUpReason": "PIA/TIA, DPAs and provider selection remain unresolved."
+    }\n\`\`\``;
+
+    const proposal = parseOliviaDecisionProposal(content);
+    expect(proposal?.followUp).toEqual({
+      title: 'Privacy & Provider Readiness Review',
+      reason: 'PIA/TIA, DPAs and provider selection remain unresolved.',
+    });
+  });
+
+  it('leaves followUp undefined when followUpNeeded is false or a title is missing', () => {
+    const withoutNeed = `VC_DECISION_PROPOSAL\n\`\`\`json\n{
+      "title": "T", "outcome": "GO", "details": "D",
+      "checklist": [{ "item": "Item", "status": "satisfied" }],
+      "voteQuestion": "Q", "followUpNeeded": false, "followUpTitle": "", "followUpReason": ""
+    }\n\`\`\``;
+    expect(parseOliviaDecisionProposal(withoutNeed)?.followUp).toBeUndefined();
+
+    const missingTitle = `VC_DECISION_PROPOSAL\n\`\`\`json\n{
+      "title": "T", "outcome": "GO", "details": "D",
+      "checklist": [{ "item": "Item", "status": "satisfied" }],
+      "voteQuestion": "Q", "followUpNeeded": true, "followUpTitle": "", "followUpReason": "Some reason"
+    }\n\`\`\``;
+    expect(parseOliviaDecisionProposal(missingTitle)?.followUp).toBeUndefined();
+  });
+
+  it('builds a consolidated seed message listing every open checklist item', () => {
+    const message = buildDecisionFollowUpSeedMessage(
+      'AI Secretary Agent Foundation',
+      'CONDITIONAL_GO',
+      { title: 'Privacy & Provider Readiness Review', reason: 'PIA/TIA remain unresolved.' },
+      [
+        { item: 'PIA/TIA complete', status: 'blocker', evidence: 'Not started' },
+        { item: 'Telephony provider selected', status: 'condition' },
+      ],
+    );
+
+    expect(message).toContain('AI Secretary Agent Foundation');
+    expect(message).toContain('CONDITIONAL GO');
+    expect(message).toContain('PIA/TIA remain unresolved.');
+    expect(message).toContain('PIA/TIA complete (Not started)');
+    expect(message).toContain('Telephony provider selected');
+  });
+
+  it('falls back to a generic reason line when none was given', () => {
+    const message = buildDecisionFollowUpSeedMessage('T', 'GO', { title: 'Title', reason: '' }, []);
+    expect(message).toContain('Unresolved items remain from the decision checklist.');
   });
 });
