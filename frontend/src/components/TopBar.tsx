@@ -1,8 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Toast, type ToastMessage } from '@/components/Toast';
-import { copyText } from '@/lib/clipboard';
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
-import { buildFullChatText } from '@/lib/fullChat';
 import { getAgentRoomMembership } from '@/lib/roomMembership';
 import { addAllCompanyToRoom } from '@/lib/roomMembershipActions';
 import { useClickOutside } from '@/lib/useClickOutside';
@@ -77,16 +75,6 @@ export function TopBar() {
     return () => window.removeEventListener(OPEN_ROOM_SETTINGS_EVENT, openRoomSettings);
   }, [rooms, setActiveRoom]);
 
-  const copyFullChat = async () => {
-    if (!activeRoom || activeRoom.messages.length === 0) return;
-    try {
-      await copyText(buildFullChatText(activeRoom));
-      setToast({ id: Date.now(), text: 'Full chat copied to clipboard.', tone: 'success' });
-    } catch {
-      setToast({ id: Date.now(), text: 'Could not copy the chat.', tone: 'error' });
-    }
-  };
-
   const submitNewRoom = () => {
     const team = teams.find(item => item.id === newRoomTeamId);
     const id = createRoom(
@@ -155,10 +143,10 @@ export function TopBar() {
             <Suspense fallback={<LauncherButtonSkeleton />}><ProjectCenterLauncher /></Suspense>
           </div>
 
-          {/* Active-room actions, visually separated from the workspace-wide ones above */}
+          {/* Active-room actions, visually separated from the workspace-wide ones above.
+              Copy Full Chat lives per-room in the Other Rooms panel instead (next to
+              that room's name), rather than duplicated here for only the active room. */}
           <div className="flex shrink-0 items-center gap-2 border-s border-slate-200 ps-2">
-            <button type="button" onClick={copyFullChat} disabled={!activeRoom || activeRoom.messages.length === 0} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-blue-500 bg-white px-3 py-2 text-[13px] font-semibold text-blue-600 shadow-sm transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"><span aria-hidden="true">⧉</span> <span className="hidden sm:inline">Copy Full Chat</span></button>
-
             <div ref={roomMenuRef} className="relative shrink-0">
               <button type="button" onClick={() => setRoomMenuOpen(value => !value)} aria-expanded={roomMenuOpen} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[13px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"><span aria-hidden="true">⚙</span> <span className="hidden sm:inline">Room Settings</span></button>
 
