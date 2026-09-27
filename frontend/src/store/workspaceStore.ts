@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { agentContextKey, newId } from '@/lib/id';
 import { defaultAgents, defaultRoles, defaultTeams } from '@/lib/defaultCompany';
 import { latestRoomMessage } from '@/lib/contextDelta';
+import { avatarUrlForHire } from '@/lib/hireAvatar';
 import type {
   ActionItem,
   Agent,
@@ -215,7 +216,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         const existing = persistedAgentById.get(builtIn.id);
         return { ...existing, ...builtIn, createdAt: existing?.createdAt ?? builtIn.createdAt };
       }),
-      ...customAgents,
+      ...customAgents.map(agent => agent.avatarUrl ? agent : { ...agent, avatarUrl: avatarUrlForHire(agent.name) }),
     ];
 
     const agentById = new Map(agents.map(agent => [agent.id, agent]));
@@ -491,7 +492,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     const state = get();
     if (!state.roles.some(role => role.id === input.roleId)) return null;
     const id = newId();
-    const agent: Agent = { ...input, id, name, createdAt: Date.now() };
+    const agent: Agent = { ...input, id, name, avatarUrl: input.avatarUrl || avatarUrlForHire(name), createdAt: Date.now() };
     set(current => ({ agents: [...current.agents, agent] }));
     return id;
   },
