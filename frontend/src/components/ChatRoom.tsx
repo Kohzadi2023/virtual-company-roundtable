@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { ActionPanel } from '@/components/ActionPanel';
+import { DecisionProposalRecoveryCard } from '@/components/DecisionProposalRecoveryCard';
 import { DecisionVoteCard } from '@/components/DecisionVoteCard';
 import { DecisionVoteRuntime } from '@/components/DecisionVoteRuntime';
 import { MeetingBriefRuntime } from '@/components/MeetingBriefRuntime';
@@ -62,6 +63,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
           <MeetingPhaseTimerStrip roomId={room.id} />
         </div>
         <OliviaStaffingCard key={`${room.id}:${latestOliviaResponseId}`} roomId={room.id} />
+        <DecisionProposalRecoveryCard key={`decision:${room.id}:${latestOliviaResponseId}`} roomId={room.id} />
       </div>
 
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 pb-2 pt-2" role="log" aria-live="polite" aria-label="Company discussion">
