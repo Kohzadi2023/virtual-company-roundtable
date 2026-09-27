@@ -1,4 +1,3 @@
-import { avatarUrlForHire } from '@/lib/hireAvatar';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 import type { Message } from '@/types/domain';
 
@@ -270,7 +269,6 @@ export function applyOliviaStaffingPlan(roomId: string, plan: OliviaStaffingPlan
         roleId: role.id,
         emoji: hire.emoji || '🧑‍💼',
         color: '#0F766E',
-        avatarUrl: avatarUrlForHire(hire.agentName),
       });
       state = useWorkspaceStore.getState();
       agent = state.agents.find(item => item.id === agentId)

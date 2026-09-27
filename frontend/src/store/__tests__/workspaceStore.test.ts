@@ -102,6 +102,29 @@ describe('workspaceStore virtual company model', () => {
     expect(state.rooms[0]?.agentIds).toEqual(['agent-emma']);
   });
 
+  it('gives every custom agent a portrait: new ones on creation, already-saved ones on load', () => {
+    useWorkspaceStore.getState().seedDefaultCompany();
+    const roleId = useWorkspaceStore.getState().roles[0]!.id;
+    const created = useWorkspaceStore.getState().addAgent({ name: 'Evan', roleId, emoji: '🎙️', color: '#000000' });
+    const custom = useWorkspaceStore.getState().agents.find(agent => agent.id === created)!;
+    expect(custom.avatarUrl).toMatch(/randomuser\.me\/api\/portraits\/(men|women)\/\d+\.jpg$/);
+
+    const own = useWorkspaceStore.getState().addAgent({ name: 'Mina', roleId, emoji: '🧑', color: '#000000', avatarUrl: 'https://example.com/mina.png' });
+    expect(useWorkspaceStore.getState().agents.find(agent => agent.id === own)?.avatarUrl).toBe('https://example.com/mina.png');
+
+    useWorkspaceStore.setState(state => ({
+      agents: state.agents.map(agent => {
+        if (agent.id !== created) return agent;
+        const { avatarUrl: _removed, ...withoutAvatar } = agent;
+        return withoutAvatar;
+      }),
+    }));
+    useWorkspaceStore.getState().seedDefaultCompany();
+    const reloaded = useWorkspaceStore.getState().agents.find(agent => agent.id === created)!;
+    expect(reloaded.avatarUrl).toBe(custom.avatarUrl);
+    expect(useWorkspaceStore.getState().agents.every(agent => Boolean(agent.avatarUrl))).toBe(true);
+  });
+
   it('removes legacy duplicate built-ins and remaps room, message and cursor identity', () => {
     useWorkspaceStore.setState({
       roles: [{
