@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { isActionItemDueSoon, isActionItemOverdue } from '@/lib/actionItemDeadline';
 import { roomsForProject, roomsOutsideProject } from '@/lib/projectCenter';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 import type { ActionItemPriority, ActionItemStatus, DecisionStatus, Room } from '@/types/domain';
@@ -64,6 +65,7 @@ export function ProjectCenterLauncher() {
   const [actionRoomId, setActionRoomId] = useState('');
   const [decisionStatusFilter, setDecisionStatusFilter] = useState<DecisionStatus | 'all'>('all');
   const [actionStatusFilter, setActionStatusFilter] = useState<ActionItemStatus | 'all'>('all');
+  const [overdueOnly, setOverdueOnly] = useState(false);
 
   const activeRoom = rooms.find(room => room.id === activeRoomId);
   const isAllProjects = projectId === ALL_PROJECTS_ID;
@@ -97,10 +99,11 @@ export function ProjectCenterLauncher() {
     () => (decisionStatusFilter === 'all' ? projectDecisions : projectDecisions.filter(decision => decision.status === decisionStatusFilter)),
     [projectDecisions, decisionStatusFilter],
   );
-  const visibleActions = useMemo(
-    () => (actionStatusFilter === 'all' ? projectActions : projectActions.filter(actionItem => actionItem.status === actionStatusFilter)),
-    [projectActions, actionStatusFilter],
-  );
+  const visibleActions = useMemo(() => {
+    const byStatus = actionStatusFilter === 'all' ? projectActions : projectActions.filter(actionItem => actionItem.status === actionStatusFilter);
+    return overdueOnly ? byStatus.filter(actionItem => isActionItemOverdue(actionItem)) : byStatus;
+  }, [projectActions, actionStatusFilter, overdueOnly]);
+  const overdueCount = useMemo(() => projectActions.filter(actionItem => isActionItemOverdue(actionItem)).length, [projectActions]);
 
   const chooseProject = (id: string) => {
     setProjectId(id);
@@ -108,6 +111,7 @@ export function ProjectCenterLauncher() {
     setActionRoomId('');
     setDecisionStatusFilter('all');
     setActionStatusFilter('all');
+    setOverdueOnly(false);
   };
 
   const openCenter = () => {
@@ -464,6 +468,16 @@ export function ProjectCenterLauncher() {
                               {status === 'all' ? 'All' : actionStatusLabel[status]} ({status === 'all' ? projectActions.length : projectActions.filter(actionItem => actionItem.status === status).length})
                             </button>
                           ))}
+                          {overdueCount > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => setOverdueOnly(value => !value)}
+                              aria-pressed={overdueOnly}
+                              className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${overdueOnly ? 'border-rose-300 bg-rose-100 text-rose-800' : 'border-rose-200 bg-white text-rose-600 hover:bg-rose-50'}`}
+                            >
+                              ⏰ Overdue ({overdueCount})
+                            </button>
+                          ) : null}
                         </div>
 
                         {projectActions.length === 0 ? (
@@ -482,7 +496,9 @@ export function ProjectCenterLauncher() {
                                   <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-500">
                                     {actionProject ? <span className="font-semibold text-violet-600">{actionProject.emoji} {actionProject.name}</span> : null}
                                     <span>Owner: {actionItem.owner || 'Not assigned'}</span>
-                                    <span>Deadline: {actionItem.deadline || 'Not set'}</span>
+                                    <span className={isActionItemOverdue(actionItem) ? 'font-bold text-rose-600' : isActionItemDueSoon(actionItem) ? 'font-semibold text-amber-600' : undefined}>
+                                      Deadline: {actionItem.deadline || 'Not set'}{isActionItemOverdue(actionItem) ? ' (overdue)' : isActionItemDueSoon(actionItem) ? ' (due soon)' : ''}
+                                    </span>
                                     <span className="font-semibold uppercase">{actionItem.priority}</span>
                                     {room ? <span>{room.emoji} {room.name}</span> : <span>Project level</span>}
                                     {actionItem.evidence ? <span>Evidence: {actionItem.evidence}</span> : null}
