@@ -2,6 +2,7 @@ import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
 import {
   buildChecklistFollowUpRoomName,
   buildChecklistFollowUpSeedMessage,
+  buildDecisionFollowUpSeedMessage,
   decisionEvidenceForMessage,
   decisionVoteIdForMessage,
   findChecklistFollowUp,
@@ -123,6 +124,38 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
     });
   };
 
+  const openChecklistItems = record.proposal.checklist.filter(item => item.status !== 'satisfied');
+  const followUpRecommendation = record.proposal.followUp;
+  const consolidatedFollowUp = decision && followUpRecommendation
+    ? findChecklistFollowUp(actionItems, decision.id, followUpRecommendation.title)
+    : undefined;
+
+  const createConsolidatedFollowUp = () => {
+    if (!decision || !followUpRecommendation) return;
+    const confirmed = window.confirm(`Open one follow-up meeting "${followUpRecommendation.title}" covering all open checklist items? Olivia will assess whether the existing team or a new specialist is needed before discussion starts.`);
+    if (!confirmed) return;
+    const followUpRoomId = createRoom(
+      buildChecklistFollowUpRoomName(followUpRecommendation.title),
+      '🔁',
+      [MEETING_FACILITATOR_AGENT_ID],
+      [],
+      decision.projectId,
+    );
+    useWorkspaceStore.setState(current => ({
+      rooms: current.rooms.map(item => item.id === followUpRoomId ? { ...item, branchOfRoomId: room.id } : item),
+    }));
+    addUserMessage(followUpRoomId, buildDecisionFollowUpSeedMessage(decision.title, record.proposal.outcome, followUpRecommendation, openChecklistItems));
+    addActionItem({
+      projectId: decision.projectId,
+      roomId: followUpRoomId,
+      sourceDecisionId: decision.id,
+      title: followUpRecommendation.title,
+      evidence: followUpRecommendation.reason || undefined,
+      status: 'todo',
+      priority: openChecklistItems.some(item => item.status === 'blocker') ? 'high' : 'medium',
+    });
+  };
+
   const tally = (['agree', 'concern', 'disagree', 'abstain'] as VoteChoice[])
     .map(choice => [choice, Object.values(vote?.votes ?? {}).filter(value => value === choice).length] as const);
 
@@ -214,6 +247,37 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
           </div>
         </div>
       </div>
+
+      {followUpRecommendation ? (
+        <div className="border-t border-indigo-100 bg-indigo-50/40 px-4 py-3" aria-label="Olivia's follow-up meeting recommendation">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] font-bold uppercase tracking-wide text-indigo-600">Olivia recommends a follow-up meeting</div>
+              <div className="mt-1 text-sm font-semibold text-slate-800" dir="auto">{followUpRecommendation.title}</div>
+              {followUpRecommendation.reason ? <p className="mt-1 text-xs leading-5 text-slate-600" dir="auto">{followUpRecommendation.reason}</p> : null}
+            </div>
+            {consolidatedFollowUp ? (
+              <button
+                type="button"
+                onClick={() => consolidatedFollowUp.roomId && setActiveRoom(consolidatedFollowUp.roomId)}
+                disabled={!consolidatedFollowUp.roomId}
+                className="shrink-0 rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                ↪ Follow-up: {followUpStatusLabel[consolidatedFollowUp.status]}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={createConsolidatedFollowUp}
+                disabled={!decision}
+                className="shrink-0 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+              >
+                Create follow-up meeting
+              </button>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-4 py-3">
         <p className="max-w-2xl text-[10px] leading-4 text-slate-500">

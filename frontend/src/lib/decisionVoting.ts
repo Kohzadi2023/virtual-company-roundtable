@@ -11,12 +11,18 @@ export interface DecisionChecklistItem {
   evidence?: string;
 }
 
+export interface DecisionFollowUpRecommendation {
+  title: string;
+  reason: string;
+}
+
 export interface OliviaDecisionProposal {
   title: string;
   outcome: DecisionOutcome;
   details: string;
   checklist: DecisionChecklistItem[];
   voteQuestion: string;
+  followUp?: DecisionFollowUpRecommendation | undefined;
 }
 
 export interface SpecialistDecisionVote {
@@ -80,7 +86,14 @@ export function parseOliviaDecisionProposal(content: string): OliviaDecisionProp
     : [];
 
   if (checklist.length === 0) return null;
-  return { title, outcome: outcome as DecisionOutcome, details, checklist, voteQuestion };
+
+  const followUpTitle = cleanString(raw.followUpTitle);
+  const followUpReason = cleanString(raw.followUpReason);
+  const followUp = raw.followUpNeeded === true && followUpTitle
+    ? { title: followUpTitle, reason: followUpReason }
+    : undefined;
+
+  return { title, outcome: outcome as DecisionOutcome, details, checklist, voteQuestion, ...(followUp ? { followUp } : {}) };
 }
 
 export function parseSpecialistDecisionVote(content: string): SpecialistDecisionVote | null {
@@ -142,6 +155,23 @@ export function buildChecklistFollowUpSeedMessage(
     ...(checklistItemEvidence ? ['', `Evidence noted: ${checklistItemEvidence}`] : []),
     '',
     'Continue the discussion here until this item is resolved.',
+  ].join('\n');
+}
+
+export function buildDecisionFollowUpSeedMessage(
+  decisionTitle: string,
+  outcome: DecisionOutcome,
+  followUp: DecisionFollowUpRecommendation,
+  openItems: readonly DecisionChecklistItem[],
+): string {
+  const openLines = openItems.map(item => `- ${item.item}${item.evidence ? ` (${item.evidence})` : ''}`);
+  return [
+    `Follow-up meeting for the decision "${decisionTitle}" (${outcome.replaceAll('_', ' ')}).`,
+    '',
+    `Olivia's reason for this follow-up: ${followUp.reason || 'Unresolved items remain from the decision checklist.'}`,
+    ...(openLines.length > 0 ? ['', 'Open checklist items to resolve:', ...openLines] : []),
+    '',
+    'Continue the discussion here until these are resolved.',
   ].join('\n');
 }
 
