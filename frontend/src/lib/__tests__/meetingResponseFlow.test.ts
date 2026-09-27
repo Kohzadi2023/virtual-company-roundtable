@@ -37,6 +37,16 @@ const falseReadyWithHumanBlocker = `I assembled the team.\n\nVC_STAFFING_PLAN\n\
   "readiness": "TEAM_READY"
 }\n\`\`\``;
 
+const decisionProposalResponse = `Final proposal.\n\nVC_DECISION_PROPOSAL\n\`\`\`json\n{
+  "title": "AI Secretary Agent Foundation",
+  "outcome": "CONDITIONAL_GO",
+  "details": "Foundation implementation only; live providers remain blocked.",
+  "checklist": [
+    { "item": "Privacy contracts executable", "status": "blocker", "evidence": "PIA/TIA not yet complete." }
+  ],
+  "voteQuestion": "Do you support this decision proposal as written?"
+}\n\`\`\``;
+
 function setOliviaMessage(content: string) {
   useWorkspaceStore.setState(state => ({
     rooms: state.rooms.map(room => room.id === 'room-1'
@@ -163,5 +173,43 @@ describe('Olivia opening staffing gate', () => {
     // did not stall the queue waiting for a staffing plan that was already
     // resolved before round 1 started.
     expect(meeting?.roundStage).toBe('synthesis');
+  });
+});
+
+describe('Olivia final-round decision proposal gate', () => {
+  beforeEach(() => {
+    setMeetingRound('room-1', 3); // the final round of the default 4
+  });
+
+  it('keeps the meeting in the final round opening when Olivia responds without a decision proposal', () => {
+    setOliviaMessage('Here is my summary of where we landed. Overall this looks like a conditional go.');
+
+    const result = advanceAfterAgentResponse('room-1', MEETING_FACILITATOR_AGENT_ID);
+    const meeting = loadMeetingOrchestration().rooms['room-1'];
+
+    expect(result).toEqual({ advanced: false, reason: 'decision-proposal-missing' });
+    expect(meeting?.roundStage).toBe('opening');
+    expect(meeting?.speakerStatus[MEETING_FACILITATOR_AGENT_ID]).toBe('waiting');
+  });
+
+  it('advances once a valid VC_DECISION_PROPOSAL block is present', () => {
+    setOliviaMessage(decisionProposalResponse);
+
+    const result = advanceAfterAgentResponse('room-1', MEETING_FACILITATOR_AGENT_ID);
+    const meeting = loadMeetingOrchestration().rooms['room-1'];
+
+    expect(result).toEqual({ advanced: true, reason: 'advanced' });
+    // No specialists in this room, so the queue moves straight to synthesis
+    // (Olivia's own next turn) -- the key assertion is `advanced: true`,
+    // proving the decision-proposal gate let the round proceed.
+    expect(meeting?.roundStage).toBe('synthesis');
+  });
+
+  it('does not apply the decision-proposal gate to a non-final round opening', () => {
+    setMeetingRound('room-1', 2); // "Revised proposals", not yet the final round
+    setOliviaMessage('Opening round 3 with no decision proposal yet — that is only required in round 4.');
+
+    const result = advanceAfterAgentResponse('room-1', MEETING_FACILITATOR_AGENT_ID);
+    expect(result).toEqual({ advanced: true, reason: 'advanced' });
   });
 });
