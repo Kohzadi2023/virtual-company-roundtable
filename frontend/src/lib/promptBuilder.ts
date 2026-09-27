@@ -1,3 +1,4 @@
+import { isConsensusReached, roomDecisionConsensus, userSpokeAfterLatestProposal } from '@/lib/decisionVoting';
 import { MEETING_FACILITATOR_AGENT_ID, sharedAgentBehavior } from '@/lib/defaultCompany';
 import { getRoomLanguage } from '@/lib/languages';
 import { ensureMeetingRoom, hasMeetingStarted, type MeetingRoomState } from '@/lib/meetingOrchestration';
@@ -310,6 +311,24 @@ function buildStaffingRules(activeRoom: Room, meeting: MeetingRoomState): string
   ]);
 }
 
+/**
+ * Without this, a round whose votes were all "agree"/"concern" still ran the
+ * normal synthesis → "Revise the proposal" → re-vote loop, and the room
+ * collected the same positions again and again without ever closing.
+ */
+function consensusSection(activeRoom: Room, meeting: MeetingRoomState): string[] {
+  if (meeting.roundIndex < meeting.rounds.length - 1) return [];
+  if (userSpokeAfterLatestProposal(activeRoom.messages)) return [];
+  const consensus = roomDecisionConsensus(activeRoom, meeting);
+  if (!consensus || !isConsensusReached(consensus)) return [];
+  const { agree, concern, abstain } = consensus.counts;
+  return xmlSection('CONSENSUS_REACHED', [
+    `Every specialist has voted on the current decision proposal and none disagreed (${agree} agree, ${concern} concern, ${abstain} abstain).`,
+    'The decision direction is settled. Do NOT produce another revised proposal or ask for another vote, and do not emit a new VC_DECISION_PROPOSAL block.',
+    'Instead: state the final decision in one sentence, list each concern as a condition of that decision (with an owner only if one was explicitly named), and recommend that the user approve the decision and conclude the meeting.',
+  ]);
+}
+
 function oliviaMeetingSection(agent: Agent, activeRoom: Room | undefined): string[] {
   if (agent.id !== MEETING_FACILITATOR_AGENT_ID || !activeRoom) return [];
   // Must not depend on some other component (MeetingOrchestrationBar) having
@@ -356,7 +375,10 @@ function oliviaMeetingSection(agent: Agent, activeRoom: Room | undefined): strin
     ...xmlSection('MEETING_FACILITATION_INSTRUCTIONS', [
       stageInstruction,
       'Treat the readiness state in MEETING_CONTEXT as workflow guardrails. Do not claim a blocker is resolved unless the supplied workspace state or discussion shows that it is resolved.',
+      'MEETING_CONTEXT labels such as "Decision readiness" and "Close readiness" are internal workflow state: explain any blocker to the user in plain language instead of quoting those labels.',
+      'Do not repeat the user\'s request back verbatim at the start of your response.',
     ]),
+    ...consensusSection(activeRoom, meeting),
   ];
 }
 
@@ -398,6 +420,23 @@ function specialistMeetingSection(agent: Agent, activeRoom: Room | undefined): s
   ]);
 }
 
+/**
+ * Each agent keeps ONE external chat (see setExternalAgentChat), reused for
+ * every room it joins, so the model sees earlier meetings in its own thread.
+ * The app cannot clear that history; it can only mark the boundary so the
+ * agent stops importing another room's facts and verdicts as if they
+ * belonged here.
+ */
+export function roomScopeSection(activeRoom: Room | undefined): string[] {
+  if (!activeRoom) return [];
+  return xmlSection('ROOM_SCOPE', [
+    `Active room: "${activeRoom.name}" (room id ${activeRoom.id}).`,
+    'This chat thread may also contain earlier conversations from OTHER rooms or meetings. They are out of scope for this answer.',
+    'Do not reuse facts, figures, jurisdictions, customers, verdicts (such as GO / NO-GO), phases, or assumptions from those conversations unless the same information appears in this room\'s messages or in the memory sections of this prompt.',
+    'If you need information that exists only in another meeting, say so and ask for it to be shared in this room instead of assuming it.',
+  ]);
+}
+
 export function buildExternalChatTitleHint(agent: Pick<Agent, 'name'>): string[] {
   return [
     `CHAT TITLE: ${agent.name}`,
@@ -416,7 +455,7 @@ export function buildAgentPrompt(agent: Agent, role: RoleDefinition, messages: M
     : undefined;
   const suite = loadWorkspaceSuite();
   const companyId = activeRoom?.companyId ?? suite.activeCompanyId;
-  const shared = relevantSharedMemories(activeRoom?.projectId, companyId, query, agent.id, 24);
+  const shared = relevantSharedMemories(activeRoom?.projectId, companyId, query, agent.id, 24, activeRoom?.id);
   const companyMemories = shared.filter(entry => entry.scope === 'company');
   const projectMemories = shared.filter(entry => entry.scope === 'project');
   const systemAgentMemories = shared.filter(entry => entry.scope === 'agent-system');
@@ -443,6 +482,7 @@ export function buildAgentPrompt(agent: Agent, role: RoleDefinition, messages: M
     role.systemPrompt,
     sharedAgentBehavior,
     `Room working language: ${language.name} (${language.nativeName}). Write your entire response in this language unless the user explicitly asks for another language.`,
+    ...roomScopeSection(activeRoom),
     ...memorySections,
     ...(memorySections.length > 0 ? [
       'Treat active memories as prior working context, not as new user messages. Company memory is shared, project memory is project-scoped, and agent memory belongs only to this specialist. If current context conflicts with memory, surface the conflict instead of silently choosing one.',

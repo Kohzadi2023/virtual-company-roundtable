@@ -1,6 +1,7 @@
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
+import type { MeetingRoomState } from '@/lib/meetingOrchestration';
 import { useWorkspaceStore } from '@/store/workspaceStore';
-import type { ActionItem, Message, RoomVote, VoteChoice } from '@/types/domain';
+import type { ActionItem, Message, Room, RoomVote, VoteChoice } from '@/types/domain';
 
 export type DecisionOutcome = 'GO' | 'NO_GO' | 'CONDITIONAL_GO' | 'DEFER';
 export type DecisionChecklistStatus = 'satisfied' | 'condition' | 'blocker';
@@ -173,6 +174,72 @@ export function buildDecisionFollowUpSeedMessage(
     '',
     'Continue the discussion here until these are resolved.',
   ].join('\n');
+}
+
+/**
+ * - unanimous: every eligible specialist voted agree.
+ * - direction: everyone voted, nobody disagreed, and at least one concern
+ *   was raised. The direction is settled; the concerns are conditions to
+ *   record, not a reason for another proposal/vote cycle.
+ * - split: at least one disagree (or nobody supports the proposal).
+ * - incomplete: some eligible specialist has neither voted nor been skipped.
+ */
+export type DecisionConsensusStatus = 'unanimous' | 'direction' | 'split' | 'incomplete';
+
+export interface DecisionConsensus {
+  status: DecisionConsensusStatus;
+  counts: Record<VoteChoice, number>;
+  pendingAgentIds: string[];
+}
+
+export function assessDecisionConsensus(
+  votes: Readonly<Record<string, VoteChoice>>,
+  eligibleAgentIds: readonly string[],
+  skippedAgentIds: readonly string[] = [],
+): DecisionConsensus {
+  const skipped = new Set(skippedAgentIds);
+  const counts: Record<VoteChoice, number> = { agree: 0, concern: 0, disagree: 0, abstain: 0 };
+  const pendingAgentIds: string[] = [];
+  for (const agentId of eligibleAgentIds) {
+    const choice = votes[agentId];
+    if (choice) counts[choice] += 1;
+    else if (!skipped.has(agentId)) pendingAgentIds.push(agentId);
+  }
+  const status: DecisionConsensusStatus = eligibleAgentIds.length === 0 || pendingAgentIds.length > 0
+    ? 'incomplete'
+    : counts.disagree > 0 || counts.agree + counts.concern === 0
+      ? 'split'
+      : counts.concern > 0 ? 'direction' : 'unanimous';
+  return { status, counts, pendingAgentIds };
+}
+
+export function isConsensusReached(consensus: DecisionConsensus): boolean {
+  return consensus.status === 'unanimous' || consensus.status === 'direction';
+}
+
+/**
+ * True when the user spoke after the latest proposal — typically "Request
+ * revision" despite a consensus. An explicit user request outranks the
+ * consensus stop, so the stop is withdrawn until a new proposal is voted on.
+ */
+export function userSpokeAfterLatestProposal(messages: readonly Message[]): boolean {
+  const record = findLatestDecisionProposal([...messages]);
+  if (!record) return false;
+  const proposalIndex = messages.indexOf(record.message);
+  return messages.slice(proposalIndex + 1).some(message => message.authorType === 'user');
+}
+
+/** Consensus on the room's latest decision proposal, or null when there is no proposal yet. */
+export function roomDecisionConsensus(
+  room: Pick<Room, 'messages' | 'votes' | 'agentIds'>,
+  meeting: Pick<MeetingRoomState, 'speakerOrder' | 'speakerStatus'> | undefined,
+): DecisionConsensus | null {
+  const record = findLatestDecisionProposal(room.messages);
+  if (!record) return null;
+  const vote = room.votes?.find(item => item.id === decisionVoteIdForMessage(record.message.id));
+  const eligible = (meeting?.speakerOrder ?? room.agentIds).filter(id => id !== MEETING_FACILITATOR_AGENT_ID);
+  const skipped = eligible.filter(id => meeting?.speakerStatus[id] === 'skipped');
+  return assessDecisionConsensus(vote?.votes ?? {}, eligible, skipped);
 }
 
 export function decisionVoteIdForMessage(messageId: string): string {

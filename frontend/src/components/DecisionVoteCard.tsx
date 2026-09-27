@@ -7,10 +7,13 @@ import {
   decisionVoteIdForMessage,
   findChecklistFollowUp,
   findLatestDecisionProposal,
+  isConsensusReached,
   parseSpecialistDecisionVote,
+  roomDecisionConsensus,
+  userSpokeAfterLatestProposal,
   type DecisionChecklistStatus,
 } from '@/lib/decisionVoting';
-import { loadMeetingOrchestration, resetCurrentRound } from '@/lib/meetingOrchestration';
+import { concludeMeetingOnConsensus, loadMeetingOrchestration, resetCurrentRound } from '@/lib/meetingOrchestration';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 import type { ActionItemStatus, VoteChoice } from '@/types/domain';
 
@@ -72,16 +75,31 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
     && meeting.roundStage === 'complete'
     && meeting.roundIndex >= meeting.rounds.length - 1,
   );
-  const canApprove = Boolean(decision && decision.status === 'proposed' && voteComplete && finalRoundComplete);
+  const isFinalRound = Boolean(meeting && meeting.roundIndex >= meeting.rounds.length - 1);
+  const consensus = roomDecisionConsensus(room, meeting);
+  const consensusReached = Boolean(consensus && isConsensusReached(consensus) && !userSpokeAfterLatestProposal(room.messages));
+  // Consensus in the final round is a stopping point: the user may approve
+  // without waiting for another synthesis turn or requesting a revision that
+  // would only collect the same positions again.
+  const canApprove = Boolean(
+    decision
+    && decision.status === 'proposed'
+    && voteComplete
+    && (finalRoundComplete || (consensusReached && isFinalRound)),
+  );
 
   const approve = () => {
     if (!decision || !canApprove) return;
     updateDecision(decision.id, { status: 'approved' });
+    if (consensusReached) concludeMeetingOnConsensus(room.id);
   };
 
   const requestRevision = () => {
     if (!meeting) return;
-    const confirmed = window.confirm('Request a revised decision proposal from Olivia and restart the current final round?');
+    const prompt = consensusReached
+      ? 'No specialist disagrees with this proposal, so the team has already reached consensus on its direction. Another revision usually collects the same concerns again. Request a revision and restart the final round anyway?'
+      : 'Request a revised decision proposal from Olivia and restart the current final round?';
+    const confirmed = window.confirm(prompt);
     if (!confirmed) return;
     addUserMessage(room.id, 'Revise the current final decision proposal using the specialist vote concerns and blockers. Produce a new decision checklist and put the revised proposal back to the team for a fresh vote.');
     resetCurrentRound(room.id);
@@ -279,9 +297,22 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
         </div>
       ) : null}
 
+      {consensusReached && consensus && decision?.status !== 'approved' ? (
+        <div className="border-t border-emerald-100 bg-emerald-50/60 px-4 py-3 text-xs text-emerald-800" role="status" aria-label="Consensus reached">
+          <div className="font-bold">
+            {consensus.status === 'unanimous' ? 'Consensus reached — unanimous support.' : `Consensus reached on direction — no disagreement (${consensus.counts.agree} agree, ${consensus.counts.concern} concern).`}
+          </div>
+          <p className="mt-1 leading-5">
+            {consensus.status === 'direction'
+              ? 'The remaining concerns are conditions to track, not grounds for another voting cycle. Approve to conclude the meeting and move to actions; open a follow-up meeting for any condition that still needs work.'
+              : 'Approve to conclude the meeting and move to actions.'}
+          </p>
+        </div>
+      ) : null}
+
       <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-4 py-3">
         <p className="max-w-2xl text-[10px] leading-4 text-slate-500">
-          Specialist votes are decision evidence, not final authority. The user remains the final approver. Approval is enabled after the final round and all specialist votes are resolved or explicitly skipped.
+          Specialist votes are decision evidence, not final authority. The user remains the final approver. Approval is enabled after the final round and all specialist votes are resolved or explicitly skipped — or as soon as every vote is in and nobody disagrees.
         </p>
         <div className="flex gap-2">
           {decision?.status === 'approved' ? (
@@ -289,7 +320,7 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
           ) : (
             <>
               <button type="button" onClick={requestRevision} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">Request revision</button>
-              <button type="button" onClick={approve} disabled={!canApprove} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500">Approve voted decision</button>
+              <button type="button" onClick={approve} disabled={!canApprove} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500">{consensusReached ? 'Approve & conclude meeting' : 'Approve voted decision'}</button>
             </>
           )}
         </div>

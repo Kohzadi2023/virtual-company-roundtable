@@ -354,6 +354,7 @@ export function relevantSharedMemories(
   query = '',
   agentId?: string,
   limit = 20,
+  roomId?: string,
 ): SharedMemoryEntry[] {
   const currentTime = now();
   const entries = loadMemoryV2().sharedMemories
@@ -363,7 +364,12 @@ export function relevantSharedMemories(
     .filter(entry => {
       if (entry.scope === 'company') return true;
       if (entry.scope === 'project') return Boolean(projectId && entry.projectId === projectId);
-      return Boolean(agentId && entry.agentId === agentId && (!entry.projectId || entry.projectId === projectId));
+      if (!agentId || entry.agentId !== agentId || (entry.projectId && entry.projectId !== projectId)) return false;
+      // System state captured from one room (e.g. Olivia's per-room meeting
+      // state) describes that room only. Without this, every room outside a
+      // project received every other room's decisions and verdicts as
+      // "memory", and agents carried them into unrelated meetings.
+      return !entry.sourceRoomId || entry.sourceRoomId === roomId;
     });
   return rankMemoriesByRelevance(query, entries).slice(0, Math.max(1, limit));
 }

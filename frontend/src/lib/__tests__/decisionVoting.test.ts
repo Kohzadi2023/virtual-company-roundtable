@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  assessDecisionConsensus,
   buildChecklistFollowUpRoomName,
   buildChecklistFollowUpSeedMessage,
   buildDecisionFollowUpSeedMessage,
@@ -183,5 +184,17 @@ describe('Olivia decision follow-up recommendation', () => {
   it('falls back to a generic reason line when none was given', () => {
     const message = buildDecisionFollowUpSeedMessage('T', 'GO', { title: 'Title', reason: '' }, []);
     expect(message).toContain('Unresolved items remain from the decision checklist.');
+  });
+
+  it('treats a complete vote with no disagreement as consensus on direction', () => {
+    const eligible = ['a', 'b', 'c'];
+    expect(assessDecisionConsensus({ a: 'agree', b: 'agree', c: 'agree' }, eligible).status).toBe('unanimous');
+    expect(assessDecisionConsensus({ a: 'agree', b: 'concern', c: 'concern' }, eligible).status).toBe('direction');
+    expect(assessDecisionConsensus({ a: 'agree', b: 'concern', c: 'disagree' }, eligible).status).toBe('split');
+    expect(assessDecisionConsensus({ a: 'abstain', b: 'abstain', c: 'abstain' }, eligible).status).toBe('split');
+    const pending = assessDecisionConsensus({ a: 'agree' }, eligible, ['c']);
+    expect(pending.status).toBe('incomplete');
+    expect(pending.pendingAgentIds).toEqual(['b']);
+    expect(assessDecisionConsensus({ a: 'agree', b: 'concern' }, eligible, ['c']).status).toBe('direction');
   });
 });
