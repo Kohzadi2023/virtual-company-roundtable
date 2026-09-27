@@ -176,6 +176,7 @@ describe('Olivia meeting staffing', () => {
 
     expect(role).toBeTruthy();
     expect(hire?.roleId).toBe(role?.id);
+    expect(hire?.avatarUrl).toMatch(/^https:\/\/randomuser\.me\/api\/portraits\/(men|women)\/\d+\.jpg$/);
     expect(team?.agentIds).toEqual(expect.arrayContaining(['agent-emma', 'agent-mike', hire!.id]));
     expect(room?.teamIds).toContain(team?.id);
     expect(room?.agentIds).toEqual(expect.arrayContaining(['agent-emma', 'agent-mike', hire!.id]));
