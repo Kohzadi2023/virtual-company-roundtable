@@ -105,6 +105,12 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
       [],
       decision.projectId,
     );
+    // Marks it as a branch of this room so the sidebar (OtherRoomsPanel via
+    // roomGrouping.ts) nests it under the meeting it followed up on, instead
+    // of listing it as an unrelated sibling.
+    useWorkspaceStore.setState(current => ({
+      rooms: current.rooms.map(item => item.id === followUpRoomId ? { ...item, branchOfRoomId: room.id } : item),
+    }));
     addUserMessage(followUpRoomId, buildChecklistFollowUpSeedMessage(decision.title, record.proposal.outcome, itemText, itemEvidence));
     addActionItem({
       projectId: decision.projectId,

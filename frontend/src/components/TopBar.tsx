@@ -129,7 +129,7 @@ export function TopBar() {
 
   return (
     <>
-      <header className="relative z-40 flex h-14 shrink-0 border-b border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+      <header className="relative z-40 flex min-h-14 shrink-0 flex-wrap border-b border-slate-200 bg-white py-2 shadow-[0_1px_2px_rgba(15,23,42,0.03)] sm:flex-nowrap">
         <div className="hidden shrink-0 items-center gap-3 border-e border-slate-200 px-5 sm:flex sm:w-[318px]">
           <CompanyLogo />
           <div className="min-w-0">
@@ -138,10 +138,10 @@ export function TopBar() {
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto px-3 sm:gap-3 sm:px-4">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-violet-50 text-violet-600" aria-hidden="true">▣</div>
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 px-3 sm:flex-nowrap sm:gap-3 sm:px-4">
+          <div className="grid h-9 w-9 shrink-0 place-items-center self-start rounded-lg bg-violet-50 text-violet-600" aria-hidden="true">▣</div>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-[17px] font-bold text-[#111b3a]">{activeRoom?.name ?? 'Company Roundtable'}</h1>
+            <h1 dir="auto" className="line-clamp-2 break-words text-start text-[17px] font-bold leading-5 text-[#111b3a]">{activeRoom?.name ?? 'Company Roundtable'}</h1>
             <p className="truncate text-[13px] text-slate-500">
               {activeRoom
                 ? `${activeProject ? `${activeProject.emoji} ${activeProject.name} · ` : ''}${activeRoom.agentIds.length} specialists in this room`
@@ -149,9 +149,14 @@ export function TopBar() {
             </p>
           </div>
 
+          {/* Workspace-wide actions (not scoped to the active room) */}
           <div className="flex shrink-0 items-center gap-2">
             <Suspense fallback={<LauncherButtonSkeleton />}><WorkspaceSuiteLauncher /></Suspense>
             <Suspense fallback={<LauncherButtonSkeleton />}><ProjectCenterLauncher /></Suspense>
+          </div>
+
+          {/* Active-room actions, visually separated from the workspace-wide ones above */}
+          <div className="flex shrink-0 items-center gap-2 border-s border-slate-200 ps-2">
             <button type="button" onClick={copyFullChat} disabled={!activeRoom || activeRoom.messages.length === 0} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-blue-500 bg-white px-3 py-2 text-[13px] font-semibold text-blue-600 shadow-sm transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"><span aria-hidden="true">⧉</span> <span className="hidden sm:inline">Copy Full Chat</span></button>
 
             <div ref={roomMenuRef} className="relative shrink-0">
@@ -257,11 +262,11 @@ export function TopBar() {
                 </div>
               )}
             </div>
+          </div>
 
-            <div className="ms-2 flex items-center gap-2 border-s border-slate-200 ps-4">
-              <span className="grid h-9 w-9 place-items-center rounded-full bg-blue-600 text-sm font-bold text-white">U</span>
-              <div><div className="text-[13px] font-semibold text-slate-900">User</div><div className="text-[11px] text-slate-500">Owner</div></div>
-            </div>
+          <div className="flex shrink-0 items-center gap-2 border-s border-slate-200 ps-4">
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-blue-600 text-sm font-bold text-white">U</span>
+            <div><div className="text-[13px] font-semibold text-slate-900">User</div><div className="text-[11px] text-slate-500">Owner</div></div>
           </div>
         </div>
       </header>
