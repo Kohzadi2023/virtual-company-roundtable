@@ -330,6 +330,33 @@ export function startNextRound(roomId: string): boolean {
   return true;
 }
 
+/**
+ * Ends the final round early once the team has reached consensus on the
+ * decision proposal and the user approved it: nobody is left to persuade, so
+ * waiting for (or re-running) more turns only produces repeat messages. The
+ * caller is responsible for checking consensus; this only moves the state.
+ */
+export function concludeMeetingOnConsensus(roomId: string): boolean {
+  const state = loadMeetingOrchestration();
+  const current = state.rooms[roomId];
+  if (!current || current.roundIndex < current.rounds.length - 1) return false;
+  const stamp = Date.now();
+  saveMeetingOrchestration({
+    ...state,
+    rooms: {
+      ...state.rooms,
+      [roomId]: {
+        ...current,
+        phase: current.phase === 'closed' ? 'closed' : 'actions',
+        roundStage: 'complete',
+        activeSpeakerId: undefined,
+        updatedAt: stamp,
+      },
+    },
+  });
+  return true;
+}
+
 export function resetCurrentRound(roomId: string): boolean {
   const current = loadMeetingOrchestration().rooms[roomId];
   if (!current || !hasMeetingStarted(current)) return false;

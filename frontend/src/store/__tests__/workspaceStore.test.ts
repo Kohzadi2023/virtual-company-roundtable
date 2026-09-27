@@ -253,4 +253,26 @@ describe('workspaceStore virtual company model', () => {
     expect(useWorkspaceStore.getState().agents.find(agent => agent.id === agentId)?.roleId).toBe(roleId);
     expect(useWorkspaceStore.getState().rooms.find(room => room.id === currentRoomId)?.agentIds).not.toContain(agentId);
   });
+
+  it('cleans agent responses and refuses a duplicate copy of an existing reply', () => {
+    useWorkspaceStore.getState().seedDefaultCompany();
+    const state = useWorkspaceStore.getState();
+    const roomId = state.rooms[0]!.id;
+    const mike = state.agents.find(agent => agent.name === 'Mike')!;
+    useWorkspaceStore.getState().toggleAgentInRoom(roomId, mike.id);
+
+    useWorkspaceStore.getState().addUserMessage(roomId, 'Review this rollout plan in detail please.');
+    const first = useWorkspaceStore.getState().addAgentMessage(
+      roomId,
+      mike.id,
+      'Review this rollout plan in detail please.\n\nThe main risk is state drift. :chatgpt-content-reference{index="0"}',
+    );
+    const duplicate = useWorkspaceStore.getState().addAgentMessage(roomId, mike.id, 'The main risk is  state drift.');
+
+    expect(first).not.toBeNull();
+    expect(duplicate).toBeNull();
+    const agentMessages = useWorkspaceStore.getState().rooms[0]!.messages.filter(message => message.authorType === 'agent');
+    expect(agentMessages).toHaveLength(1);
+    expect(agentMessages[0]!.content).toBe('The main risk is state drift.');
+  });
 });
