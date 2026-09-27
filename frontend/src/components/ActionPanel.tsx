@@ -151,6 +151,10 @@ export function ActionPanel({ roomId }: { roomId: string }) {
         notify(`Olivia's response was saved, but ${blockerCount || 'required'} staffing blocker${blockerCount === 1 ? '' : 's'} remain. The meeting is paused.`, 'info');
         return;
       }
+      if (advance.reason === 'decision-proposal-missing') {
+        notify("Olivia's response was saved, but it did not include a valid decision proposal. The final round is paused until she produces one — ask her to try again.", 'info');
+        return;
+      }
       notify('The response was saved, but the meeting room could not be advanced.', 'error');
     }
   };
