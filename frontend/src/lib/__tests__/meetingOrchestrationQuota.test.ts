@@ -44,8 +44,13 @@ describe('meeting orchestration quota resilience', () => {
   });
 
   it('does not throw and keeps the newest state readable when the dedicated localStorage key is full', () => {
-    const originalSetItem = Storage.prototype.setItem;
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key: string, value: string) {
+    // In some Windows/Vitest/jsdom combinations, window.localStorage does not
+    // dispatch through the global Storage.prototype object. Spy on the actual
+    // prototype backing this localStorage instance so the quota simulation is
+    // portable across environments.
+    const storagePrototype = Object.getPrototypeOf(localStorage) as Storage;
+    const originalSetItem = storagePrototype.setItem;
+    vi.spyOn(storagePrototype, 'setItem').mockImplementation(function (this: Storage, key: string, value: string) {
       if (this === localStorage && key === KEY) {
         throw new DOMException('storage full', 'QuotaExceededError');
       }
@@ -60,9 +65,10 @@ describe('meeting orchestration quota resilience', () => {
   });
 
   it('returns to durable localStorage and removes the session fallback after quota pressure clears', () => {
-    const originalSetItem = Storage.prototype.setItem;
+    const storagePrototype = Object.getPrototypeOf(localStorage) as Storage;
+    const originalSetItem = storagePrototype.setItem;
     let blockMeetingWrites = true;
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key: string, value: string) {
+    vi.spyOn(storagePrototype, 'setItem').mockImplementation(function (this: Storage, key: string, value: string) {
       if (this === localStorage && key === KEY && blockMeetingWrites) {
         throw new DOMException('storage full', 'QuotaExceededError');
       }
