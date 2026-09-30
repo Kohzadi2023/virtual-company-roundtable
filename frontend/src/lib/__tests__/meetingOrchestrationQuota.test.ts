@@ -45,7 +45,7 @@ describe('meeting orchestration quota resilience', () => {
 
   it('does not throw and keeps the newest state readable when the dedicated localStorage key is full', () => {
     const originalSetItem = Storage.prototype.setItem;
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (key: string, value: string) {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key: string, value: string) {
       if (this === localStorage && key === KEY) {
         throw new DOMException('storage full', 'QuotaExceededError');
       }
@@ -62,7 +62,7 @@ describe('meeting orchestration quota resilience', () => {
   it('returns to durable localStorage and removes the session fallback after quota pressure clears', () => {
     const originalSetItem = Storage.prototype.setItem;
     let blockMeetingWrites = true;
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (key: string, value: string) {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key: string, value: string) {
       if (this === localStorage && key === KEY && blockMeetingWrites) {
         throw new DOMException('storage full', 'QuotaExceededError');
       }
