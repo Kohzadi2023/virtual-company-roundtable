@@ -1,6 +1,8 @@
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
+import { setLocalStorageWithQuotaRecovery } from '@/lib/localStorageQuota';
 
 const KEY = 'virtual-company:meeting-orchestration:v1';
+const SESSION_FALLBACK_KEY = 'virtual-company:meeting-orchestration:overflow:v1';
 export const MEETING_ORCHESTRATION_EVENT = 'virtual-company:meeting-orchestration-changed';
 
 export type MeetingPhase = 'open' | 'collect' | 'challenge' | 'resolve' | 'decision' | 'actions' | 'closed';
@@ -45,6 +47,7 @@ export interface MeetingBriefPatch {
 
 const DEFAULT_ROUNDS = ['Initial opinions', 'Critique', 'Revised proposals', 'Final decision'];
 const ROUND_PHASES: MeetingPhase[] = ['collect', 'challenge', 'resolve', 'decision'];
+let volatileMeetingState: MeetingOrchestrationState | null = null;
 
 function defaults(): MeetingOrchestrationState {
   return { rooms: {}, chats: {} };
@@ -75,8 +78,14 @@ export function inferExternalChatProvider(value: string): ExternalChatProvider {
 }
 
 export function loadMeetingOrchestration(): MeetingOrchestrationState {
+  if (volatileMeetingState) return volatileMeetingState;
+
   try {
-    const parsed = JSON.parse(localStorage.getItem(KEY) ?? '') as Partial<MeetingOrchestrationState>;
+    // A failed localStorage write is mirrored into sessionStorage so the
+    // current tab can survive reloads while the normal persistence pipeline
+    // still has a chance to sync the extension bundle remotely.
+    const raw = sessionStorage.getItem(SESSION_FALLBACK_KEY) ?? localStorage.getItem(KEY) ?? '';
+    const parsed = JSON.parse(raw) as Partial<MeetingOrchestrationState>;
     const savedChats = parsed.chats ?? {};
     const chats = Object.fromEntries(Object.entries(savedChats).map(([agentId, chat]) => [
       agentId,
@@ -96,7 +105,30 @@ export function loadMeetingOrchestration(): MeetingOrchestrationState {
 }
 
 export function saveMeetingOrchestration(state: MeetingOrchestrationState): void {
-  localStorage.setItem(KEY, JSON.stringify(state));
+  const serialized = JSON.stringify(state);
+  const result = setLocalStorageWithQuotaRecovery(KEY, serialized);
+
+  if (result.ok) {
+    volatileMeetingState = null;
+    try {
+      sessionStorage.removeItem(SESSION_FALLBACK_KEY);
+    } catch {
+      // Best effort only; a stale fallback is replaced on the next failed save.
+    }
+  } else {
+    // Never let a browser quota error tear down the React tree. Keep the newest
+    // state live in memory and mirror it into sessionStorage when possible. The
+    // extension-change event below also schedules the canonical/remote snapshot
+    // path, whose quota handling is independent of this dedicated key.
+    volatileMeetingState = state;
+    try {
+      sessionStorage.setItem(SESSION_FALLBACK_KEY, serialized);
+    } catch {
+      // In-memory continuity is still preferable to throwing and crashing.
+    }
+    console.warn('[Meeting Orchestration] Dedicated localStorage write failed; continuing with overflow state.', result.error);
+  }
+
   window.dispatchEvent(new CustomEvent(MEETING_ORCHESTRATION_EVENT));
 }
 
