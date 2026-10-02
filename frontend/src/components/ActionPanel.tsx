@@ -10,6 +10,7 @@ import {
   type ExtensionResponseEvent,
 } from '@/lib/extensionBridge';
 import { agentContextKey } from '@/lib/id';
+import { formatUsd } from '@/lib/llm/apiRun';
 import { getExternalAgentChat, loadMeetingOrchestration, MEETING_ORCHESTRATION_EVENT } from '@/lib/meetingOrchestration';
 import { advanceAfterAgentResponse } from '@/lib/meetingResponseFlow';
 import { findDuplicateAgentMessage, sanitizeAgentResponse } from '@/lib/responseSanitizer';
@@ -129,49 +130,63 @@ export function ActionPanel({ roomId }: { roomId: string }) {
     }
   };
 
-  const submitAgent = () => {
-    if (!selectedAgent || !agentResponse.trim()) return;
-    const duplicate = findDuplicateAgentMessage(room.messages, sanitizeAgentResponse(agentResponse, room.messages));
+  /**
+   * Adds an agent's response and advances the speaking queue. Reads the store
+   * directly instead of this render's closure because the API path calls it
+   * after an await, when the closed-over room and queue may be stale.
+   * Returns true when the response was added.
+   */
+  const submitResponse = (agentId: string, content: string, viaApiNote = ''): boolean => {
+    const state = useWorkspaceStore.getState();
+    const currentRoom = state.rooms.find(item => item.id === roomId);
+    const agent = state.agents.find(item => item.id === agentId);
+    if (!currentRoom || !agent || !content.trim()) return false;
+
+    const duplicate = findDuplicateAgentMessage(currentRoom.messages, sanitizeAgentResponse(content, currentRoom.messages));
     if (duplicate) {
-      notify(`Not added: this response is identical to ${duplicate.authorNameSnapshot ?? 'an agent'}'s earlier message in this room. Paste ${selectedAgent.name}'s new reply instead.`, 'error');
-      return;
+      notify(`Not added: this response is identical to ${duplicate.authorNameSnapshot ?? 'an agent'}'s earlier message in this room. Paste ${agent.name}'s new reply instead.`, 'error');
+      return false;
     }
-    if (addAgentMessage(room.id, selectedAgent.id, agentResponse)) {
-      setAgentResponse('');
-      const advance = advanceAfterAgentResponse(room.id, selectedAgent.id);
+    if (!state.addAgentMessage(currentRoom.id, agent.id, content)) return false;
 
-      if (advance.advanced) {
-        const nextSpeaker = loadMeetingOrchestration().rooms[room.id]?.activeSpeakerId;
-        if (nextSpeaker && room.agentIds.includes(nextSpeaker)) setSelectedAgentId(nextSpeaker);
-        notify(`${selectedAgent.name}'s response added and speaking queue advanced.`);
-        return;
-      }
+    const advance = advanceAfterAgentResponse(currentRoom.id, agent.id);
+    const added = `${agent.name}'s response added${viaApiNote}`;
 
-      if (advance.reason === 'staffing-plan-missing') {
-        notify("Olivia's response was saved, but no valid staffing plan was detected. The meeting is paused in staffing.", 'info');
-        return;
-      }
-      if (advance.reason === 'staffing-plan-pending-approval') {
-        notify("Olivia's staffing plan is ready. Review it above and click Invite Team before the meeting continues.", 'info');
-        return;
-      }
-      if (advance.reason === 'staffing-not-ready') {
-        const blockerCount = advance.readiness?.blockers.length ?? 0;
-        notify(`Olivia's response was saved, but ${blockerCount || 'required'} staffing blocker${blockerCount === 1 ? '' : 's'} remain. The meeting is paused.`, 'info');
-        return;
-      }
-      if (advance.reason === 'decision-proposal-missing') {
-        notify("Olivia's response was saved, but it did not include a valid decision proposal. The final round is paused until she produces one — ask her to try again.", 'info');
-        return;
-      }
-      notify('The response was saved, but the meeting room could not be advanced.', 'error');
+    if (advance.advanced) {
+      const nextSpeaker = loadMeetingOrchestration().rooms[currentRoom.id]?.activeSpeakerId;
+      if (nextSpeaker && currentRoom.agentIds.includes(nextSpeaker)) setSelectedAgentId(nextSpeaker);
+      notify(`${added} and speaking queue advanced.`);
+      return true;
     }
+
+    if (advance.reason === 'staffing-plan-missing') {
+      notify(`${added}, but no valid staffing plan was detected. The meeting is paused in staffing.`, 'info');
+    } else if (advance.reason === 'staffing-plan-pending-approval') {
+      notify(`${added}. Olivia's staffing plan is ready: review it above and click Invite Team before the meeting continues.`, 'info');
+    } else if (advance.reason === 'staffing-not-ready') {
+      const blockerCount = advance.readiness?.blockers.length ?? 0;
+      notify(`${added}, but ${blockerCount || 'required'} staffing blocker${blockerCount === 1 ? '' : 's'} remain. The meeting is paused.`, 'info');
+    } else if (advance.reason === 'decision-proposal-missing') {
+      notify(`${added}, but it did not include a valid decision proposal. The final round is paused until Olivia produces one — ask her to try again.`, 'info');
+    } else {
+      notify(`${added}, but the meeting room could not be advanced.`, 'error');
+    }
+    return true;
   };
 
-  const receiveApiResponse = (agentId: string, text: string) => {
+  const submitAgent = () => {
+    if (!selectedAgent || !agentResponse.trim()) return;
+    if (submitResponse(selectedAgent.id, agentResponse)) setAgentResponse('');
+  };
+
+  const receiveApiResponse = (agentId: string, text: string, costUsd: number) => {
     if (agentId !== selectedAgentIdRef.current) return;
+    // "Run via API" adds the answer itself. Only if it cannot be added (for
+    // example an identical earlier message) is it left in the box to edit.
+    if (submitResponse(agentId, text, ` via API (~${formatUsd(costUsd)})`)) return;
     setTab('agent');
     setAgentResponse(text);
+    notify('The API answered, but the response could not be added automatically. It is in the box for you to review.', 'error');
   };
 
   const pasteAgentResponse = async () => {
