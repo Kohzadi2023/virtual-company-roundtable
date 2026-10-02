@@ -2,6 +2,7 @@ import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
 import { buildApiTurnPrompt } from '@/lib/llm/apiContext';
 import { estimateRunCostUsd, runPromptViaApi, describeLlmError, isCancelled } from '@/lib/llm/apiRun';
 import type { ApiRunResult } from '@/lib/llm/apiRun';
+import { getLlmSettings, modelForAgent } from '@/lib/llm/llmSettings';
 import { ensureMeetingRoom, hasMeetingStarted } from '@/lib/meetingOrchestration';
 import type { MeetingRoomState } from '@/lib/meetingOrchestration';
 import type { MeetingResponseAdvanceReason } from '@/lib/meetingResponseFlow';
@@ -38,7 +39,7 @@ export interface AutoRunOptions {
   signal?: AbortSignal | undefined;
   onProgress?: ((progress: AutoRunProgress) => void) | undefined;
   /** Injectable for tests. */
-  runPrompt?: ((prompt: string, roomId: string, signal?: AbortSignal) => Promise<ApiRunResult>) | undefined;
+  runPrompt?: ((prompt: string, roomId: string, signal?: AbortSignal, agentId?: string) => Promise<ApiRunResult>) | undefined;
 }
 
 /** Average size of one added message, used only for cost forecasting. */
@@ -80,7 +81,11 @@ export function buildCurrentTurnPrompt(roomId: string): { prompt: string; agentI
   const agent = state.agents.find(item => item.id === meeting.activeSpeakerId && room.agentIds.includes(item.id));
   const role = agent ? state.roles.find(item => item.id === agent.roleId) : undefined;
   if (!agent || !role) return null;
-  return { prompt: buildApiTurnPrompt(room, agent, role).prompt, agentId: agent.id, agentName: agent.name };
+  return {
+    prompt: buildApiTurnPrompt(room, agent, role, { tokenSaver: getLlmSettings().tokenSaver }).prompt,
+    agentId: agent.id,
+    agentName: agent.name,
+  };
 }
 
 /** The current turn's prompt plus the matching recovery instruction, or null if none applies. */
@@ -164,7 +169,7 @@ export async function autoRunRound(roomId: string, options: AutoRunOptions = {})
       options.onProgress?.({ agentName: turn.agentName, turn: completedTurns + 1, retry: retried });
       let result: ApiRunResult;
       try {
-        result = await runPrompt(prompt, roomId, options.signal);
+        result = await runPrompt(prompt, roomId, options.signal, turn.agentId);
       } catch (error) {
         if (isCancelled(error)) return stop('cancelled', 'Stopped.');
         const detail = describeLlmError(error);
