@@ -7,6 +7,7 @@ import { ChatRoom } from '@/components/ChatRoom';
 import { CollapsibleCompanyDirectory } from '@/components/CollapsibleCompanyDirectory';
 import { DevToolsMenu } from '@/components/DevToolsMenu';
 import { FooterToolsMenu } from '@/components/FooterToolsMenu';
+import { MeetingAttentionBadge } from '@/components/MeetingAttentionBadge';
 import { MemoryCenterDialogHost } from '@/components/MemoryCenterDialogHost';
 import { MemoryV2Runtime } from '@/components/MemoryV2Runtime';
 import { OperationsCompletionRuntime } from '@/components/OperationsCompletionRuntime';
@@ -17,7 +18,7 @@ import { ensureMeetingFacilitatorMembership } from '@/lib/roomMembershipActions'
 import { bootstrapPersistence, startPersistence } from '@/lib/storage';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
-const APP_VERSION = import.meta.env.VITE_APP_VERSION?.trim() || '2.8.21';
+const APP_VERSION = import.meta.env.VITE_APP_VERSION?.trim() || '2.8.22';
 // Dev diagnostics export room/session data, so keep them out of any build
 // that opts out explicitly (a public deployment sets VITE_ENABLE_DEV_TOOLS=
 // 'false'). Local `npm run dev` and any other build keep the current
@@ -103,6 +104,7 @@ export default function App() {
           </div>
 
           <div className="flex min-w-0 flex-1 items-center justify-end gap-3 pe-1">
+            <MeetingAttentionBadge />
             <span className="rounded-md bg-slate-50 px-2 py-1" title="Projects in the current workspace">📁 {projects.length}</span>
             <span className="rounded-md bg-slate-50 px-2 py-1" title="Open action items">✓ {openActionCount}</span>
             <span
