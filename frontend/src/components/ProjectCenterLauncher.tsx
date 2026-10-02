@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { roomsForProject, roomsOutsideProject } from '@/lib/projectCenter';
+import { actionReminderState, summarizeActionDeadlines } from '@/lib/roadmapCompletion';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 import type { ActionItemPriority, ActionItemStatus, DecisionStatus, Room } from '@/types/domain';
 
@@ -93,6 +94,7 @@ export function ProjectCenterLauncher() {
     () => (isAllProjects ? actionItems : actionItems.filter(actionItem => actionItem.projectId === resolvedProjectId)),
     [actionItems, isAllProjects, resolvedProjectId],
   );
+  const overdueTotal = useMemo(() => summarizeActionDeadlines(actionItems).overdue, [actionItems]);
   const visibleDecisions = useMemo(
     () => (decisionStatusFilter === 'all' ? projectDecisions : projectDecisions.filter(decision => decision.status === decisionStatusFilter)),
     [projectDecisions, decisionStatusFilter],
@@ -297,6 +299,7 @@ export function ProjectCenterLauncher() {
                         <div className="rounded-xl border border-slate-200 bg-white p-4">
                           <div className="text-2xl font-bold text-emerald-700">{actionItems.filter(item => item.status !== 'done').length}</div>
                           <div className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Open action items</div>
+                          {overdueTotal > 0 ? <div className="mt-1 text-[11px] font-bold text-rose-600">{overdueTotal} overdue</div> : null}
                         </div>
                       </div>
                     </div>
@@ -474,15 +477,18 @@ export function ProjectCenterLauncher() {
                         {visibleActions.map(actionItem => {
                           const room = rooms.find(item => item.id === actionItem.roomId);
                           const actionProject = isAllProjects ? projectById.get(actionItem.projectId) : undefined;
+                          const reminder = actionReminderState(actionItem);
                           return (
-                            <article key={actionItem.id} className="rounded-xl border border-slate-200 bg-white p-4">
+                            <article key={actionItem.id} className={`rounded-xl border bg-white p-4 ${reminder === 'overdue' ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200'}`}>
                               <div className="flex items-start gap-3">
                                 <div className="min-w-0 flex-1">
                                   <h5 className={`text-sm font-bold ${actionItem.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{actionItem.title}</h5>
                                   <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-500">
                                     {actionProject ? <span className="font-semibold text-violet-600">{actionProject.emoji} {actionProject.name}</span> : null}
                                     <span>Owner: {actionItem.owner || 'Not assigned'}</span>
-                                    <span>Deadline: {actionItem.deadline || 'Not set'}</span>
+                                    <span className={reminder === 'overdue' ? 'font-bold text-rose-600' : undefined}>Deadline: {actionItem.deadline || 'Not set'}</span>
+                                    {reminder === 'overdue' ? <span className="rounded-full bg-rose-100 px-2 py-0.5 font-bold text-rose-700">Overdue</span> : null}
+                                    {reminder === 'due-soon' ? <span className="rounded-full bg-amber-100 px-2 py-0.5 font-bold text-amber-700">Due soon</span> : null}
                                     <span className="font-semibold uppercase">{actionItem.priority}</span>
                                     {room ? <span>{room.emoji} {room.name}</span> : <span>Project level</span>}
                                     {actionItem.evidence ? <span>Evidence: {actionItem.evidence}</span> : null}
