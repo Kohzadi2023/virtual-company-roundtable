@@ -9,7 +9,8 @@ import {
   type BudgetSettings,
 } from '@/lib/llm/budget';
 import { clearApiKey, getApiKey, maskApiKey, setApiKey } from '@/lib/llm/credentials';
-import { LLM_CHANGE_EVENT, getSelectedModel, notifyLlmChange, setSelectedModel } from '@/lib/llm/llmSettings';
+import { LLM_CHANGE_EVENT, getLlmSettings, notifyLlmChange, updateLlmSettings } from '@/lib/llm/llmSettings';
+import type { ThinkingPreference } from '@/lib/llm/llmSettings';
 import { MODELS } from '@/lib/llm/pricing';
 
 function BudgetField({
@@ -69,7 +70,7 @@ export function LlmSettingsLauncher() {
 
   const savedKey = getApiKey('gemini');
   const budget = loadBudgetState();
-  const model = getSelectedModel();
+  const settings = getLlmSettings();
   const monthSpend = monthSpendUsd(budget.entries, Date.now());
   const cacheShare = cachedInputShare(budget.entries);
 
@@ -157,16 +158,61 @@ export function LlmSettingsLauncher() {
               </section>
 
               <section className="rounded-xl border border-slate-200 p-4">
-                <h3 className="text-sm font-bold text-slate-800">Model</h3>
-                <select
-                  value={model}
-                  onChange={event => setSelectedModel(event.target.value)}
-                  aria-label="Gemini model"
-                  className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-                >
-                  {MODELS.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
-                </select>
-                <p className="mt-1 text-[10px] leading-4 text-slate-400">Costs shown in the app are estimates from public prices, not a bill.</p>
+                <h3 className="text-sm font-bold text-slate-800">Models and token use</h3>
+                <label className="mt-2 block text-xs">
+                  <span className="font-semibold text-slate-700">Main model (Olivia, and everyone unless set below)</span>
+                  <select
+                    value={settings.model}
+                    onChange={event => updateLlmSettings({ model: event.target.value })}
+                    aria-label="Gemini model"
+                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                  >
+                    {MODELS.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
+                  </select>
+                </label>
+                <label className="mt-3 block text-xs">
+                  <span className="font-semibold text-slate-700">Specialist model</span>
+                  <select
+                    value={settings.specialistModel ?? ''}
+                    onChange={event => updateLlmSettings({ specialistModel: event.target.value === '' ? null : event.target.value })}
+                    aria-label="Specialist model"
+                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                  >
+                    <option value="">Same as main model</option>
+                    {MODELS.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
+                  </select>
+                  <span className="mt-1 block text-[10px] leading-4 text-slate-400">A cheaper model for specialist turns can cut the bill noticeably; Olivia keeps the main model for staffing, proposals and synthesis.</span>
+                </label>
+                <label className="mt-3 block text-xs">
+                  <span className="font-semibold text-slate-700">Thinking effort</span>
+                  <select
+                    value={settings.thinking}
+                    onChange={event => updateLlmSettings({ thinking: event.target.value as ThinkingPreference })}
+                    aria-label="Thinking effort"
+                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                  >
+                    <option value="low">Low (cheaper, recommended)</option>
+                    <option value="default">Model default (more reasoning, costs more)</option>
+                  </select>
+                  <span className="mt-1 block text-[10px] leading-4 text-slate-400">Hidden reasoning is billed like output. If Gemini rejects this setting the app retries without it automatically.</span>
+                </label>
+                <div className="mt-3 flex items-start justify-between gap-3 text-xs">
+                  <span>
+                    <span className="font-semibold text-slate-700">Token saver</span>
+                    <span className="mt-0.5 block text-[10px] leading-4 text-slate-400">Summarises older discussion sooner (keeps the brief, Olivia's summaries and the latest decision proposal) so each call sends less. Turn off for maximum fidelity.</span>
+                  </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={settings.tokenSaver}
+                    aria-label="Token saver"
+                    onClick={() => updateLlmSettings({ tokenSaver: !settings.tokenSaver })}
+                    className={`relative h-6 w-11 shrink-0 rounded-full transition ${settings.tokenSaver ? 'bg-violet-600' : 'bg-slate-300'}`}
+                  >
+                    <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${settings.tokenSaver ? 'start-[22px]' : 'start-0.5'}`} />
+                  </button>
+                </div>
+                <p className="mt-3 text-[10px] leading-4 text-slate-400">Costs shown in the app are estimates from public prices, not a bill.</p>
               </section>
 
               <section className="rounded-xl border border-slate-200 p-4">

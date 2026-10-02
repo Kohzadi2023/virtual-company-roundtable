@@ -1,5 +1,5 @@
 import { runLlm } from '@/lib/llm/llmClient';
-import { notifyLlmChange, getSelectedModel } from '@/lib/llm/llmSettings';
+import { getLlmSettings, modelForAgent, notifyLlmChange } from '@/lib/llm/llmSettings';
 import { rateFor } from '@/lib/llm/pricing';
 import { LlmError } from '@/lib/llm/types';
 import type { LlmResponse } from '@/lib/llm/types';
@@ -25,11 +25,22 @@ export interface ApiRunResult {
  * Sends one already-built agent prompt to the model. The caller decides what
  * to do with the text (Phase 2 puts it in the response box for review).
  */
-export async function runPromptViaApi(prompt: string, roomId: string, signal?: AbortSignal): Promise<ApiRunResult> {
-  const model = getSelectedModel();
+export async function runPromptViaApi(
+  prompt: string,
+  roomId: string,
+  signal?: AbortSignal,
+  agentId?: string,
+): Promise<ApiRunResult> {
+  const settings = getLlmSettings();
+  const model = modelForAgent(agentId, settings);
   try {
     const response = await runLlm(
-      { model, prompt, ...(signal ? { signal } : {}) },
+      {
+        model,
+        prompt,
+        ...(settings.thinking === 'low' ? { thinkingLevel: 'low' as const } : {}),
+        ...(signal ? { signal } : {}),
+      },
       { roomId, estimatedCostUsd: estimateRunCostUsd(model, prompt) },
     );
     return { response, model };

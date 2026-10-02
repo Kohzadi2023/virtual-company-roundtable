@@ -76,7 +76,7 @@ export function parseGeminiResponse(model: string, body: GeminiResponseBody): Ll
   return { text, usage, finishReason, model };
 }
 
-async function generateOnce(apiKey: string, request: LlmRequest): Promise<LlmResponse> {
+async function sendOnce(apiKey: string, request: LlmRequest): Promise<LlmResponse> {
   const controller = new AbortController();
   let timedOut = false;
   const timer = setTimeout(() => {
@@ -116,6 +116,38 @@ async function generateOnce(apiKey: string, request: LlmRequest): Promise<LlmRes
     clearTimeout(timer);
     request.signal?.removeEventListener('abort', onCallerAbort);
   }
+}
+
+/**
+ * The thinking-level field name is documented for Gemini 3 but differs between
+ * API surfaces. If the API rejects it, drop it and retry once so a wrong guess
+ * costs one failed call instead of breaking every run; remember the outcome for
+ * the rest of the session.
+ */
+let thinkingLevelRejected = false;
+
+async function generateOnce(apiKey: string, request: LlmRequest): Promise<LlmResponse> {
+  if (request.thinkingLevel === undefined) return sendOnce(apiKey, request);
+  if (thinkingLevelRejected) return sendOnce(apiKey, withoutThinking(request));
+  try {
+    return await sendOnce(apiKey, request);
+  } catch (error) {
+    if (error instanceof LlmError && error.kind === 'bad-request' && /think/i.test(error.message)) {
+      thinkingLevelRejected = true;
+      return sendOnce(apiKey, withoutThinking(request));
+    }
+    throw error;
+  }
+}
+
+function withoutThinking(request: LlmRequest): LlmRequest {
+  const { thinkingLevel: _dropped, ...rest } = request;
+  return rest;
+}
+
+/** Test hook: forget a rejected thinking level. */
+export function resetThinkingLevelRejection(): void {
+  thinkingLevelRejected = false;
 }
 
 export const geminiProvider: LlmProvider = {

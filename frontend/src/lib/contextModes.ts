@@ -49,10 +49,15 @@ function compactMessages(room: Room, agentId: string): Message[] {
 }
 
 /** Keeps pinned/flagged messages and the last 12 in full; older ones become a digest. */
-export function compactMessageList(room: Room, relevant: Message[], digestKey: string): Message[] {
+export function compactMessageList(
+  room: Room,
+  relevant: Message[],
+  digestKey: string,
+  extraAnchor?: (message: Message) => boolean,
+): Message[] {
   if (relevant.length <= 12) return relevant;
 
-  const anchors = relevant.filter(message => message.pinned || message.reaction === 'accepted' || message.reaction === 'important' || message.reaction === 'risk');
+  const anchors = relevant.filter(message => message.pinned || message.reaction === 'accepted' || message.reaction === 'important' || message.reaction === 'risk' || extraAnchor?.(message) === true);
   const recent = relevant.slice(-12);
   const selectedIds = new Set([...anchors, ...recent].map(message => message.id));
   const older = relevant.filter(message => !selectedIds.has(message.id));
