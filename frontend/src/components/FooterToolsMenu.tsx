@@ -1,6 +1,7 @@
 import { AgentMemoryLauncher } from '@/components/AgentMemoryLauncher';
 import { HelpTutorialLauncher } from '@/components/HelpTutorialLauncher';
 import { IdeaMergeLauncher } from '@/components/IdeaMergeLauncher';
+import { LlmSettingsLauncher } from '@/components/LlmSettingsLauncher';
 import { MemoryCenterLauncher } from '@/components/MemoryCenterLauncher';
 import { OperationsCenterLauncher } from '@/components/OperationsCenterLauncher';
 import { SecuritySettingsLauncher } from '@/components/SecuritySettingsLauncher';
@@ -26,6 +27,7 @@ export function FooterToolsMenu() {
           <TraceabilityCenterLauncher />
           <IdeaMergeLauncher />
           <HelpTutorialLauncher />
+          <LlmSettingsLauncher />
           <SecuritySettingsLauncher />
         </div>
       </div>

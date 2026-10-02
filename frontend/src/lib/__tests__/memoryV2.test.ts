@@ -319,4 +319,14 @@ describe('memory v2', () => {
     expect(digest).toContain('Port collision');
     expect(digest).toContain('DECISION:');
   });
+
+  it('keeps one room\'s meeting state out of other rooms\' prompts', () => {
+    const genesisco: Room = { ...room(), id: 'room-genesisco', name: 'Genesisco launch', projectId: undefined };
+    syncOliviaMeetingState(genesisco, [], [], 'company-default');
+
+    const own = relevantSharedMemories(undefined, 'company-default', '', 'agent-olivia', 24, 'room-genesisco');
+    const other = relevantSharedMemories(undefined, 'company-default', '', 'agent-olivia', 24, 'room-secretary');
+    expect(own.map(item => item.title)).toContain('Meeting state · Genesisco launch');
+    expect(other.map(item => item.title)).not.toContain('Meeting state · Genesisco launch');
+  });
 });

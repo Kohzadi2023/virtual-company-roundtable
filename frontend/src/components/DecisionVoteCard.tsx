@@ -2,14 +2,18 @@ import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
 import {
   buildChecklistFollowUpRoomName,
   buildChecklistFollowUpSeedMessage,
+  buildDecisionFollowUpSeedMessage,
   decisionEvidenceForMessage,
   decisionVoteIdForMessage,
   findChecklistFollowUp,
   findLatestDecisionProposal,
+  isConsensusReached,
   parseSpecialistDecisionVote,
+  roomDecisionConsensus,
+  userSpokeAfterLatestProposal,
   type DecisionChecklistStatus,
 } from '@/lib/decisionVoting';
-import { loadMeetingOrchestration, resetCurrentRound } from '@/lib/meetingOrchestration';
+import { concludeMeetingOnConsensus, loadMeetingOrchestration, resetCurrentRound } from '@/lib/meetingOrchestration';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 import type { ActionItemStatus, VoteChoice } from '@/types/domain';
 
@@ -71,16 +75,31 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
     && meeting.roundStage === 'complete'
     && meeting.roundIndex >= meeting.rounds.length - 1,
   );
-  const canApprove = Boolean(decision && decision.status === 'proposed' && voteComplete && finalRoundComplete);
+  const isFinalRound = Boolean(meeting && meeting.roundIndex >= meeting.rounds.length - 1);
+  const consensus = roomDecisionConsensus(room, meeting);
+  const consensusReached = Boolean(consensus && isConsensusReached(consensus) && !userSpokeAfterLatestProposal(room.messages));
+  // Consensus in the final round is a stopping point: the user may approve
+  // without waiting for another synthesis turn or requesting a revision that
+  // would only collect the same positions again.
+  const canApprove = Boolean(
+    decision
+    && decision.status === 'proposed'
+    && voteComplete
+    && (finalRoundComplete || (consensusReached && isFinalRound)),
+  );
 
   const approve = () => {
     if (!decision || !canApprove) return;
     updateDecision(decision.id, { status: 'approved' });
+    if (consensusReached) concludeMeetingOnConsensus(room.id);
   };
 
   const requestRevision = () => {
     if (!meeting) return;
-    const confirmed = window.confirm('Request a revised decision proposal from Olivia and restart the current final round?');
+    const prompt = consensusReached
+      ? 'No specialist disagrees with this proposal, so the team has already reached consensus on its direction. Another revision usually collects the same concerns again. Request a revision and restart the final round anyway?'
+      : 'Request a revised decision proposal from Olivia and restart the current final round?';
+    const confirmed = window.confirm(prompt);
     if (!confirmed) return;
     addUserMessage(room.id, 'Revise the current final decision proposal using the specialist vote concerns and blockers. Produce a new decision checklist and put the revised proposal back to the team for a fresh vote.');
     resetCurrentRound(room.id);
@@ -120,6 +139,38 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
       evidence: itemEvidence,
       status: 'todo',
       priority: itemStatus === 'blocker' ? 'high' : 'medium',
+    });
+  };
+
+  const openChecklistItems = record.proposal.checklist.filter(item => item.status !== 'satisfied');
+  const followUpRecommendation = record.proposal.followUp;
+  const consolidatedFollowUp = decision && followUpRecommendation
+    ? findChecklistFollowUp(actionItems, decision.id, followUpRecommendation.title)
+    : undefined;
+
+  const createConsolidatedFollowUp = () => {
+    if (!decision || !followUpRecommendation) return;
+    const confirmed = window.confirm(`Open one follow-up meeting "${followUpRecommendation.title}" covering all open checklist items? Olivia will assess whether the existing team or a new specialist is needed before discussion starts.`);
+    if (!confirmed) return;
+    const followUpRoomId = createRoom(
+      buildChecklistFollowUpRoomName(followUpRecommendation.title),
+      '🔁',
+      [MEETING_FACILITATOR_AGENT_ID],
+      [],
+      decision.projectId,
+    );
+    useWorkspaceStore.setState(current => ({
+      rooms: current.rooms.map(item => item.id === followUpRoomId ? { ...item, branchOfRoomId: room.id } : item),
+    }));
+    addUserMessage(followUpRoomId, buildDecisionFollowUpSeedMessage(decision.title, record.proposal.outcome, followUpRecommendation, openChecklistItems));
+    addActionItem({
+      projectId: decision.projectId,
+      roomId: followUpRoomId,
+      sourceDecisionId: decision.id,
+      title: followUpRecommendation.title,
+      evidence: followUpRecommendation.reason || undefined,
+      status: 'todo',
+      priority: openChecklistItems.some(item => item.status === 'blocker') ? 'high' : 'medium',
     });
   };
 
@@ -215,9 +266,53 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
         </div>
       </div>
 
+      {followUpRecommendation ? (
+        <div className="border-t border-indigo-100 bg-indigo-50/40 px-4 py-3" aria-label="Olivia's follow-up meeting recommendation">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] font-bold uppercase tracking-wide text-indigo-600">Olivia recommends a follow-up meeting</div>
+              <div className="mt-1 text-sm font-semibold text-slate-800" dir="auto">{followUpRecommendation.title}</div>
+              {followUpRecommendation.reason ? <p className="mt-1 text-xs leading-5 text-slate-600" dir="auto">{followUpRecommendation.reason}</p> : null}
+            </div>
+            {consolidatedFollowUp ? (
+              <button
+                type="button"
+                onClick={() => consolidatedFollowUp.roomId && setActiveRoom(consolidatedFollowUp.roomId)}
+                disabled={!consolidatedFollowUp.roomId}
+                className="shrink-0 rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                ↪ Follow-up: {followUpStatusLabel[consolidatedFollowUp.status]}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={createConsolidatedFollowUp}
+                disabled={!decision}
+                className="shrink-0 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+              >
+                Create follow-up meeting
+              </button>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {consensusReached && consensus && decision?.status !== 'approved' ? (
+        <div className="border-t border-emerald-100 bg-emerald-50/60 px-4 py-3 text-xs text-emerald-800" role="status" aria-label="Consensus reached">
+          <div className="font-bold">
+            {consensus.status === 'unanimous' ? 'Consensus reached — unanimous support.' : `Consensus reached on direction — no disagreement (${consensus.counts.agree} agree, ${consensus.counts.concern} concern).`}
+          </div>
+          <p className="mt-1 leading-5">
+            {consensus.status === 'direction'
+              ? 'The remaining concerns are conditions to track, not grounds for another voting cycle. Approve to conclude the meeting and move to actions; open a follow-up meeting for any condition that still needs work.'
+              : 'Approve to conclude the meeting and move to actions.'}
+          </p>
+        </div>
+      ) : null}
+
       <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-4 py-3">
         <p className="max-w-2xl text-[10px] leading-4 text-slate-500">
-          Specialist votes are decision evidence, not final authority. The user remains the final approver. Approval is enabled after the final round and all specialist votes are resolved or explicitly skipped.
+          Specialist votes are decision evidence, not final authority. The user remains the final approver. Approval is enabled after the final round and all specialist votes are resolved or explicitly skipped — or as soon as every vote is in and nobody disagrees.
         </p>
         <div className="flex gap-2">
           {decision?.status === 'approved' ? (
@@ -225,7 +320,7 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
           ) : (
             <>
               <button type="button" onClick={requestRevision} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">Request revision</button>
-              <button type="button" onClick={approve} disabled={!canApprove} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500">Approve voted decision</button>
+              <button type="button" onClick={approve} disabled={!canApprove} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500">{consensusReached ? 'Approve & conclude meeting' : 'Approve voted decision'}</button>
             </>
           )}
         </div>

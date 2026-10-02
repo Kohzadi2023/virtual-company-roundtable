@@ -45,7 +45,11 @@ function summaryLine(message: Message): string {
 }
 
 function compactMessages(room: Room, agentId: string): Message[] {
-  const relevant = withoutAgentOwnMessages(room, agentId);
+  return compactMessageList(room, withoutAgentOwnMessages(room, agentId), agentId);
+}
+
+/** Keeps pinned/flagged messages and the last 12 in full; older ones become a digest. */
+export function compactMessageList(room: Room, relevant: Message[], digestKey: string): Message[] {
   if (relevant.length <= 12) return relevant;
 
   const anchors = relevant.filter(message => message.pinned || message.reaction === 'accepted' || message.reaction === 'important' || message.reaction === 'risk');
@@ -56,7 +60,7 @@ function compactMessages(room: Room, agentId: string): Message[] {
 
   if (older.length === 0) return selected;
   const summary: Message = {
-    id: `smart-compact-summary:${room.id}:${agentId}`,
+    id: `smart-compact-summary:${room.id}:${digestKey}`,
     authorType: 'user',
     authorNameSnapshot: 'Context Compressor',
     content: `## Compressed earlier discussion\n\nThe following older messages are summarized deterministically; important/pinned items and recent messages are supplied separately in full.\n\n${older.slice(-24).map(summaryLine).join('\n')}${older.length > 24 ? `\n- … ${older.length - 24} older messages omitted from the compact digest.` : ''}`,
@@ -123,7 +127,10 @@ function finalDecisionWorkflowInstruction(prompt: string): string | null {
       '      "evidence": "Evidence or reason from the discussion"',
       '    }',
       '  ],',
-      '  "voteQuestion": "Do you support this decision proposal as written?"',
+      '  "voteQuestion": "Do you support this decision proposal as written?",',
+      '  "followUpNeeded": false,',
+      '  "followUpTitle": "",',
+      '  "followUpReason": ""',
       '}',
       '```',
       '',
@@ -134,6 +141,9 @@ function finalDecisionWorkflowInstruction(prompt: string): string | null {
       '- status MUST be exactly one of: satisfied, condition, blocker.',
       '- Use satisfied only when evidence supports it, condition when it must be completed or verified, and blocker when it currently prevents proceeding.',
       '- Include all material unresolved blockers/conditions that affect the proposed outcome; do not pad the list with generic items.',
+      '- followUpNeeded is true only when the checklist has any condition/blocker items that genuinely warrant their own dedicated meeting to resolve — not for a clean GO with an empty or fully-satisfied checklist.',
+      '- When followUpNeeded is true, followUpTitle MUST be a short, concrete meeting title (not a restatement of the decision title) and followUpReason MUST explain what that meeting needs to resolve, in one or two sentences.',
+      '- When followUpNeeded is false, leave followUpTitle and followUpReason as empty strings.',
       '- Return valid JSON: double quotes, no comments, no trailing commas, no Markdown inside JSON string values.',
       '- Emit exactly ONE VC_DECISION_PROPOSAL block.',
       '- The closing ``` fence of this JSON block MUST be the final non-whitespace content of your response. Do not write anything after it.',
@@ -181,10 +191,15 @@ function finalDecisionWorkflowInstruction(prompt: string): string | null {
   return null;
 }
 
-export function decoratePromptForContextMode(prompt: string, mode: ContextCopyMode): string {
+/**
+ * `detectionText` lets a caller point the round/role/stage detection at just
+ * the part of the prompt that describes this turn, so quoted discussion text
+ * can never be mistaken for the turn's own markers.
+ */
+export function decoratePromptForContextMode(prompt: string, mode: ContextCopyMode, detectionText?: string): string {
   const instruction = contextModeInstruction(mode);
   const withMode = instruction ? `${prompt}\n\nCONTEXT MODE INSTRUCTION:\n${instruction}` : prompt;
-  const finalDecision = finalDecisionWorkflowInstruction(withMode);
+  const finalDecision = finalDecisionWorkflowInstruction(detectionText ?? withMode);
   return finalDecision ? `${withMode}\n\nFINAL DECISION WORKFLOW:\n${finalDecision}` : withMode;
 }
 

@@ -14,6 +14,7 @@ interface MeetingMinutesDialogProps {
 
 export function MeetingMinutesDialog({ roomId, onClose }: MeetingMinutesDialogProps) {
   const room = useWorkspaceStore(state => state.rooms.find(item => item.id === roomId));
+  const decisions = useWorkspaceStore(state => state.decisions);
   const [minutesMode, setMinutesMode] = useState<'local' | 'manual'>('local');
   const [documentView, setDocumentView] = useState<'preview' | 'edit'>('preview');
   const [manualResult, setManualResult] = useState('');
@@ -23,7 +24,7 @@ export function MeetingMinutesDialog({ roomId, onClose }: MeetingMinutesDialogPr
   const [historyOpen, setHistoryOpen] = useState(false);
 
   const language = getRoomLanguage(room?.languageCode);
-  const localMinutes = useMemo(() => room ? buildMeetingMinutes(room) : '', [room]);
+  const localMinutes = useMemo(() => room ? buildMeetingMinutes(room, decisions) : '', [room, decisions]);
   const manualPrompt = useMemo(() => room ? buildMeetingMinutesPrompt(room) : '', [room]);
   const activeMinutes = minutesMode === 'manual' ? manualResult.trim() : localMinutes;
   const savedMinutes = room?.meetingMinutes;

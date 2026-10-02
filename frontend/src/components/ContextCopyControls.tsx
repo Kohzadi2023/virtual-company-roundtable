@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { copyText } from '@/lib/clipboard';
 import {
   CONTEXT_MODES,
@@ -16,6 +16,12 @@ import {
   MEETING_ORCHESTRATION_EVENT,
   setExternalAgentChat,
 } from '@/lib/meetingOrchestration';
+import { buildApiTurnPrompt } from '@/lib/llm/apiContext';
+import { describeLlmError, formatUsd, isCancelled, runPromptViaApi } from '@/lib/llm/apiRun';
+import { loadBudgetState, meetingSpendUsd } from '@/lib/llm/budget';
+import { hasApiKey } from '@/lib/llm/credentials';
+import { LLM_CHANGE_EVENT } from '@/lib/llm/llmSettings';
+import { estimateCostUsd } from '@/lib/llm/pricing';
 import { buildAgentPrompt } from '@/lib/promptBuilder';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 import type { Agent, AgentContextState, RoleDefinition, Room } from '@/types/domain';
@@ -26,6 +32,8 @@ interface ContextCopyControlsProps {
   role: RoleDefinition;
   cursor?: AgentContextState | undefined;
   onNotify: (text: string, tone?: 'success' | 'error') => void;
+  /** Receives the API's answer for review; the user still decides whether to add it. */
+  onApiResponse?: ((agentId: string, text: string) => void) | undefined;
 }
 
 function canOpen(value: string | undefined): value is string {
@@ -43,7 +51,7 @@ function messageLabel(content: string): string {
   return clean.length > 88 ? `${clean.slice(0, 85)}…` : clean;
 }
 
-export function ContextCopyControls({ room, agent, role, cursor, onNotify }: ContextCopyControlsProps) {
+export function ContextCopyControls({ room, agent, role, cursor, onNotify, onApiResponse }: ContextCopyControlsProps) {
   const markAgentContextCopied = useWorkspaceStore(state => state.markAgentContextCopied);
   const [, setMeetingRevision] = useState(0);
   const meeting = loadMeetingOrchestration().rooms[room.id];
@@ -52,6 +60,9 @@ export function ContextCopyControls({ room, agent, role, cursor, onNotify }: Con
     meeting?.activeSpeakerId,
     meeting?.roundStage,
   );
+  const [, setLlmRevision] = useState(0);
+  const [apiRunning, setApiRunning] = useState(false);
+  const apiAbort = useRef<AbortController | null>(null);
   const [mode, setMode] = useState<ContextCopyMode>(preferredMode);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [excludedIds, setExcludedIds] = useState<string[]>([]);
@@ -79,6 +90,8 @@ export function ContextCopyControls({ room, agent, role, cursor, onNotify }: Con
   // yet (reported live for Olivia, but the same unconditional-section
   // pattern now applies to every agent).
   const disabled = false;
+  const apiAvailable = hasApiKey('gemini') && onApiResponse !== undefined;
+  const meetingApiSpend = apiAvailable ? meetingSpendUsd(loadBudgetState().entries, room.id) : 0;
   const large = size.approxTokens >= 8000;
   const veryLarge = size.approxTokens >= 16000;
 
@@ -87,6 +100,16 @@ export function ContextCopyControls({ room, agent, role, cursor, onNotify }: Con
     window.addEventListener(MEETING_ORCHESTRATION_EVENT, refresh);
     return () => window.removeEventListener(MEETING_ORCHESTRATION_EVENT, refresh);
   }, [room.id]);
+
+  useEffect(() => {
+    const refresh = () => setLlmRevision(value => value + 1);
+    window.addEventListener(LLM_CHANGE_EVENT, refresh);
+    return () => window.removeEventListener(LLM_CHANGE_EVENT, refresh);
+  }, []);
+
+  // A reply that arrives after the user switched agent or room would land in the
+  // wrong response box, so leaving cancels the in-flight request.
+  useEffect(() => () => apiRunCancel(), [agent.id, room.id]);
 
   useEffect(() => {
     setMode(preferredMode);
@@ -116,6 +139,33 @@ export function ContextCopyControls({ room, agent, role, cursor, onNotify }: Con
     onNotify(`Chat link saved for ${agent.name}.`);
   };
 
+  const apiRunCancel = () => {
+    apiAbort.current?.abort();
+    apiAbort.current = null;
+  };
+
+  const runViaApi = async () => {
+    if (apiAbort.current) return;
+    const controller = new AbortController();
+    apiAbort.current = controller;
+    setApiRunning(true);
+    try {
+      // A stateless call has no chat memory behind it, so it gets the full
+      // discussion rather than the copy/paste "new since last copy" prompt.
+      const apiPrompt = buildApiTurnPrompt(room, agent, role).prompt;
+      const { response, model } = await runPromptViaApi(apiPrompt, room.id, controller.signal);
+      const cost = estimateCostUsd(model, response.usage);
+      onApiResponse?.(agent.id, response.text);
+      markAgentContextCopied(room.id, agent.id);
+      onNotify(`${agent.name} answered via API (~${formatUsd(cost)}). Review the response, then click Add Response.`);
+    } catch (error) {
+      if (!isCancelled(error)) onNotify(describeLlmError(error), 'error');
+    } finally {
+      if (apiAbort.current === controller) apiAbort.current = null;
+      if (apiAbort.current === null) setApiRunning(false);
+    }
+  };
+
   const copy = async () => {
     if (disabled) return;
     try {
@@ -142,6 +192,16 @@ export function ContextCopyControls({ room, agent, role, cursor, onNotify }: Con
           <button type="button" onClick={() => setPreviewOpen(true)} disabled={disabled} className="rounded-lg border border-slate-300 bg-white px-2 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40">Preview / Select</button>
           <button type="button" onClick={copy} disabled={disabled} className="rounded-lg border border-blue-500 bg-blue-50 px-2 py-2 text-[11px] font-bold text-blue-600 hover:bg-blue-100 disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400">⧉ Copy</button>
         </div>
+        {apiAvailable ? (
+          <div className="space-y-1">
+            {apiRunning ? (
+              <button type="button" onClick={apiRunCancel} className="w-full rounded-lg border border-slate-300 bg-slate-50 px-2 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-100">Running via API… Cancel</button>
+            ) : (
+              <button type="button" onClick={() => void runViaApi()} title="Sends the full room discussion (not just new messages), because the API keeps no chat memory" className="w-full rounded-lg border border-violet-500 bg-violet-600 px-2 py-2 text-[11px] font-bold text-white hover:bg-violet-700">⚡ Run via API</button>
+            )}
+            <div className="text-center text-[10px] text-slate-400">Meeting API spend: {formatUsd(meetingApiSpend)}</div>
+          </div>
+        ) : null}
         {externalChat && externalChatUrl ? (
           <button type="button" onClick={() => openOrFocusExternalChat(agent.id, externalChatUrl)} className="w-full rounded-lg border border-violet-200 bg-violet-50 px-2 py-2 text-[11px] font-bold text-violet-700 hover:bg-violet-100">Open / Focus {externalChat.provider} Chat ↗</button>
         ) : linkDraftOpen ? (

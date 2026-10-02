@@ -1,4 +1,5 @@
 import { getRoomLanguage } from '@/lib/languages';
+import { duplicateFingerprint, stripProviderArtifacts } from '@/lib/responseSanitizer';
 import type { Message, Room } from '@/types/domain';
 
 function messageAuthor(message: Message): string {
@@ -14,13 +15,25 @@ function formatMessage(message: Message, index: number): string {
     `Author: ${messageAuthor(message)}`,
     `Time: ${timestamp}`,
     'Content:',
-    message.content,
+    stripProviderArtifacts(message.content),
   ].join('\n');
 }
 
 export function buildMeetingMinutesPrompt(room: Room): string {
   const language = getRoomLanguage(room.languageCode);
-  const transcript = room.messages.map(formatMessage).join('\n\n---\n\n');
+  // Repeated copies of the same message are not additional evidence; keep the
+  // first so the transcript cannot double-count a position.
+  const seen = new Set<string>();
+  const transcript = room.messages
+    .map(formatMessage)
+    .filter((_, index) => {
+      const message = room.messages[index]!;
+      const key = `${message.authorType}|${duplicateFingerprint(message.content)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .join('\n\n---\n\n');
   const generatedAt = new Date().toLocaleString();
 
   return [
@@ -34,7 +47,7 @@ export function buildMeetingMinutesPrompt(room: Room): string {
     'GROUNDING RULES — MANDATORY',
     '1. Use ONLY information explicitly supported by the transcript below.',
     '2. Do not invent decisions, owners, deadlines, requirements, risks, dates, commitments, or next steps.',
-    '3. Distinguish clearly between a confirmed decision and a suggestion/proposal. Suggestions are NOT decisions.',
+    '3. Distinguish clearly between a confirmed decision and a suggestion/proposal. Suggestions are NOT decisions. When the participants converge on the same verdict (for example every specialist states NO-GO) or a VC_DECISION_PROPOSAL block is voted on, record it in Decisions with its status (proposed / approved) and the vote counts — do not leave Decisions empty when a verdict was clearly reached.',
     '4. If an owner or deadline is not explicitly stated, write “Not specified” translated into the output language. Never infer it.',
     '5. Every substantive bullet, decision, action item, open question, risk, and next step MUST end with one or more evidence references such as [M01] or [M02][M05].',
     '6. Preserve participant names exactly as written in the transcript.',

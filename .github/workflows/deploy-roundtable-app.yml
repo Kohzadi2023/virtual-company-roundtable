@@ -32,7 +32,10 @@ jobs:
           VITE_BACKEND_SYNC_ENABLED: 'false'
           # Dev diagnostics export room/session data; keep them out of the
           # public build (see src/App.tsx).
-          VITE_ENABLE_DEV_TOOLS: 'false'
+          # TEMPORARILY set to 'true' at the owner's request, to export a
+          # debug snapshot of the current production workspace for review.
+          # Revert to 'false' once that's done.
+          VITE_ENABLE_DEV_TOOLS: 'true'
           # Gates a fresh visitor behind the existing local PIN-lock feature
           # by default (see scripts/generate-app-lock.mjs and the comment on
           # defaults() in src/lib/workspaceSuite.ts). Only the salted PBKDF2

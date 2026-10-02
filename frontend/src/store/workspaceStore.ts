@@ -3,6 +3,7 @@ import { agentContextKey, newId } from '@/lib/id';
 import { defaultAgents, defaultRoles, defaultTeams } from '@/lib/defaultCompany';
 import { latestRoomMessage } from '@/lib/contextDelta';
 import { avatarUrlForHire } from '@/lib/hireAvatar';
+import { findDuplicateAgentMessage, sanitizeAgentResponse } from '@/lib/responseSanitizer';
 import type {
   ActionItem,
   Agent,
@@ -640,13 +641,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   },
 
   addAgentMessage: (roomId, agentId, content) => {
-    const trimmed = content.trim();
-    if (!trimmed) return null;
     const state = get();
     const room = state.rooms.find(item => item.id === roomId);
     const agent = state.agents.find(item => item.id === agentId);
     const role = agent ? state.roles.find(item => item.id === agent.roleId) : undefined;
     if (!room || !agent || !role || !room.agentIds.includes(agentId)) return null;
+    const trimmed = sanitizeAgentResponse(content, room.messages);
+    if (!trimmed || findDuplicateAgentMessage(room.messages, trimmed)) return null;
 
     const id = newId();
     set(current => ({

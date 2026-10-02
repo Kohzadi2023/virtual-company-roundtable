@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { AutoRunRoundControl } from '@/components/AutoRunRoundControl';
 import { ContextCopyControls } from '@/components/ContextCopyControls';
 import { Toast, type ToastMessage } from '@/components/Toast';
 import { readText } from '@/lib/clipboard';
@@ -11,6 +12,7 @@ import {
 import { agentContextKey } from '@/lib/id';
 import { getExternalAgentChat, loadMeetingOrchestration, MEETING_ORCHESTRATION_EVENT } from '@/lib/meetingOrchestration';
 import { advanceAfterAgentResponse } from '@/lib/meetingResponseFlow';
+import { findDuplicateAgentMessage, sanitizeAgentResponse } from '@/lib/responseSanitizer';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
 function useAutoResize(value: string) {
@@ -64,6 +66,8 @@ export function ActionPanel({ roomId }: { roomId: string }) {
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const userRef = useAutoResize(userMessage);
   const agentRef = useRef<HTMLTextAreaElement>(null);
+  const selectedAgentIdRef = useRef('');
+  selectedAgentIdRef.current = selectedAgentId;
 
   useEffect(() => {
     if (roomAgents.some(agent => agent.id === selectedAgentId)) return;
@@ -127,6 +131,11 @@ export function ActionPanel({ roomId }: { roomId: string }) {
 
   const submitAgent = () => {
     if (!selectedAgent || !agentResponse.trim()) return;
+    const duplicate = findDuplicateAgentMessage(room.messages, sanitizeAgentResponse(agentResponse, room.messages));
+    if (duplicate) {
+      notify(`Not added: this response is identical to ${duplicate.authorNameSnapshot ?? 'an agent'}'s earlier message in this room. Paste ${selectedAgent.name}'s new reply instead.`, 'error');
+      return;
+    }
     if (addAgentMessage(room.id, selectedAgent.id, agentResponse)) {
       setAgentResponse('');
       const advance = advanceAfterAgentResponse(room.id, selectedAgent.id);
@@ -151,8 +160,18 @@ export function ActionPanel({ roomId }: { roomId: string }) {
         notify(`Olivia's response was saved, but ${blockerCount || 'required'} staffing blocker${blockerCount === 1 ? '' : 's'} remain. The meeting is paused.`, 'info');
         return;
       }
+      if (advance.reason === 'decision-proposal-missing') {
+        notify("Olivia's response was saved, but it did not include a valid decision proposal. The final round is paused until she produces one — ask her to try again.", 'info');
+        return;
+      }
       notify('The response was saved, but the meeting room could not be advanced.', 'error');
     }
+  };
+
+  const receiveApiResponse = (agentId: string, text: string) => {
+    if (agentId !== selectedAgentIdRef.current) return;
+    setTab('agent');
+    setAgentResponse(text);
   };
 
   const pasteAgentResponse = async () => {
@@ -234,6 +253,7 @@ export function ActionPanel({ roomId }: { roomId: string }) {
                   {selectedIsFacilitator ? 'FACILITATOR' : selectedRole?.name ?? 'SPECIALIST'}
                 </span>
               ) : null}
+              <span className="ms-auto"><AutoRunRoundControl roomId={room.id} onNotify={notify} /></span>
             </>
           ) : (
             <span className="text-[11px] text-slate-400">Send a new message as User</span>
@@ -299,7 +319,7 @@ export function ActionPanel({ roomId }: { roomId: string }) {
                 />
 
                 <div className="flex flex-col justify-center gap-2">
-                  {selectedAgent && selectedRole ? <ContextCopyControls room={room} agent={selectedAgent} role={selectedRole} cursor={cursor} onNotify={notify} /> : null}
+                  {selectedAgent && selectedRole ? <ContextCopyControls room={room} agent={selectedAgent} role={selectedRole} cursor={cursor} onNotify={notify} onApiResponse={receiveApiResponse} /> : null}
                   <div className="grid grid-cols-2 gap-2 xl:grid-cols-1">
                     <button type="button" onClick={pasteAgentResponse} disabled={!selectedAgent} className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-40">📋 Paste</button>
                     <button type="button" onClick={submitAgent} disabled={!selectedAgent || !agentResponse.trim()} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">Add Response</button>
