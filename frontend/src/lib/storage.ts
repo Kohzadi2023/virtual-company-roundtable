@@ -4,6 +4,7 @@ import {
   setLocalStorageWithQuotaRecovery,
   stripExtensionsForLocalSnapshot,
 } from '@/lib/localStorageQuota';
+import { createIndexedDbBackend, type SnapshotBackend } from '@/lib/snapshotDb';
 import {
   restoreWorkspaceExtensions,
   withWorkspaceExtensions,
@@ -19,6 +20,19 @@ const VERSION = 4 as const;
 let unsubscribe: (() => void) | null = null;
 let extensionListener: (() => void) | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
+let pendingSaves = 0;
+let unloadListener: (() => void) | null = null;
+let writeChain: Promise<void> = Promise.resolve();
+/**
+ * Primary store for the snapshot; null where IndexedDB is unavailable, in which
+ * case everything falls back to localStorage exactly as before.
+ */
+let backend: SnapshotBackend | null = createIndexedDbBackend();
+
+/** Test hook: swap (or disable) the primary snapshot store. */
+export function setSnapshotBackend(next: SnapshotBackend | null): void {
+  backend = next;
+}
 const API_KEY = import.meta.env.VITE_API_KEY?.trim();
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL?.trim() ?? '').replace(/\/+$/, '');
 // A deployment with no backend at all (e.g. the static-only Azure Static Web
@@ -205,7 +219,7 @@ function parseSnapshot(value: unknown): StorageSnapshot | null {
   return null;
 }
 
-function loadLocal(): StorageSnapshot | null {
+function loadFromLocalStorage(): StorageSnapshot | null {
   for (const key of [KEY, LEGACY_V3_KEY, LEGACY_V2_KEY]) {
     try {
       const raw = localStorage.getItem(key);
@@ -219,12 +233,80 @@ function loadLocal(): StorageSnapshot | null {
   return null;
 }
 
-function saveLocal(snapshot: StorageSnapshot): void {
-  const localSnapshot = stripExtensionsForLocalSnapshot(snapshot);
-  const result = setLocalStorageWithQuotaRecovery(KEY, JSON.stringify(localSnapshot));
+/**
+ * The newest copy wins. A localStorage copy can be newer than the database one
+ * (a backup restore writes it, and unloading flushes it synchronously), so both
+ * are read and compared; ties go to the database.
+ */
+async function loadLocal(): Promise<StorageSnapshot | null> {
+  let fromDatabase: StorageSnapshot | null = null;
+  if (backend) {
+    try {
+      const raw = await backend.read();
+      if (raw) fromDatabase = parseSnapshot(JSON.parse(raw));
+    } catch {
+      // Fall through to localStorage.
+    }
+  }
+  const fromLocalStorage = loadFromLocalStorage();
+  if (fromDatabase && fromLocalStorage) return fromLocalStorage.savedAt > fromDatabase.savedAt ? fromLocalStorage : fromDatabase;
+  return fromDatabase ?? fromLocalStorage;
+}
+
+/** Once the database holds the snapshot, the localStorage copies only waste quota. */
+function removeLocalStorageSnapshots(): void {
+  try {
+    for (const key of [KEY, LEGACY_V3_KEY, LEGACY_V2_KEY]) localStorage.removeItem(key);
+  } catch {
+    // Not fatal: the stale copy is simply outranked by the newer database one.
+  }
+}
+
+function writeToLocalStorage(json: string): void {
+  const result = setLocalStorageWithQuotaRecovery(KEY, json);
   if (!result.ok) {
     throw result.error instanceof Error ? result.error : new Error('Local snapshot write failed.');
   }
+}
+
+async function saveLocal(snapshot: StorageSnapshot): Promise<void> {
+  const json = JSON.stringify(stripExtensionsForLocalSnapshot(snapshot));
+  if (backend) {
+    try {
+      if (await backend.write(json)) {
+        removeLocalStorageSnapshots();
+        return;
+      }
+    } catch {
+      // Fall back to localStorage below.
+    }
+  }
+  writeToLocalStorage(json);
+}
+
+/** Writes are applied in the order they were requested, so an older snapshot can never land after a newer one. */
+function enqueueLocalSave(snapshot: StorageSnapshot): Promise<void> {
+  const run = writeChain.then(() => saveLocal(snapshot));
+  writeChain = run.catch(() => undefined);
+  return run;
+}
+
+/**
+ * Reloading within the debounce window, or while a write is still in flight,
+ * would drop the latest changes. On the way out, write synchronously to
+ * localStorage (which survives unload) and also start the database write; the
+ * next load takes whichever is newer.
+ */
+function flushOnUnload(): void {
+  if (!useWorkspaceStore.getState().hydrated) return;
+  if (!timer && pendingSaves === 0) return;
+  if (timer) {
+    clearTimeout(timer);
+    timer = null;
+  }
+  const json = JSON.stringify(stripExtensionsForLocalSnapshot(snapshotFromState()));
+  setLocalStorageWithQuotaRecovery(KEY, json);
+  void backend?.write(json).catch(() => undefined);
 }
 
 async function loadRemote(): Promise<StorageSnapshot | null> {
@@ -244,7 +326,7 @@ async function saveRemote(snapshot: StorageSnapshot): Promise<void> {
 }
 
 export async function bootstrapPersistence(): Promise<void> {
-  const local = loadLocal();
+  const local = await loadLocal();
   let remote: StorageSnapshot | null = null;
   let remoteAvailable = REMOTE_SYNC_ENABLED;
   if (REMOTE_SYNC_ENABLED) {
@@ -264,7 +346,7 @@ export async function bootstrapPersistence(): Promise<void> {
       // Extension stores already have dedicated localStorage keys. Keep the
       // local canonical snapshot compact; remote persistence still receives
       // the complete extension-inclusive snapshot.
-      saveLocal(chosen);
+      await saveLocal(chosen);
     } catch {
       useWorkspaceStore.getState().setSyncState('error');
       return;
@@ -276,11 +358,14 @@ export async function bootstrapPersistence(): Promise<void> {
 async function persistNow(): Promise<void> {
   const snapshot = snapshotFromState();
   let localSaved = true;
+  pendingSaves += 1;
   try {
-    saveLocal(snapshot);
+    await enqueueLocalSave(snapshot);
   } catch {
     localSaved = false;
     useWorkspaceStore.getState().setSyncState('error');
+  } finally {
+    pendingSaves -= 1;
   }
 
   if (!REMOTE_SYNC_ENABLED) {
@@ -318,6 +403,10 @@ export function startPersistence(): void {
     schedulePersist();
   });
 
+  unloadListener = flushOnUnload;
+  window.addEventListener('pagehide', unloadListener);
+  window.addEventListener('beforeunload', unloadListener);
+
   extensionListener = () => {
     if (!useWorkspaceStore.getState().hydrated) return;
     schedulePersist();
@@ -336,6 +425,11 @@ export function stopPersistence(): void {
     }
   }
   extensionListener = null;
+  if (unloadListener) {
+    window.removeEventListener('pagehide', unloadListener);
+    window.removeEventListener('beforeunload', unloadListener);
+  }
+  unloadListener = null;
   if (timer) clearTimeout(timer);
   timer = null;
 }
