@@ -65,6 +65,8 @@ export function ActionPanel({ roomId }: { roomId: string }) {
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const userRef = useAutoResize(userMessage);
   const agentRef = useRef<HTMLTextAreaElement>(null);
+  const selectedAgentIdRef = useRef('');
+  selectedAgentIdRef.current = selectedAgentId;
 
   useEffect(() => {
     if (roomAgents.some(agent => agent.id === selectedAgentId)) return;
@@ -163,6 +165,12 @@ export function ActionPanel({ roomId }: { roomId: string }) {
       }
       notify('The response was saved, but the meeting room could not be advanced.', 'error');
     }
+  };
+
+  const receiveApiResponse = (agentId: string, text: string) => {
+    if (agentId !== selectedAgentIdRef.current) return;
+    setTab('agent');
+    setAgentResponse(text);
   };
 
   const pasteAgentResponse = async () => {
@@ -309,7 +317,7 @@ export function ActionPanel({ roomId }: { roomId: string }) {
                 />
 
                 <div className="flex flex-col justify-center gap-2">
-                  {selectedAgent && selectedRole ? <ContextCopyControls room={room} agent={selectedAgent} role={selectedRole} cursor={cursor} onNotify={notify} /> : null}
+                  {selectedAgent && selectedRole ? <ContextCopyControls room={room} agent={selectedAgent} role={selectedRole} cursor={cursor} onNotify={notify} onApiResponse={receiveApiResponse} /> : null}
                   <div className="grid grid-cols-2 gap-2 xl:grid-cols-1">
                     <button type="button" onClick={pasteAgentResponse} disabled={!selectedAgent} className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-40">📋 Paste</button>
                     <button type="button" onClick={submitAgent} disabled={!selectedAgent || !agentResponse.trim()} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">Add Response</button>
