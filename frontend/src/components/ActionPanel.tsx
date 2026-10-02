@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { AutoRunRoundControl } from '@/components/AutoRunRoundControl';
 import { ContextCopyControls } from '@/components/ContextCopyControls';
 import { Toast, type ToastMessage } from '@/components/Toast';
 import { readText } from '@/lib/clipboard';
@@ -252,6 +253,7 @@ export function ActionPanel({ roomId }: { roomId: string }) {
                   {selectedIsFacilitator ? 'FACILITATOR' : selectedRole?.name ?? 'SPECIALIST'}
                 </span>
               ) : null}
+              <span className="ms-auto"><AutoRunRoundControl roomId={room.id} onNotify={notify} /></span>
             </>
           ) : (
             <span className="text-[11px] text-slate-400">Send a new message as User</span>
