@@ -1,6 +1,5 @@
-import { decoratePromptForContextMode, messagesForContextMode, preferredContextModeForMeetingTurn } from '@/lib/contextModes';
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
-import { agentContextKey } from '@/lib/id';
+import { buildApiTurnPrompt } from '@/lib/llm/apiContext';
 import { estimateRunCostUsd, runPromptViaApi, describeLlmError, isCancelled } from '@/lib/llm/apiRun';
 import type { ApiRunResult } from '@/lib/llm/apiRun';
 import { ensureMeetingRoom, hasMeetingStarted } from '@/lib/meetingOrchestration';
@@ -8,8 +7,7 @@ import type { MeetingRoomState } from '@/lib/meetingOrchestration';
 import type { MeetingResponseAdvanceReason } from '@/lib/meetingResponseFlow';
 import { advanceAfterAgentResponse } from '@/lib/meetingResponseFlow';
 import { findLatestOliviaStaffingPlan } from '@/lib/meetingStaffing';
-import { buildOliviaDecisionProposalRecoveryPrompt, buildOliviaStaffingRecoveryPrompt } from '@/lib/oliviaRegeneration';
-import { buildAgentPrompt } from '@/lib/promptBuilder';
+import { decisionProposalRecoveryInstruction, staffingRecoveryInstruction } from '@/lib/oliviaRegeneration';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
 export type AutoRunStopReason =
@@ -70,7 +68,10 @@ export function estimateRoundCostUsd(model: string, firstPromptChars: number, tu
   return total;
 }
 
-/** Same prompt the Copy / Run via API buttons produce for the speaker whose turn it is. */
+/**
+ * The prompt for whoever's turn it is. API calls are stateless, so this is the
+ * full-discussion prompt (see buildApiTurnPrompt), not the copy/paste delta.
+ */
 export function buildCurrentTurnPrompt(roomId: string): { prompt: string; agentId: string; agentName: string } | null {
   const state = useWorkspaceStore.getState();
   const room = state.rooms.find(item => item.id === roomId);
@@ -79,27 +80,17 @@ export function buildCurrentTurnPrompt(roomId: string): { prompt: string; agentI
   const agent = state.agents.find(item => item.id === meeting.activeSpeakerId && room.agentIds.includes(item.id));
   const role = agent ? state.roles.find(item => item.id === agent.roleId) : undefined;
   if (!agent || !role) return null;
-  const mode = preferredContextModeForMeetingTurn(agent.id, meeting.activeSpeakerId, meeting.roundStage);
-  const cursor = state.agentContext[agentContextKey(room.id, agent.id)];
-  const messages = messagesForContextMode(room, agent.id, cursor, mode);
-  return {
-    prompt: decoratePromptForContextMode(buildAgentPrompt(agent, role, messages), mode),
-    agentId: agent.id,
-    agentName: agent.name,
-  };
+  return { prompt: buildApiTurnPrompt(room, agent, role).prompt, agentId: agent.id, agentName: agent.name };
 }
 
+/** The current turn's prompt plus the matching recovery instruction, or null if none applies. */
 function recoveryPromptFor(roomId: string, agentId: string, reason: MeetingResponseAdvanceReason): string | null {
   if (agentId !== MEETING_FACILITATOR_AGENT_ID) return null;
   if (reason !== 'decision-proposal-missing' && reason !== 'staffing-plan-missing') return null;
-  const state = useWorkspaceStore.getState();
-  const room = state.rooms.find(item => item.id === roomId);
-  const agent = state.agents.find(item => item.id === agentId);
-  const role = agent ? state.roles.find(item => item.id === agent.roleId) : undefined;
-  if (!room || !agent || !role) return null;
-  return reason === 'decision-proposal-missing'
-    ? buildOliviaDecisionProposalRecoveryPrompt(agent, role, room.messages)
-    : buildOliviaStaffingRecoveryPrompt(agent, role, room.messages);
+  const turn = buildCurrentTurnPrompt(roomId);
+  if (!turn || turn.agentId !== agentId) return null;
+  const instruction = reason === 'decision-proposal-missing' ? decisionProposalRecoveryInstruction() : staffingRecoveryInstruction();
+  return `${turn.prompt}\n\n${instruction}`;
 }
 
 function checkpointMessage(reason: MeetingResponseAdvanceReason): string {

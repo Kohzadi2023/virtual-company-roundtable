@@ -17,6 +17,8 @@ export interface UsageEntry {
   model: string;
   costUsd: number;
   inputTokens: number;
+  /** Part of inputTokens billed at the cached rate; absent on entries recorded before this was tracked. */
+  cachedInputTokens?: number;
   outputTokens: number;
 }
 
@@ -106,6 +108,13 @@ export function recordUsage(entry: UsageEntry): void {
 
 export function clearUsage(): void {
   saveBudgetState({ ...loadBudgetState(), entries: [] });
+}
+
+/** Share of input tokens served from the provider's cache, or undefined when nothing has been recorded. */
+export function cachedInputShare(entries: readonly UsageEntry[]): number | undefined {
+  const input = entries.reduce((sum, entry) => sum + entry.inputTokens, 0);
+  if (input === 0) return undefined;
+  return entries.reduce((sum, entry) => sum + (entry.cachedInputTokens ?? 0), 0) / input;
 }
 
 export function meetingSpendUsd(entries: readonly UsageEntry[], roomId: string): number {

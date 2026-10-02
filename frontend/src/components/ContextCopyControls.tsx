@@ -16,6 +16,7 @@ import {
   MEETING_ORCHESTRATION_EVENT,
   setExternalAgentChat,
 } from '@/lib/meetingOrchestration';
+import { buildApiTurnPrompt } from '@/lib/llm/apiContext';
 import { describeLlmError, formatUsd, isCancelled, runPromptViaApi } from '@/lib/llm/apiRun';
 import { loadBudgetState, meetingSpendUsd } from '@/lib/llm/budget';
 import { hasApiKey } from '@/lib/llm/credentials';
@@ -149,7 +150,10 @@ export function ContextCopyControls({ room, agent, role, cursor, onNotify, onApi
     apiAbort.current = controller;
     setApiRunning(true);
     try {
-      const { response, model } = await runPromptViaApi(prompt, room.id, controller.signal);
+      // A stateless call has no chat memory behind it, so it gets the full
+      // discussion rather than the copy/paste "new since last copy" prompt.
+      const apiPrompt = buildApiTurnPrompt(room, agent, role).prompt;
+      const { response, model } = await runPromptViaApi(apiPrompt, room.id, controller.signal);
       const cost = estimateCostUsd(model, response.usage);
       onApiResponse?.(agent.id, response.text);
       markAgentContextCopied(room.id, agent.id);
@@ -193,7 +197,7 @@ export function ContextCopyControls({ room, agent, role, cursor, onNotify, onApi
             {apiRunning ? (
               <button type="button" onClick={apiRunCancel} className="w-full rounded-lg border border-slate-300 bg-slate-50 px-2 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-100">Running via API… Cancel</button>
             ) : (
-              <button type="button" onClick={() => void runViaApi()} className="w-full rounded-lg border border-violet-500 bg-violet-600 px-2 py-2 text-[11px] font-bold text-white hover:bg-violet-700">⚡ Run via API</button>
+              <button type="button" onClick={() => void runViaApi()} title="Sends the full room discussion (not just new messages), because the API keeps no chat memory" className="w-full rounded-lg border border-violet-500 bg-violet-600 px-2 py-2 text-[11px] font-bold text-white hover:bg-violet-700">⚡ Run via API</button>
             )}
             <div className="text-center text-[10px] text-slate-400">Meeting API spend: {formatUsd(meetingApiSpend)}</div>
           </div>

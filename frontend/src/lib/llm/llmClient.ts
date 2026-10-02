@@ -50,6 +50,7 @@ export async function runLlm(request: LlmRequest, options: RunLlmOptions): Promi
         model: request.model,
         costUsd: estimateCostUsd(request.model, response.usage, new Date(now())),
         inputTokens: response.usage.inputTokens,
+        cachedInputTokens: response.usage.cachedInputTokens,
         outputTokens: response.usage.outputTokens + response.usage.thoughtTokens,
       });
       return response;

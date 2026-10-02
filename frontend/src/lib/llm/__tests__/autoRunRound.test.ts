@@ -154,6 +154,9 @@ describe('autoRunRound', () => {
     expect(prompts[1]).toContain('Emma');
     expect(prompts[2]).toContain('Mike');
     expect(prompts[2]).toContain('Emma view.');
+    // Olivia's synthesis must see her own opening: the API has no chat memory.
+    expect(prompts[3]).toContain('Opening framing.');
+    expect(prompts[3]).toContain('DISCUSSION SO FAR');
   });
 });
 
@@ -166,6 +169,7 @@ describe('autoRunRound checkpoints and recovery', () => {
 
     expect(prompts[1]).toContain('<DECISION_PROPOSAL_RECOVERY_INSTRUCTION>');
     expect(prompts[0]).not.toContain('<DECISION_PROPOSAL_RECOVERY_INSTRUCTION>');
+    expect(prompts[1]).toContain('Prose only, no block.');
     expect(result.reason).toBe('round-complete');
     expect(room().messages).toHaveLength(4);
   });
