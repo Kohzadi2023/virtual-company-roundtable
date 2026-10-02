@@ -1,15 +1,8 @@
 import { buildAgentPrompt } from '@/lib/promptBuilder';
 import type { Agent, Message, RoleDefinition } from '@/types/domain';
 
-export function buildOliviaStaffingRecoveryPrompt(
-  agent: Agent,
-  role: RoleDefinition,
-  messages: Message[],
-): string {
-  const basePrompt = buildAgentPrompt(agent, role, messages);
+export function staffingRecoveryInstruction(): string {
   return [
-    basePrompt,
-    '',
     '<STAFFING_RECOVERY_INSTRUCTION>',
     'Your previous response did not include a valid VC_STAFFING_PLAN, so the meeting is paused.',
     'Regenerate the opening response now. Do not answer the meeting topic itself.',
@@ -18,6 +11,15 @@ export function buildOliviaStaffingRecoveryPrompt(
     'Do not omit the staffing block. Do not write anything after its closing code fence.',
     '</STAFFING_RECOVERY_INSTRUCTION>',
   ].join('\n');
+}
+
+export function buildOliviaStaffingRecoveryPrompt(
+  agent: Agent,
+  role: RoleDefinition,
+  messages: Message[],
+): string {
+  const basePrompt = buildAgentPrompt(agent, role, messages);
+  return [basePrompt, '', staffingRecoveryInstruction()].join('\n');
 }
 
 /**
@@ -29,15 +31,8 @@ export function buildOliviaStaffingRecoveryPrompt(
  * memory-heavy final-round prompt, which is exactly the failure this
  * recovery path exists to correct.
  */
-export function buildOliviaDecisionProposalRecoveryPrompt(
-  agent: Agent,
-  role: RoleDefinition,
-  messages: Message[],
-): string {
-  const basePrompt = buildAgentPrompt(agent, role, messages);
+export function decisionProposalRecoveryInstruction(): string {
   return [
-    basePrompt,
-    '',
     '<DECISION_PROPOSAL_RECOVERY_INSTRUCTION>',
     'Your previous response did not include a valid VC_DECISION_PROPOSAL block, so the final round is paused and the meeting cannot close.',
     'A prose summary of the decision, however complete, is NOT sufficient and does not count. Do not repeat that mistake.',
@@ -69,4 +64,13 @@ export function buildOliviaDecisionProposalRecoveryPrompt(
     'Do not omit this block. Do not write anything after its closing code fence.',
     '</DECISION_PROPOSAL_RECOVERY_INSTRUCTION>',
   ].join('\n');
+}
+
+export function buildOliviaDecisionProposalRecoveryPrompt(
+  agent: Agent,
+  role: RoleDefinition,
+  messages: Message[],
+): string {
+  const basePrompt = buildAgentPrompt(agent, role, messages);
+  return [basePrompt, '', decisionProposalRecoveryInstruction()].join('\n');
 }

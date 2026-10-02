@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { formatUsd } from '@/lib/llm/apiRun';
 import {
+  cachedInputShare,
   clearUsage,
   loadBudgetState,
   monthSpendUsd,
@@ -70,6 +71,7 @@ export function LlmSettingsLauncher() {
   const budget = loadBudgetState();
   const model = getSelectedModel();
   const monthSpend = monthSpendUsd(budget.entries, Date.now());
+  const cacheShare = cachedInputShare(budget.entries);
 
   const saveKey = () => {
     if (!keyDraft.trim()) return;
@@ -175,7 +177,7 @@ export function LlmSettingsLauncher() {
                   <BudgetField label="Max calls per meeting" hint="Stops runaway loops" value={budget.settings.maxCallsPerMeeting} step={1} onCommit={value => commitBudget({ maxCallsPerMeeting: Math.floor(value) })} />
                 </div>
                 <div className="mt-3 flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                  <span>This month: <strong>{formatUsd(monthSpend)}</strong> of {formatUsd(budget.settings.perMonthUsd)} · {budget.entries.length} recorded calls</span>
+                  <span>This month: <strong>{formatUsd(monthSpend)}</strong> of {formatUsd(budget.settings.perMonthUsd)} · {budget.entries.length} recorded calls{cacheShare === undefined ? '' : ` · ${Math.round(cacheShare * 100)}% of input served from cache`}</span>
                   <button type="button" onClick={resetUsage} className="font-semibold text-slate-500 underline hover:text-slate-800">Clear usage</button>
                 </div>
                 <p className="mt-2 text-[10px] leading-4 text-slate-400">Limits are enforced by this app only. They cannot stop spending made with the same key elsewhere.</p>

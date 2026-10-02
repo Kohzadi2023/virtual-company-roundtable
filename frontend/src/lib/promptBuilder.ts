@@ -445,7 +445,15 @@ export function buildExternalChatTitleHint(agent: Pick<Agent, 'name'>): string[]
   ];
 }
 
-export function buildAgentPrompt(agent: Agent, role: RoleDefinition, messages: Message[]): string {
+interface PromptSections {
+  head: string[];
+  scope: string[];
+  memory: string[];
+  meeting: string[];
+  context: string;
+}
+
+function assemblePromptSections(agent: Agent, role: RoleDefinition, messages: Message[]): PromptSections {
   const context = messages.map(formatMessage).join('\n\n');
   const query = messages.map(message => message.content).join('\n');
   const state = useWorkspaceStore.getState();
@@ -475,19 +483,34 @@ export function buildAgentPrompt(agent: Agent, role: RoleDefinition, messages: M
     ...specialistMeetingSection(agent, activeRoom),
   ];
 
+  return {
+    head: [
+      `You are ${agent.name}, the company's ${role.name}.`,
+      ...formatProfessionalProfile(role),
+      role.systemPrompt,
+      sharedAgentBehavior,
+      `Room working language: ${language.name} (${language.nativeName}). Write your entire response in this language unless the user explicitly asks for another language.`,
+    ],
+    scope: roomScopeSection(activeRoom),
+    memory: [
+      ...memorySections,
+      ...(memorySections.length > 0 ? [
+        'Treat active memories as prior working context, not as new user messages. Company memory is shared, project memory is project-scoped, and agent memory belongs only to this specialist. If current context conflicts with memory, surface the conflict instead of silently choosing one.',
+      ] : []),
+    ],
+    meeting: meetingSections,
+    context,
+  };
+}
+
+export function buildAgentPrompt(agent: Agent, role: RoleDefinition, messages: Message[]): string {
+  const { head, scope, memory, meeting, context } = assemblePromptSections(agent, role, messages);
   return [
     ...buildExternalChatTitleHint(agent),
-    `You are ${agent.name}, the company's ${role.name}.`,
-    ...formatProfessionalProfile(role),
-    role.systemPrompt,
-    sharedAgentBehavior,
-    `Room working language: ${language.name} (${language.nativeName}). Write your entire response in this language unless the user explicitly asks for another language.`,
-    ...roomScopeSection(activeRoom),
-    ...memorySections,
-    ...(memorySections.length > 0 ? [
-      'Treat active memories as prior working context, not as new user messages. Company memory is shared, project memory is project-scoped, and agent memory belongs only to this specialist. If current context conflicts with memory, surface the conflict instead of silently choosing one.',
-    ] : []),
-    ...meetingSections,
+    ...head,
+    ...scope,
+    ...memory,
+    ...meeting,
     '',
     'NEW CONTEXT — these are only the messages you have not seen yet:',
     context || '(No new context)',
@@ -495,3 +518,37 @@ export function buildAgentPrompt(agent: Agent, role: RoleDefinition, messages: M
     'Respond with your professional contribution only.',
   ].join('\n');
 }
+
+export interface ApiAgentPrompt {
+  /** The full prompt to send. */
+  prompt: string;
+  /** Everything after the shared discussion: identity, memory, this turn's instructions. */
+  tail: string;
+}
+
+/**
+ * Prompt for a stateless API call. Unlike the copy/paste prompt it cannot rely
+ * on an external chat remembering earlier turns, so it carries the whole
+ * discussion. The discussion comes FIRST and is identical for every agent in
+ * the room, with everything agent- or turn-specific after it: providers cache
+ * on a shared prefix, so the long part is billed at the cached rate on later
+ * calls instead of in full for every agent.
+ */
+export function buildAgentPromptForApi(agent: Agent, role: RoleDefinition, messages: Message[]): ApiAgentPrompt {
+  const { head, scope, memory, meeting, context } = assemblePromptSections(agent, role, messages);
+  const shared = [
+    ...scope,
+    'DISCUSSION SO FAR — you have no memory of earlier turns, so this is the complete room discussion in order:',
+    context || '(No messages yet)',
+    '',
+  ];
+  const tail = [
+    ...head,
+    ...memory,
+    ...meeting,
+    '',
+    'Respond with your professional contribution only.',
+  ].join('\n');
+  return { prompt: [...shared, tail].join('\n'), tail };
+}
+
