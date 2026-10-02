@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   actionReminderState,
+  summarizeActionDeadlines,
   buildDecisionGraph,
   decisionIdForAction,
   loadReminderPreferences,
@@ -48,6 +49,20 @@ describe('roadmap completion utilities', () => {
     expect(actionReminderState(action({ deadline: '2026-09-20' }), now, 24)).toBe('due-soon');
     expect(actionReminderState(action({ deadline: '2026-09-30' }), now, 24)).toBeNull();
     expect(actionReminderState(action({ deadline: '2026-09-19', status: 'done' }), now, 24)).toBeNull();
+  });
+
+  it('counts overdue and due-soon actions, ignoring done and undated ones', () => {
+    const now = new Date('2026-09-20T12:00:00').getTime();
+    const summary = summarizeActionDeadlines([
+      action({ deadline: '2026-09-18' }),
+      action({ deadline: '2026-09-19' }),
+      action({ deadline: '2026-09-20' }),
+      action({ deadline: '2026-10-30' }),
+      action({ deadline: '2026-09-01', status: 'done' }),
+      action({}),
+    ], now, 24);
+    expect(summary).toEqual({ overdue: 2, dueSoon: 1 });
+    expect(summarizeActionDeadlines([], now)).toEqual({ overdue: 0, dueSoon: 0 });
   });
 
   it('builds dependency depth and propagates reversed-ancestor impact', () => {
