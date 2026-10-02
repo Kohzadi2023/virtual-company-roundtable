@@ -8,7 +8,7 @@ import {
   saveBudgetSettings,
   type BudgetSettings,
 } from '@/lib/llm/budget';
-import { clearApiKey, getApiKey, maskApiKey, setApiKey } from '@/lib/llm/credentials';
+import { clearApiKey, getApiKey, isSessionOnlyKey, maskApiKey, setApiKey } from '@/lib/llm/credentials';
 import { LLM_CHANGE_EVENT, getLlmSettings, notifyLlmChange, updateLlmSettings } from '@/lib/llm/llmSettings';
 import type { ThinkingPreference } from '@/lib/llm/llmSettings';
 import { MODELS } from '@/lib/llm/pricing';
@@ -76,12 +76,11 @@ export function LlmSettingsLauncher() {
 
   const saveKey = () => {
     if (!keyDraft.trim()) return;
-    if (setApiKey('gemini', keyDraft)) {
-      setKeyDraft('');
-      setStatus('API key saved on this device only.');
-    } else {
-      setStatus('Could not save the key — browser storage is unavailable.');
-    }
+    const result = setApiKey('gemini', keyDraft);
+    setKeyDraft('');
+    setStatus(result === 'saved'
+      ? 'API key saved on this device only.'
+      : 'Browser storage is full, so the key is kept for this session only. Re-enter it after reloading, or free space by archiving or deleting old rooms.');
     notifyLlmChange();
   };
 
@@ -131,7 +130,7 @@ export function LlmSettingsLauncher() {
                 <h3 className="text-sm font-bold text-slate-800">Gemini API key</h3>
                 {savedKey ? (
                   <div className="mt-2 flex items-center justify-between gap-2 text-xs">
-                    <span className="rounded-md bg-emerald-50 px-2 py-1 font-mono text-emerald-700">{maskApiKey(savedKey)}</span>
+                    <span className="rounded-md bg-emerald-50 px-2 py-1 font-mono text-emerald-700">{maskApiKey(savedKey)}{isSessionOnlyKey('gemini') ? ' · this session only' : ''}</span>
                     <button type="button" onClick={removeKey} className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-600">Remove key</button>
                   </div>
                 ) : (

@@ -54,7 +54,7 @@ describe('pricing', () => {
 describe('credentials', () => {
   it('round-trips, trims, masks and clears a key', () => {
     expect(getApiKey('gemini')).toBeUndefined();
-    expect(setApiKey('gemini', '  AIzaSyExampleKey1234  ')).toBe(true);
+    expect(setApiKey('gemini', '  AIzaSyExampleKey1234  ')).toBe('saved');
     expect(getApiKey('gemini')).toBe('AIzaSyExampleKey1234');
     expect(maskApiKey('AIzaSyExampleKey1234')).toBe('AIza…1234');
     clearApiKey('gemini');

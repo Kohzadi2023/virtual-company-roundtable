@@ -1,5 +1,6 @@
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
 import { DEFAULT_MODEL_ID, findModel } from '@/lib/llm/pricing';
+import { setLocalStorageWithQuotaRecovery } from '@/lib/localStorageQuota';
 
 /**
  * Non-secret API preferences. Kept apart from the credentials entry so none of
@@ -34,7 +35,16 @@ export const DEFAULT_LLM_SETTINGS: LlmSettings = {
   tokenSaver: true,
 };
 
+/** Holds settings the browser refused to store, so choices still apply this session. */
+let unpersistedSettings: LlmSettings | null = null;
+
+/** Test hook. */
+export function resetSettingsMemory(): void {
+  unpersistedSettings = null;
+}
+
 export function getLlmSettings(): LlmSettings {
+  if (unpersistedSettings) return { ...unpersistedSettings };
   try {
     const raw = window.localStorage.getItem(LLM_SETTINGS_STORAGE_KEY);
     if (!raw) return { ...DEFAULT_LLM_SETTINGS };
@@ -57,11 +67,8 @@ export function updateLlmSettings(patch: Partial<LlmSettings>): LlmSettings {
   const next = { ...getLlmSettings(), ...patch };
   if (!findModel(next.model)) next.model = DEFAULT_LLM_SETTINGS.model;
   if (next.specialistModel !== null && !findModel(next.specialistModel)) next.specialistModel = null;
-  try {
-    window.localStorage.setItem(LLM_SETTINGS_STORAGE_KEY, JSON.stringify(next));
-  } catch {
-    // The choice just falls back to the defaults next load.
-  }
+  const result = setLocalStorageWithQuotaRecovery(LLM_SETTINGS_STORAGE_KEY, JSON.stringify(next));
+  unpersistedSettings = result.ok ? null : { ...next };
   notifyLlmChange();
   return next;
 }

@@ -1,3 +1,5 @@
+import { setLocalStorageWithQuotaRecovery } from '@/lib/localStorageQuota';
+
 /**
  * Client-side spend guard. The browser/desktop app calls the model directly
  * with the user's own key, so these limits are soft: they stop this app from
@@ -67,7 +69,24 @@ function isUsageEntry(value: unknown): value is UsageEntry {
   );
 }
 
+/**
+ * Set when the ledger could not be written to localStorage. Reads then use
+ * this copy so the budget guard keeps counting for the rest of the session
+ * instead of silently seeing a ledger that never grows.
+ */
+let unpersistedState: BudgetState | null = null;
+
+function cloneState(state: BudgetState): BudgetState {
+  return { settings: { ...state.settings }, entries: [...state.entries] };
+}
+
+/** Test hook. */
+export function resetBudgetMemory(): void {
+  unpersistedState = null;
+}
+
 export function loadBudgetState(): BudgetState {
+  if (unpersistedState) return cloneState(unpersistedState);
   try {
     const raw = window.localStorage.getItem(LLM_BUDGET_STORAGE_KEY);
     if (!raw) return { settings: { ...DEFAULT_BUDGET_SETTINGS }, entries: [] };
@@ -82,11 +101,8 @@ export function loadBudgetState(): BudgetState {
 }
 
 function saveBudgetState(state: BudgetState): void {
-  try {
-    window.localStorage.setItem(LLM_BUDGET_STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // Quota/private mode: spend tracking is lost, the app keeps working.
-  }
+  const result = setLocalStorageWithQuotaRecovery(LLM_BUDGET_STORAGE_KEY, JSON.stringify(state));
+  unpersistedState = result.ok ? null : cloneState(state);
 }
 
 export function saveBudgetSettings(settings: Partial<BudgetSettings>): BudgetSettings {
