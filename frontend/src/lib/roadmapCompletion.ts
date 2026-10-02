@@ -73,6 +73,21 @@ export function actionReminderState(
   return null;
 }
 
+export function summarizeActionDeadlines(
+  actions: ReadonlyArray<Pick<ActionItem, 'status' | 'deadline'>>,
+  now = Date.now(),
+  dueSoonHours = 24,
+): { overdue: number; dueSoon: number } {
+  let overdue = 0;
+  let dueSoon = 0;
+  for (const action of actions) {
+    const state = actionReminderState(action, now, dueSoonHours);
+    if (state === 'overdue') overdue += 1;
+    else if (state === 'due-soon') dueSoon += 1;
+  }
+  return { overdue, dueSoon };
+}
+
 function loadSent(): Record<string, number> {
   try {
     const parsed = JSON.parse(localStorage.getItem(SENT_KEY) ?? '{}') as Record<string, number>;
