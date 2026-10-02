@@ -198,7 +198,7 @@ export function LlmSettingsLauncher() {
                 <div className="mt-3 flex items-start justify-between gap-3 text-xs">
                   <span>
                     <span className="font-semibold text-slate-700">Token saver</span>
-                    <span className="mt-0.5 block text-[10px] leading-4 text-slate-400">Summarises older discussion sooner (keeps the brief, Olivia's summaries and the latest decision proposal) so each call sends less. Turn off for maximum fidelity.</span>
+                    <span className="mt-0.5 block text-[10px] leading-4 text-slate-400">Summarises older discussion sooner (keeps the brief, Olivia's summaries and the latest decision proposal) so each call sends less. Cheaper, but later rounds can lose details from earlier ones; leave off for important meetings.</span>
                   </span>
                   <button
                     type="button"

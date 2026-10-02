@@ -32,8 +32,17 @@ export const DEFAULT_LLM_SETTINGS: LlmSettings = {
   model: DEFAULT_MODEL_ID,
   specialistModel: null,
   thinking: 'low',
-  tokenSaver: true,
+  // Off by default: summarising older discussion saves tokens but can lose
+  // details (numbering, earlier positions) that later rounds depend on.
+  tokenSaver: false,
 };
+
+/**
+ * Stored settings written before this version always carried tokenSaver=true
+ * even when the user never chose it. Only a value saved at this version or
+ * later is treated as an explicit choice.
+ */
+const SETTINGS_SCHEMA = 2;
 
 /** Holds settings the browser refused to store, so choices still apply this session. */
 let unpersistedSettings: LlmSettings | null = null;
@@ -56,7 +65,10 @@ export function getLlmSettings(): LlmSettings {
       model,
       specialistModel,
       thinking: parsed.thinking === 'default' || parsed.thinking === 'low' ? parsed.thinking : DEFAULT_LLM_SETTINGS.thinking,
-      tokenSaver: typeof parsed.tokenSaver === 'boolean' ? parsed.tokenSaver : DEFAULT_LLM_SETTINGS.tokenSaver,
+      tokenSaver:
+        (parsed as { schema?: unknown }).schema === SETTINGS_SCHEMA && typeof parsed.tokenSaver === 'boolean'
+          ? parsed.tokenSaver
+          : DEFAULT_LLM_SETTINGS.tokenSaver,
     };
   } catch {
     return { ...DEFAULT_LLM_SETTINGS };
@@ -67,7 +79,7 @@ export function updateLlmSettings(patch: Partial<LlmSettings>): LlmSettings {
   const next = { ...getLlmSettings(), ...patch };
   if (!findModel(next.model)) next.model = DEFAULT_LLM_SETTINGS.model;
   if (next.specialistModel !== null && !findModel(next.specialistModel)) next.specialistModel = null;
-  const result = setLocalStorageWithQuotaRecovery(LLM_SETTINGS_STORAGE_KEY, JSON.stringify(next));
+  const result = setLocalStorageWithQuotaRecovery(LLM_SETTINGS_STORAGE_KEY, JSON.stringify({ ...next, schema: SETTINGS_SCHEMA }));
   unpersistedSettings = result.ok ? null : { ...next };
   notifyLlmChange();
   return next;

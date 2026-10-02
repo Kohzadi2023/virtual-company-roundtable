@@ -25,10 +25,10 @@ afterEach(() => {
 });
 
 describe('llm settings', () => {
-  it('defaults to the cheap choices', () => {
+  it('defaults to low thinking and full context', () => {
     expect(getLlmSettings()).toEqual(DEFAULT_LLM_SETTINGS);
     expect(DEFAULT_LLM_SETTINGS.thinking).toBe('low');
-    expect(DEFAULT_LLM_SETTINGS.tokenSaver).toBe(true);
+    expect(DEFAULT_LLM_SETTINGS.tokenSaver).toBe(false);
   });
 
   it('merges updates instead of overwriting other settings, and ignores unknown models', () => {
@@ -49,6 +49,14 @@ describe('llm settings', () => {
     expect(modelForAgent('agent-emma')).toBe('gemini-3.5-flash-lite');
     updateLlmSettings({ specialistModel: null });
     expect(modelForAgent('agent-emma')).toBe('gemini-3.8-flash');
+  });
+
+  it('ignores a tokenSaver value saved by an older version, because the user never chose it', () => {
+    window.localStorage.setItem('virtual-company:llm-settings:v1', JSON.stringify({ model: 'gemini-3.1-pro-preview', specialistModel: null, thinking: 'low', tokenSaver: true }));
+    expect(getLlmSettings().tokenSaver).toBe(false);
+    expect(getLlmSettings().model).toBe('gemini-3.1-pro-preview');
+    updateLlmSettings({ tokenSaver: true });
+    expect(getLlmSettings().tokenSaver).toBe(true);
   });
 
   it('reads settings saved before the new fields existed', () => {
