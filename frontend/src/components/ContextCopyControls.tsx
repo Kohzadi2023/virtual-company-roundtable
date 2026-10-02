@@ -32,8 +32,8 @@ interface ContextCopyControlsProps {
   role: RoleDefinition;
   cursor?: AgentContextState | undefined;
   onNotify: (text: string, tone?: 'success' | 'error') => void;
-  /** Receives the API's answer for review; the user still decides whether to add it. */
-  onApiResponse?: ((agentId: string, text: string) => void) | undefined;
+  /** Receives the API's answer (and its estimated cost) so the panel can add it to the room. */
+  onApiResponse?: ((agentId: string, text: string, costUsd: number) => void) | undefined;
 }
 
 function canOpen(value: string | undefined): value is string {
@@ -155,9 +155,8 @@ export function ContextCopyControls({ room, agent, role, cursor, onNotify, onApi
       const apiPrompt = buildApiTurnPrompt(room, agent, role, { tokenSaver: getLlmSettings().tokenSaver }).prompt;
       const { response, model } = await runPromptViaApi(apiPrompt, room.id, controller.signal, agent.id);
       const cost = estimateCostUsd(model, response.usage);
-      onApiResponse?.(agent.id, response.text);
       markAgentContextCopied(room.id, agent.id);
-      onNotify(`${agent.name} answered via API (~${formatUsd(cost)}). Review the response, then click Add Response.`);
+      onApiResponse?.(agent.id, response.text, cost);
     } catch (error) {
       if (!isCancelled(error)) onNotify(describeLlmError(error), 'error');
     } finally {
