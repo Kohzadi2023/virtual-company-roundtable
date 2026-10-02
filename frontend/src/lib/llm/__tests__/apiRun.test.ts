@@ -60,6 +60,7 @@ describe('describeLlmError', () => {
     'truncated',
     'no-credentials',
     'budget',
+    'billing',
   ];
 
   it('gives every error kind a readable, non-empty message', () => {

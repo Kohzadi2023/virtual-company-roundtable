@@ -76,6 +76,8 @@ export function describeLlmError(error: unknown): string {
       return 'The answer was cut off at the output limit. Try again, or use a lighter context mode.';
     case 'empty':
       return 'Gemini returned an empty answer. Try again.';
+    case 'billing':
+      return 'Your Gemini account has no credit left (or billing is not set up). Add credits in Google AI Studio under Billing, then try again. Nothing was spent by this app on this call.';
     case 'budget':
       return `${error.message} Raise the limit under Tools → AI API to continue.`;
     case 'bad-request':

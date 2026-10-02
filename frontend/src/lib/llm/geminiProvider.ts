@@ -3,7 +3,15 @@ import type { LlmProvider, LlmRequest, LlmResponse, LlmUsage } from '@/lib/llm/t
 
 export const GEMINI_API_HOST = 'https://generativelanguage.googleapis.com';
 const DEFAULT_TIMEOUT_MS = 120_000;
-const DEFAULT_MAX_OUTPUT_TOKENS = 8192;
+/**
+ * Hidden reasoning counts against this limit, and non-Latin text (Persian, Arabic)
+ * costs several tokens per word, so a small cap cuts answers off mid-sentence.
+ * Gemini 3 models allow up to 65,536 output tokens; you only pay for what is generated.
+ */
+export const DEFAULT_MAX_OUTPUT_TOKENS = 32_768;
+export const MAX_OUTPUT_TOKENS_CEILING = 65_536;
+
+const EARLY_STOP_REASONS: ReadonlySet<string> = new Set(['RECITATION', 'LANGUAGE', 'OTHER', 'SPII', 'MALFORMED_RESPONSE']);
 
 interface GeminiPart {
   text?: string;
@@ -37,7 +45,13 @@ function buildBody(request: LlmRequest): Record<string, unknown> {
   return body;
 }
 
+/** Prepaid credits used up, billing not enabled, spending cap reached, and similar account-level stops. */
+const BILLING_PATTERN = /prepayment|credits? (?:are|is|have been) (?:depleted|exhausted)|billing|spending cap|payment/i;
+
 function classifyHttpError(status: number, message: string): LlmError {
+  // Checked before the status: these can arrive as 400, 403 or 429, and a 429
+  // would otherwise be retried although waiting cannot add credit.
+  if (status < 500 && BILLING_PATTERN.test(message)) return new LlmError('billing', message, status);
   if (status === 401 || status === 403) return new LlmError('auth', message || 'The API key was rejected.', status);
   if (status === 429) return new LlmError('rate-limit', message || 'Rate limit or quota reached.', status);
   if (status >= 500) return new LlmError('server', message || 'The Gemini service had an error.', status);
@@ -48,6 +62,14 @@ export function parseGeminiResponse(model: string, body: GeminiResponseBody): Ll
   const blockReason = body.promptFeedback?.blockReason;
   if (blockReason) throw new LlmError('blocked', `The prompt was blocked (${blockReason}).`);
 
+  const meta = body.usageMetadata ?? {};
+  const usage: LlmUsage = {
+    inputTokens: meta.promptTokenCount ?? 0,
+    cachedInputTokens: meta.cachedContentTokenCount ?? 0,
+    outputTokens: meta.candidatesTokenCount ?? 0,
+    thoughtTokens: meta.thoughtsTokenCount ?? 0,
+  };
+
   const candidate = body.candidates?.[0];
   const finishReason = candidate?.finishReason ?? 'UNKNOWN';
   const text = (candidate?.content?.parts ?? [])
@@ -56,23 +78,21 @@ export function parseGeminiResponse(model: string, body: GeminiResponseBody): Ll
     .join('');
 
   if (finishReason === 'SAFETY' || finishReason === 'PROHIBITED_CONTENT' || finishReason === 'BLOCKLIST') {
-    throw new LlmError('blocked', `The response was blocked (${finishReason}).`);
+    throw new LlmError('blocked', `The response was blocked (${finishReason}).`, undefined, usage);
+  }
+  // Anything other than a normal stop means the model ended early, so the text
+  // may be only part of an answer; say so instead of passing it off as complete.
+  if (EARLY_STOP_REASONS.has(finishReason)) {
+    throw new LlmError('blocked', `The response stopped early (${finishReason}).`, undefined, usage);
   }
   if (finishReason === 'MAX_TOKENS') {
     // With no visible text this usually means thinking consumed the whole
     // output allowance; with text it is a cut-off answer. Either way the
     // meeting flow needs to know rather than receive a half-formed reply.
-    throw new LlmError('truncated', 'The response hit the output token limit.');
+    throw new LlmError('truncated', 'The response hit the output token limit.', undefined, usage);
   }
-  if (!text.trim()) throw new LlmError('empty', 'The model returned no text.');
+  if (!text.trim()) throw new LlmError('empty', 'The model returned no text.', undefined, usage);
 
-  const meta = body.usageMetadata ?? {};
-  const usage: LlmUsage = {
-    inputTokens: meta.promptTokenCount ?? 0,
-    cachedInputTokens: meta.cachedContentTokenCount ?? 0,
-    outputTokens: meta.candidatesTokenCount ?? 0,
-    thoughtTokens: meta.thoughtsTokenCount ?? 0,
-  };
   return { text, usage, finishReason, model };
 }
 

@@ -1,9 +1,9 @@
 import { checkBudget, loadBudgetState, recordUsage } from '@/lib/llm/budget';
 import { getApiKey } from '@/lib/llm/credentials';
-import { geminiProvider } from '@/lib/llm/geminiProvider';
+import { DEFAULT_MAX_OUTPUT_TOKENS, MAX_OUTPUT_TOKENS_CEILING, geminiProvider } from '@/lib/llm/geminiProvider';
 import { estimateCostUsd } from '@/lib/llm/pricing';
 import { LlmError } from '@/lib/llm/types';
-import type { LlmProvider, LlmRequest, LlmResponse } from '@/lib/llm/types';
+import type { LlmProvider, LlmRequest, LlmResponse, LlmUsage } from '@/lib/llm/types';
 
 export interface RunLlmOptions {
   roomId: string;
@@ -37,26 +37,44 @@ export async function runLlm(request: LlmRequest, options: RunLlmOptions): Promi
   const apiKey = getApiKey(provider.id);
   if (!apiKey) throw new LlmError('no-credentials', 'No API key is saved. Add your Gemini API key in settings.');
 
+  const record = (model: string, usage: LlmUsage) =>
+    recordUsage({
+      at: now(),
+      roomId: options.roomId,
+      model,
+      costUsd: estimateCostUsd(model, usage, new Date(now())),
+      inputTokens: usage.inputTokens,
+      cachedInputTokens: usage.cachedInputTokens,
+      outputTokens: usage.outputTokens + usage.thoughtTokens,
+    });
+
+  let current = request;
   let lastError: LlmError | undefined;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const verdict = checkBudget(loadBudgetState(), options.roomId, now(), options.estimatedCostUsd ?? 0);
     if (!verdict.ok) throw new LlmError('budget', verdict.message);
 
     try {
-      const response = await provider.generate(apiKey, request);
-      recordUsage({
-        at: now(),
-        roomId: options.roomId,
-        model: request.model,
-        costUsd: estimateCostUsd(request.model, response.usage, new Date(now())),
-        inputTokens: response.usage.inputTokens,
-        cachedInputTokens: response.usage.cachedInputTokens,
-        outputTokens: response.usage.outputTokens + response.usage.thoughtTokens,
-      });
+      const response = await provider.generate(apiKey, current);
+      record(current.model, response.usage);
       return response;
     } catch (error) {
       if (!(error instanceof LlmError)) throw error;
       lastError = error;
+      // A call can fail after the provider already billed it (cut-off or empty
+      // answer); count it so the budget reflects real spend.
+      if (error.usage) record(current.model, error.usage);
+      // A cut-off answer is retried once with the largest output allowance
+      // rather than handing the user half an answer.
+      if (
+        error.kind === 'truncated'
+        && attempt < maxAttempts
+        && (current.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS) < MAX_OUTPUT_TOKENS_CEILING
+        && !current.signal?.aborted
+      ) {
+        current = { ...current, maxOutputTokens: MAX_OUTPUT_TOKENS_CEILING };
+        continue;
+      }
       if (!error.retryable || attempt === maxAttempts || request.signal?.aborted) throw error;
       await sleep(backoffMs(attempt));
     }

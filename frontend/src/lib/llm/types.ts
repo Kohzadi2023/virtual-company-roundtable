@@ -44,19 +44,24 @@ export type LlmErrorKind =
   | 'empty'
   | 'truncated'
   | 'no-credentials'
-  | 'budget';
+  | 'budget'
+  /** The Google account has no credit / billing problem; retrying cannot help. */
+  | 'billing';
 
 const RETRYABLE: ReadonlySet<LlmErrorKind> = new Set(['rate-limit', 'server', 'network', 'timeout']);
 
 export class LlmError extends Error {
   readonly kind: LlmErrorKind;
   readonly status: number | undefined;
+  /** Tokens the provider billed for a call that still failed (e.g. a cut-off answer). */
+  readonly usage: LlmUsage | undefined;
 
-  constructor(kind: LlmErrorKind, message: string, status?: number) {
+  constructor(kind: LlmErrorKind, message: string, status?: number, usage?: LlmUsage) {
     super(message);
     this.name = 'LlmError';
     this.kind = kind;
     this.status = status;
+    this.usage = usage;
   }
 
   get retryable(): boolean {
