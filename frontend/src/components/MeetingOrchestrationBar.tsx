@@ -196,10 +196,10 @@ export function MeetingOrchestrationBar({ roomId }: { roomId: string }) {
   return (
     <>
       <div className="flex h-10 shrink-0 items-center gap-2 overflow-x-auto border-b border-slate-200 bg-white px-3 text-[11px]">
-        <button ref={meetingButtonRef} type="button" onClick={() => setOpen(true)} className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-violet-200 bg-violet-50 px-2.5 py-1.5 font-bold text-violet-700 hover:bg-violet-100">◉ Meeting</button>
-        <span className="shrink-0 rounded-md bg-slate-100 px-2 py-1 font-semibold text-slate-700">{phaseLabel(meeting.phase)}</span>
-        <span className={`shrink-0 rounded-md px-2 py-1 font-semibold ${meeting.roundStage === 'synthesis' ? 'bg-violet-100 text-violet-700' : meeting.roundStage === 'complete' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>{roundStageLabel(meeting.roundStage)}</span>
-        <span className={`shrink-0 rounded-md px-2 py-1 font-semibold ${readiness.decisionReady ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{readiness.decisionReady ? 'Decision ready' : `${readiness.decisionBlockers.length} readiness blocker${readiness.decisionBlockers.length === 1 ? '' : 's'}`}</span>
+        <button ref={meetingButtonRef} type="button" onClick={() => setOpen(true)} title="Open meeting controls" className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-violet-200 bg-violet-50 px-2.5 py-1.5 font-bold text-violet-700 hover:bg-violet-100">◉ Meeting ▸</button>
+        <span title="Meeting phase (status only)" className="shrink-0 cursor-default select-none rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-700">{phaseLabel(meeting.phase)}</span>
+        <span title="Where this round currently is (status only)" className={`shrink-0 cursor-default select-none rounded-full px-2.5 py-1 font-semibold ${meeting.roundStage === 'synthesis' ? 'bg-violet-100 text-violet-700' : meeting.roundStage === 'complete' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>{roundStageLabel(meeting.roundStage)}</span>
+        <span title={readiness.decisionReady ? 'Everything needed for a decision is in place (status only)' : 'Open the Meeting controls to see what is still missing (status only)'} className={`shrink-0 cursor-default select-none rounded-full px-2.5 py-1 font-semibold ${readiness.decisionReady ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{readiness.decisionReady ? 'Decision ready' : `${readiness.decisionBlockers.length} readiness blocker${readiness.decisionBlockers.length === 1 ? '' : 's'}`}</span>
         <span className="text-slate-500">·</span>
         <span className="shrink-0 font-medium text-slate-600">Round {meeting.roundIndex + 1}/{meeting.rounds.length}: {currentRound}</span>
         <span className="text-slate-500">·</span>
