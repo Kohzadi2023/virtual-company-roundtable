@@ -113,10 +113,10 @@ export function AgentAvatar({
               <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Professional Skill Matrix</div>
               {skillGroups.map(group => (
                 <div key={group.name} className="rounded-lg bg-slate-800/80 p-2">
-                  <div className="text-[11px] font-bold text-blue-300">{group.name}</div>
+                  <div className="text-[12px] font-bold text-blue-300">{group.name}</div>
                   <div className="mt-1 flex flex-wrap gap-1">
                     {group.skills.map(skill => (
-                      <span key={skill} className="rounded bg-slate-700 px-1.5 py-0.5 text-[11px] leading-4 text-slate-100">{skill}</span>
+                      <span key={skill} className="rounded bg-slate-700 px-1.5 py-0.5 text-[12px] leading-4 text-slate-100">{skill}</span>
                     ))}
                   </div>
                 </div>
@@ -127,7 +127,7 @@ export function AgentAvatar({
               <div className="mb-2 text-xs font-semibold text-slate-300">Key Skills</div>
               <div className="flex flex-wrap gap-1.5">
                 {role.skills.map(skill => (
-                  <span key={skill} dir="auto" className="rounded-md bg-slate-700 px-2 py-1 text-[11px] text-slate-100 shadow-inner">{skill}</span>
+                  <span key={skill} dir="auto" className="rounded-md bg-slate-700 px-2 py-1 text-[12px] text-slate-100 shadow-inner">{skill}</span>
                 ))}
               </div>
             </div>
@@ -135,15 +135,15 @@ export function AgentAvatar({
 
           {deliverables.length > 0 && (
             <div className="mt-3 border-t border-slate-700 pt-3">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Typical Deliverables</div>
-              <div className="mt-1 text-[11px] leading-5 text-slate-200">{deliverables.join(' · ')}</div>
+              <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-400">Typical Deliverables</div>
+              <div className="mt-1 text-[12px] leading-5 text-slate-200">{deliverables.join(' · ')}</div>
             </div>
           )}
 
           {limitations.length > 0 && (
             <div className="mt-3 rounded-lg border border-amber-700/50 bg-amber-950/30 p-2">
-              <div className="text-[11px] font-semibold text-amber-300">Professional boundaries</div>
-              <div className="mt-1 text-[11px] leading-4 text-amber-100/90">{limitations.join(' ')}</div>
+              <div className="text-[12px] font-semibold text-amber-300">Professional boundaries</div>
+              <div className="mt-1 text-[12px] leading-4 text-amber-100/90">{limitations.join(' ')}</div>
             </div>
           )}
         </div>,

@@ -20,7 +20,7 @@ export function SyncBadge() {
   const state = useWorkspaceStore(s => s.syncState);
   return (
     <span
-      className="inline-flex items-center gap-1.5 text-[11px] text-slate-500"
+      className="inline-flex items-center gap-1.5 text-[12px] text-slate-500"
       role="status"
       aria-live="polite"
       title={state === 'error' ? 'Your latest changes could not be saved in this browser. Export a backup (Settings) and free some storage.' : undefined}

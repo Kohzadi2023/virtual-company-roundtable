@@ -99,7 +99,7 @@ export function MeetingPhaseTimerStrip({ roomId }: { roomId: string }) {
   if (phase === 'closed' && !timer) return null;
 
   return (
-    <div className="flex min-h-10 shrink-0 flex-wrap items-center gap-2 bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
+    <div className="flex min-h-10 shrink-0 flex-wrap items-center gap-2 bg-slate-50 px-3 py-2 text-[12px] text-slate-500">
       <span className="rounded-full bg-white px-2.5 py-1 font-bold text-slate-700 ring-1 ring-slate-200">⏱ {PHASE_LABELS[phase]}</span>
       {phase !== 'closed' ? <span className="rounded-full bg-white px-2.5 py-1 font-semibold text-slate-500 ring-1 ring-slate-200">Preset {phaseMinutes} min</span> : null}
       {timer ? <span className={`rounded-full bg-white px-2.5 py-1 font-mono text-xs font-bold ring-1 ring-slate-200 ${remaining === 0 ? 'text-rose-600' : 'text-slate-700'}`}>{String(Math.floor(remaining / 60)).padStart(2, '0')}:{String(remaining % 60).padStart(2, '0')}</span> : <span className="rounded-full bg-white px-2.5 py-1 text-slate-500 ring-1 ring-slate-200">Not started</span>}

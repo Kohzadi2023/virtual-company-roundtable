@@ -15,11 +15,11 @@ export function MemoryCenterLauncher() {
     <button
       type="button"
       onClick={() => openMemoryCenter({ tab: pending > 0 ? 'suggestions' : 'shared' })}
-      className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold text-slate-500 transition hover:bg-violet-50 hover:text-violet-700"
+      className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[12px] font-semibold text-slate-500 transition hover:bg-violet-50 hover:text-violet-700"
       title="Company, project and memory intelligence"
     >
       <span aria-hidden="true">◈</span> Memory Center
-      {pending > 0 ? <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[11px] font-bold text-violet-700">{pending}</span> : null}
+      {pending > 0 ? <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[12px] font-bold text-violet-700">{pending}</span> : null}
     </button>
   );
 }

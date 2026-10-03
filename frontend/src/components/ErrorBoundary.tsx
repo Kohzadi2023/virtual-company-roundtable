@@ -87,7 +87,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           </div>
           <details className="rounded-lg border border-slate-200 bg-white text-left">
             <summary className="cursor-pointer px-4 py-3 text-xs font-semibold text-slate-600">Technical details</summary>
-            <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words border-t border-slate-100 px-4 py-3 text-[11px] leading-5 text-slate-600">{diagnostics}</pre>
+            <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words border-t border-slate-100 px-4 py-3 text-[12px] leading-5 text-slate-600">{diagnostics}</pre>
           </details>
         </div>
       </div>
