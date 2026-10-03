@@ -188,7 +188,7 @@ export function OtherRoomsPanel() {
           {visibleRooms.length === 0 ? (
             <div className="rounded-lg border border-dashed border-slate-300 bg-white p-4 text-center text-xs text-slate-500">No active rooms. Create one from Room Settings or restore an archived room from Workspace.</div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {groupedRooms.map(({ project, rooms: projectRooms, roomCount }) => {
                 const groupOpen = !collapsedProjectIds.has(project.id);
                 const dropTarget = dragOverProjectId === project.id;
@@ -211,13 +211,13 @@ export function OtherRoomsPanel() {
                     <button
                       type="button"
                       onClick={() => toggleProjectOpen(project.id)}
-                      className="flex w-full items-center gap-2 rounded-lg px-1.5 py-1.5 text-start hover:bg-slate-100"
+                      className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-start hover:bg-slate-100"
                       aria-expanded={groupOpen}
                     >
                       <span className={`text-[11px] text-slate-500 transition-transform ${groupOpen ? 'rotate-90' : ''}`} aria-hidden="true">▸</span>
-                      <span className="text-sm" aria-hidden="true">{project.emoji}</span>
-                      <span className="min-w-0 flex-1 truncate text-[11px] font-bold uppercase tracking-wide text-slate-500">{project.name}</span>
-                      <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500">{roomCount}</span>
+                      <span className="text-base" aria-hidden="true">{project.emoji}</span>
+                      <span className="min-w-0 flex-1 truncate text-xs font-bold uppercase tracking-wide text-slate-700">{project.name}</span>
+                      <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">{roomCount}</span>
                     </button>
 
                     {groupOpen ? (
@@ -226,7 +226,7 @@ export function OtherRoomsPanel() {
                           Drag a room here to move it into {project.name}.
                         </div>
                       ) : (
-                        <div className="ms-1 mt-1 space-y-1.5">
+                        <div className="ms-1 mt-1 space-y-2">
                           {projectRooms.map(({ room, children }) => (
                             <div key={room.id} className="space-y-1.5">
                               {renderRoomCard(room, false)}

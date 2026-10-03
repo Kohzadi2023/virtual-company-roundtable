@@ -211,32 +211,33 @@ export function CompanyPanel() {
         </label>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2.5 pb-2">
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-2.5 pb-2">
         {directoryTab === 'members' ? (
           <>
             {groupedMembers.groups.map(({ team, agents: teamAgents }) => {
               const open = isSearching || openTeamIds.has(team.id);
               return (
-                <div key={team.id} className="mb-1.5">
+                <div key={team.id} className="mb-2 rounded-lg border-s-2 border-indigo-200">
                   <button
                     type="button"
                     onClick={() => toggleTeamOpen(team.id)}
-                    className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-start hover:bg-slate-100"
+                    title={`Team: ${team.name}`}
+                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2.5 text-start hover:bg-indigo-50"
                     aria-expanded={open}
                   >
                     <span className={`text-[11px] text-slate-500 transition-transform ${open ? 'rotate-90' : ''}`} aria-hidden="true">▸</span>
-                    <span className="text-sm" aria-hidden="true">{team.emoji}</span>
-                    <span className="min-w-0 flex-1 truncate text-[11px] font-bold uppercase tracking-wide text-slate-500">{team.name}</span>
-                    <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500">{teamAgents.length}</span>
+                    <span className="text-base" aria-hidden="true">{team.emoji}</span>
+                    <span className="min-w-0 flex-1 truncate text-xs font-bold uppercase tracking-wide text-indigo-800">{team.name}</span>
+                    <span className="shrink-0 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">{teamAgents.length}</span>
                   </button>
-                  {open ? <div className="mt-0.5 space-y-1 ps-1">{teamAgents.map(renderAgentRow)}</div> : null}
+                  {open ? <div className="mt-0.5 space-y-1.5 pb-1 ps-1.5">{teamAgents.map(renderAgentRow)}</div> : null}
                 </div>
               );
             })}
             {groupedMembers.unassigned.length > 0 ? (
               <div className="mb-1.5">
-                <div className="px-2 py-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500">
-                  Unassigned <span className="ms-1 rounded-full bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500">{groupedMembers.unassigned.length}</span>
+                <div className="px-2.5 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-600">
+                  Unassigned <span className="ms-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">{groupedMembers.unassigned.length}</span>
                 </div>
                 <div className="space-y-1 ps-1">{groupedMembers.unassigned.map(renderAgentRow)}</div>
               </div>
@@ -249,9 +250,10 @@ export function CompanyPanel() {
           const inRoomCount = room ? team.agentIds.filter(id => room.agentIds.includes(id)).length : 0;
           const selectedInRoom = room?.teamIds?.includes(team.id) ?? false;
           return (
-            <div key={team.id} className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+            <div key={team.id} className="rounded-lg border border-slate-200 border-s-4 border-s-indigo-300 bg-white p-3 shadow-sm">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
+                  <div className="mb-1 text-xs font-bold uppercase tracking-wide text-indigo-600">Team · {team.agentIds.length} member{team.agentIds.length === 1 ? '' : 's'}</div>
                   <div className="flex items-center gap-2"><span className="text-lg">{team.emoji}</span><span className="truncate text-[13px] font-bold text-[#111b3a]">{team.name}</span></div>
                   <div className="mt-1 text-[11px] leading-4 text-slate-500">{team.description}</div>
                 </div>
