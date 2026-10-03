@@ -82,7 +82,7 @@ export function buildCurrentTurnPrompt(roomId: string): { prompt: string; agentI
   const role = agent ? state.roles.find(item => item.id === agent.roleId) : undefined;
   if (!agent || !role) return null;
   return {
-    prompt: buildApiTurnPrompt(room, agent, role, { tokenSaver: getLlmSettings().tokenSaver }).prompt,
+    prompt: buildApiTurnPrompt(room, agent, role, { tokenSaver: getLlmSettings().tokenSaver, answerLength: getLlmSettings().answerLength }).prompt,
     agentId: agent.id,
     agentName: agent.name,
   };

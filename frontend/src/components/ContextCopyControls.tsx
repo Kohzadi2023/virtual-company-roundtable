@@ -152,7 +152,7 @@ export function ContextCopyControls({ room, agent, role, cursor, onNotify, onApi
     try {
       // A stateless call has no chat memory behind it, so it gets the full
       // discussion rather than the copy/paste "new since last copy" prompt.
-      const apiPrompt = buildApiTurnPrompt(room, agent, role, { tokenSaver: getLlmSettings().tokenSaver }).prompt;
+      const apiPrompt = buildApiTurnPrompt(room, agent, role, { tokenSaver: getLlmSettings().tokenSaver, answerLength: getLlmSettings().answerLength }).prompt;
       const { response, model } = await runPromptViaApi(apiPrompt, room.id, controller.signal, agent.id);
       const cost = estimateCostUsd(model, response.usage);
       markAgentContextCopied(room.id, agent.id);

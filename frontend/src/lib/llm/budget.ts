@@ -126,6 +126,30 @@ export function clearUsage(): void {
   saveBudgetState({ ...loadBudgetState(), entries: [] });
 }
 
+export interface RoomUsageSummary {
+  roomId: string;
+  calls: number;
+  inputTokens: number;
+  cachedInputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+}
+
+/** Per-meeting totals, most expensive first, so it is visible where tokens actually go. */
+export function summarizeUsageByRoom(entries: readonly UsageEntry[]): RoomUsageSummary[] {
+  const byRoom = new Map<string, RoomUsageSummary>();
+  for (const entry of entries) {
+    const row = byRoom.get(entry.roomId) ?? { roomId: entry.roomId, calls: 0, inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, costUsd: 0 };
+    row.calls += 1;
+    row.inputTokens += entry.inputTokens;
+    row.cachedInputTokens += entry.cachedInputTokens ?? 0;
+    row.outputTokens += entry.outputTokens;
+    row.costUsd += entry.costUsd;
+    byRoom.set(entry.roomId, row);
+  }
+  return [...byRoom.values()].sort((left, right) => right.costUsd - left.costUsd);
+}
+
 /** Share of input tokens served from the provider's cache, or undefined when nothing has been recorded. */
 export function cachedInputShare(entries: readonly UsageEntry[]): number | undefined {
   const input = entries.reduce((sum, entry) => sum + entry.inputTokens, 0);
