@@ -51,7 +51,10 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     .find(message => message.authorType === 'agent' && message.authorId === MEETING_FACILITATOR_AGENT_ID)?.id ?? 'none';
 
   return (
-    <section className="flex min-w-0 flex-1 flex-col bg-[#f8fafc]">
+    // The column scrolls as a whole when the fixed parts (meeting bar, cards,
+    // compose box) do not leave room, instead of squeezing the conversation
+    // to nothing; the compose box stays pinned to the bottom.
+    <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-[#f8fafc]">
       <MeetingBriefRuntime roomId={room.id} />
       <DecisionVoteRuntime roomId={room.id} />
       <RoomMetadataAutofillRuntime roomId={room.id} />
@@ -66,21 +69,14 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         <DecisionProposalRecoveryCard key={`decision:${room.id}:${latestOliviaResponseId}`} roomId={room.id} />
       </div>
 
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 pb-2 pt-2" role="log" aria-live="polite" aria-label="Company discussion">
+      <div ref={scrollRef} className="min-h-[260px] flex-1 overflow-y-auto px-3 pb-2 pt-2" role="log" aria-live="polite" aria-label="Company discussion">
         <div className="mx-auto w-full max-w-[1000px] space-y-2">
-          {/* A decision proposal and its vote tally can run long (checklist,
-              per-specialist rationale) and has no height cap of its own; it
-              lives in the scrollable conversation rather than the shrink-0
-              header, or its height would compete directly with ActionPanel
-              for fixed space and could push the compose box off-screen.
-              `sticky` keeps it pinned to the top of this scroll region
-              instead -- without it, ChatRoom's auto-scroll-to-latest-message
-              effect immediately carries the viewport past it (it renders
-              first, before the message list), leaving it in the DOM but
-              never actually seen. */}
-          <div className="sticky top-0 z-10">
-            <DecisionVoteCard roomId={room.id} />
-          </div>
+          {/* The decision card pins itself to the top of this scroll region while
+              collapsed (a compact bar), so the auto-scroll-to-latest-message
+              effect below cannot carry it out of view. Expanded, it scrolls
+              with the conversation: pinned and taller than the pane, it would
+              cover every message. */}
+          <DecisionVoteCard roomId={room.id} />
           <div className="min-h-full w-full rounded-xl border border-slate-200 bg-white px-3 py-1 shadow-[0_1px_2px_rgba(15,23,42,0.02)]">
             {room.messages.length === 0 ? (
               <EmptyDiscussionState />

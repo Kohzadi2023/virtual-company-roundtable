@@ -178,33 +178,34 @@ export function ContextCopyControls({ room, agent, role, cursor, onNotify, onApi
 
   return (
     <>
-      <div className="space-y-2">
-        <select value={mode} onChange={event => setMode(event.target.value as ContextCopyMode)} className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-[11px] font-semibold text-slate-700">
+      <div className="flex flex-wrap items-center gap-2">
+        <select value={mode} onChange={event => setMode(event.target.value as ContextCopyMode)} className="w-auto min-w-[150px] rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-700" aria-label="Context mode">
           {CONTEXT_MODES.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
         </select>
-        <div className={`rounded-lg border px-2.5 py-2 text-[10px] leading-4 ${veryLarge ? 'border-rose-200 bg-rose-50 text-rose-700' : large ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>
-          <div>{CONTEXT_MODES.find(item => item.value === mode)?.description}</div>
-          <div className="mt-1 font-semibold">{selectedMessages.length}/{messages.length} messages · {size.words.toLocaleString()} words · ~{size.approxTokens.toLocaleString()} tokens</div>
-          {large ? <div className="mt-1 font-semibold">{veryLarge ? 'Very large context — use Smart Compact or remove messages in Preview.' : 'Large context — Preview lets you remove unnecessary messages.'}</div> : null}
+        <div
+          className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold leading-4 ${veryLarge ? 'border-rose-200 bg-rose-50 text-rose-700' : large ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-slate-200 bg-slate-50 text-slate-600'}`}
+          title={`${CONTEXT_MODES.find(item => item.value === mode)?.description ?? ''}${large ? (veryLarge ? ' Very large context: use Smart Compact or remove messages in Preview.' : ' Large context: Preview lets you remove unnecessary messages.') : ''}`}
+        >
+          {selectedMessages.length}/{messages.length} messages · ~{size.approxTokens.toLocaleString()} tokens{large ? (veryLarge ? ' · very large' : ' · large') : ''}
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <button type="button" onClick={() => setPreviewOpen(true)} disabled={disabled} className="rounded-lg border border-slate-300 bg-white px-2 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40">Preview / Select</button>
-          <button type="button" onClick={copy} disabled={disabled} className="rounded-lg border border-blue-500 bg-blue-50 px-2 py-2 text-[11px] font-bold text-blue-600 hover:bg-blue-100 disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400">⧉ Copy</button>
+        <div className="flex gap-2">
+          <button type="button" onClick={() => setPreviewOpen(true)} disabled={disabled} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40">Preview / Select</button>
+          <button type="button" onClick={copy} disabled={disabled} className="rounded-lg border border-blue-500 bg-blue-50 px-3 py-1.5 text-[11px] font-bold text-blue-600 hover:bg-blue-100 disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400">⧉ Copy</button>
         </div>
         {apiAvailable ? (
-          <div className="space-y-1">
+          <div className="flex items-center gap-2">
             {apiRunning ? (
-              <button type="button" onClick={apiRunCancel} className="w-full rounded-lg border border-slate-300 bg-slate-50 px-2 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-100">Running via API… Cancel</button>
+              <button type="button" onClick={apiRunCancel} className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 text-[11px] font-bold text-slate-600 hover:bg-slate-100">Running via API… Cancel</button>
             ) : (
-              <button type="button" onClick={() => void runViaApi()} title="Sends the full room discussion (not just new messages), because the API keeps no chat memory" className="w-full rounded-lg border border-violet-500 bg-violet-600 px-2 py-2 text-[11px] font-bold text-white hover:bg-violet-700">⚡ Run via API</button>
+              <button type="button" onClick={() => void runViaApi()} title="Sends the full room discussion (not just new messages), because the API keeps no chat memory" className="rounded-lg border border-violet-400 bg-white px-3 py-1.5 text-[11px] font-bold text-violet-700 hover:bg-violet-50">⚡ Run via API</button>
             )}
-            <div className="text-center text-[10px] text-slate-400">Meeting API spend: {formatUsd(meetingApiSpend)}</div>
+            <div className="text-[11px] text-slate-500" title="Estimated API spend in this meeting">API spend {formatUsd(meetingApiSpend)}</div>
           </div>
         ) : null}
         {externalChat && externalChatUrl ? (
-          <button type="button" onClick={() => openOrFocusExternalChat(agent.id, externalChatUrl)} className="w-full rounded-lg border border-violet-200 bg-violet-50 px-2 py-2 text-[11px] font-bold text-violet-700 hover:bg-violet-100">Open / Focus {externalChat.provider} Chat ↗</button>
+          <button type="button" onClick={() => openOrFocusExternalChat(agent.id, externalChatUrl)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 hover:bg-slate-50">Open / Focus {externalChat.provider} Chat ↗</button>
         ) : linkDraftOpen ? (
-          <div className="space-y-1.5 rounded-lg border border-slate-200 bg-slate-50 p-2">
+          <div className="basis-full space-y-1.5 rounded-lg border border-slate-200 bg-slate-50 p-2">
             <input
               autoFocus
               value={linkDraft}
@@ -225,7 +226,7 @@ export function ContextCopyControls({ room, agent, role, cursor, onNotify, onApi
             </div>
           </div>
         ) : (
-          <button type="button" onClick={() => setLinkDraftOpen(true)} className="w-full rounded-lg border border-dashed border-slate-300 bg-slate-50 px-2 py-2 text-[11px] font-semibold text-slate-500 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700">+ Add {agent.name}’s Chat Link</button>
+          <button type="button" onClick={() => setLinkDraftOpen(true)} className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-1.5 text-[11px] font-semibold text-slate-500 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700">+ Add {agent.name}’s Chat Link</button>
         )}
       </div>
 
