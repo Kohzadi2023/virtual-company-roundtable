@@ -17,6 +17,10 @@ export function notifyLlmChange(): void {
 
 export type ThinkingPreference = 'default' | 'low';
 
+/** How long agents may write. Every answer is re-sent in every later call, so length compounds. */
+export type AnswerLength = 'normal' | 'concise' | 'brief';
+const ANSWER_LENGTHS: readonly AnswerLength[] = ['normal', 'concise', 'brief'];
+
 export interface LlmSettings {
   /** Model for Olivia and, unless overridden, everyone else. */
   model: string;
@@ -26,6 +30,7 @@ export interface LlmSettings {
   thinking: ThinkingPreference;
   /** Summarise older discussion sooner to cut input tokens. */
   tokenSaver: boolean;
+  answerLength: AnswerLength;
 }
 
 export const DEFAULT_LLM_SETTINGS: LlmSettings = {
@@ -35,6 +40,7 @@ export const DEFAULT_LLM_SETTINGS: LlmSettings = {
   // Off by default: summarising older discussion saves tokens but can lose
   // details (numbering, earlier positions) that later rounds depend on.
   tokenSaver: false,
+  answerLength: 'normal',
 };
 
 /**
@@ -69,6 +75,9 @@ export function getLlmSettings(): LlmSettings {
         (parsed as { schema?: unknown }).schema === SETTINGS_SCHEMA && typeof parsed.tokenSaver === 'boolean'
           ? parsed.tokenSaver
           : DEFAULT_LLM_SETTINGS.tokenSaver,
+      answerLength: ANSWER_LENGTHS.includes(parsed.answerLength as AnswerLength)
+        ? (parsed.answerLength as AnswerLength)
+        : DEFAULT_LLM_SETTINGS.answerLength,
     };
   } catch {
     return { ...DEFAULT_LLM_SETTINGS };

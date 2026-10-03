@@ -3,6 +3,7 @@ import { formatUsd } from '@/lib/llm/apiRun';
 import {
   cachedInputShare,
   clearUsage,
+  summarizeUsageByRoom,
   loadBudgetState,
   monthSpendUsd,
   saveBudgetSettings,
@@ -10,7 +11,8 @@ import {
 } from '@/lib/llm/budget';
 import { clearApiKey, getApiKey, isSessionOnlyKey, maskApiKey, setApiKey } from '@/lib/llm/credentials';
 import { LLM_CHANGE_EVENT, getLlmSettings, notifyLlmChange, updateLlmSettings } from '@/lib/llm/llmSettings';
-import type { ThinkingPreference } from '@/lib/llm/llmSettings';
+import type { AnswerLength, ThinkingPreference } from '@/lib/llm/llmSettings';
+import { useWorkspaceStore } from '@/store/workspaceStore';
 import { MODELS } from '@/lib/llm/pricing';
 
 function BudgetField({
@@ -73,6 +75,8 @@ export function LlmSettingsLauncher() {
   const settings = getLlmSettings();
   const monthSpend = monthSpendUsd(budget.entries, Date.now());
   const cacheShare = cachedInputShare(budget.entries);
+  const roomNames = useWorkspaceStore(state => state.rooms);
+  const usageByRoom = summarizeUsageByRoom(budget.entries).slice(0, 5);
 
   const saveKey = () => {
     if (!keyDraft.trim()) return;
@@ -195,6 +199,20 @@ export function LlmSettingsLauncher() {
                   </select>
                   <span className="mt-1 block text-[11px] leading-4 text-slate-500">Hidden reasoning is billed like output. If Gemini rejects this setting the app retries without it automatically.</span>
                 </label>
+                <label className="mt-3 block text-xs">
+                  <span className="font-semibold text-slate-700">Answer length</span>
+                  <select
+                    value={settings.answerLength}
+                    onChange={event => updateLlmSettings({ answerLength: event.target.value as AnswerLength })}
+                    aria-label="Answer length"
+                    className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                  >
+                    <option value="normal">Normal (no limit)</option>
+                    <option value="concise">Concise (about 350 words)</option>
+                    <option value="brief">Brief (about 200 words)</option>
+                  </select>
+                  <span className="mt-1 block text-xs leading-4 text-slate-500">The biggest saving: every answer is re-sent in every later call, so a shorter answer saves tokens many times. Required decision and staffing blocks are never cut.</span>
+                </label>
                 <div className="mt-3 flex items-start justify-between gap-3 text-xs">
                   <span>
                     <span className="font-semibold text-slate-700">Token saver</span>
@@ -225,6 +243,25 @@ export function LlmSettingsLauncher() {
                   <span>This month: <strong>{formatUsd(monthSpend)}</strong> of {formatUsd(budget.settings.perMonthUsd)} · {budget.entries.length} recorded calls{cacheShare === undefined ? '' : ` · ${Math.round(cacheShare * 100)}% of input served from cache`}</span>
                   <button type="button" onClick={resetUsage} className="font-semibold text-slate-500 underline hover:text-slate-800">Clear usage</button>
                 </div>
+                {usageByRoom.length > 0 ? (
+                  <div className="mt-3 overflow-x-auto" aria-label="Usage by meeting">
+                    <table className="w-full text-start text-xs text-slate-600">
+                      <thead><tr className="text-slate-500"><th className="py-1 pe-2 text-start font-semibold">Meeting</th><th className="px-2 text-end font-semibold">Calls</th><th className="px-2 text-end font-semibold">Input</th><th className="px-2 text-end font-semibold">Cached</th><th className="px-2 text-end font-semibold">Output</th><th className="ps-2 text-end font-semibold">Cost</th></tr></thead>
+                      <tbody>
+                        {usageByRoom.map(row => (
+                          <tr key={row.roomId} className="border-t border-slate-100">
+                            <td className="max-w-[160px] truncate py-1 pe-2" dir="auto" title={roomNames.find(item => item.id === row.roomId)?.name ?? row.roomId}>{roomNames.find(item => item.id === row.roomId)?.name ?? row.roomId}</td>
+                            <td className="px-2 text-end">{row.calls}</td>
+                            <td className="px-2 text-end">{Math.round(row.inputTokens / 1000)}k</td>
+                            <td className="px-2 text-end">{row.inputTokens > 0 ? Math.round((row.cachedInputTokens / row.inputTokens) * 100) : 0}%</td>
+                            <td className="px-2 text-end">{Math.round(row.outputTokens / 1000)}k</td>
+                            <td className="ps-2 text-end font-semibold">{formatUsd(row.costUsd)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : null}
                 <p className="mt-2 text-[11px] leading-4 text-slate-500">Limits are enforced by this app only. They cannot stop spending made with the same key elsewhere.</p>
               </section>
 

@@ -1,5 +1,6 @@
 import { compactMessageList, decoratePromptForContextMode } from '@/lib/contextModes';
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
+import type { AnswerLength } from '@/lib/llm/llmSettings';
 import { buildAgentPromptForApi } from '@/lib/promptBuilder';
 import type { Agent, Message, RoleDefinition, Room } from '@/types/domain';
 
@@ -29,6 +30,24 @@ export interface ApiContext {
 
 export interface ApiContextOptions {
   tokenSaver?: boolean;
+  answerLength?: AnswerLength;
+}
+
+const WORD_BUDGET: Record<Exclude<AnswerLength, 'normal'>, { specialist: number; facilitator: number }> = {
+  concise: { specialist: 350, facilitator: 400 },
+  brief: { specialist: 200, facilitator: 250 },
+};
+
+/**
+ * Every answer is sent again in every later call of the meeting, so a shorter
+ * answer saves its output tokens once and its input tokens many times over.
+ * Required machine-readable blocks are explicitly exempt so a budget can never
+ * truncate a staffing plan, decision proposal or vote.
+ */
+export function lengthBudgetInstruction(length: AnswerLength, facilitator: boolean): string | null {
+  if (length === 'normal') return null;
+  const words = WORD_BUDGET[length][facilitator ? 'facilitator' : 'specialist'];
+  return `LENGTH BUDGET: write at most about ${words} words of prose. Lead with your position, then only the reasons and risks that matter; do not restate earlier messages. Any machine-readable block this prompt requires (VC_STAFFING_PLAN, VC_DECISION_PROPOSAL, VC_DECISION_VOTE) does not count toward the budget and must still be complete and valid.`;
 }
 
 function totalChars(messages: Message[]): number {
@@ -98,5 +117,7 @@ export function buildApiTurnPrompt(
   // 'new-chat' is the honest description of a stateless call; 'compact' adds the
   // note that older discussion is a digest. Round/role markers are detected on
   // the turn-specific tail only, so quoted discussion text can't trigger them.
-  return { prompt: decoratePromptForContextMode(prompt, compacted ? 'compact' : 'new-chat', tail), compacted };
+  const decorated = decoratePromptForContextMode(prompt, compacted ? 'compact' : 'new-chat', tail);
+  const budget = lengthBudgetInstruction(options.answerLength ?? 'normal', agent.id === MEETING_FACILITATOR_AGENT_ID);
+  return { prompt: budget ? `${decorated}\n\n${budget}` : decorated, compacted };
 }
