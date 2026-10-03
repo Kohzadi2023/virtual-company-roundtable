@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
 import {
   buildChecklistFollowUpRoomName,
@@ -46,6 +47,9 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
   const addActionItem = useWorkspaceStore(state => state.addActionItem);
   const createRoom = useWorkspaceStore(state => state.createRoom);
   const setActiveRoom = useWorkspaceStore(state => state.setActiveRoom);
+  // Collapsed by default: the full proposal, checklist and vote tally can be
+  // taller than the whole conversation pane, and this card is pinned above it.
+  const [expanded, setExpanded] = useState(false);
 
   if (!room) return null;
   const record = findLatestDecisionProposal(room.messages);
@@ -178,23 +182,54 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
     .map(choice => [choice, Object.values(vote?.votes ?? {}).filter(value => value === choice).length] as const);
 
   return (
-    <section className="mx-auto w-full max-w-[1000px] rounded-xl border border-indigo-200 bg-white shadow-sm" aria-label="Decision proposal and vote">
-      <header className="flex flex-wrap items-start gap-3 border-b border-indigo-100 bg-indigo-50/70 px-4 py-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
+    <section
+      // Pinned above the conversation only while collapsed. Expanded, it can be
+      // taller than the whole pane, and a pinned element that tall would cover
+      // every message with no way to scroll past it.
+      className={`mx-auto w-full max-w-[1000px] rounded-xl border border-indigo-200 bg-white shadow-sm ${expanded ? '' : 'sticky top-0 z-10'}`}
+      aria-label="Decision proposal and vote"
+    >
+      <header className="space-y-2 bg-indigo-50/70 px-4 py-2.5">
+        <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
             <span className="rounded-full bg-indigo-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-indigo-700">Olivia decision proposal</span>
             <span className="rounded-full bg-white px-2 py-1 text-[10px] font-bold text-slate-600 ring-1 ring-slate-200">{record.proposal.outcome.replaceAll('_', ' ')}</span>
             {decision ? <span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase ${decision.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : decision.status === 'reversed' ? 'bg-slate-100 text-slate-500' : 'bg-amber-100 text-amber-700'}`}>{decision.status}</span> : null}
+            {consensusReached && decision?.status !== 'approved' ? <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-bold text-emerald-700">Consensus reached</span> : null}
+            {followUpRecommendation && !consolidatedFollowUp ? <span className="rounded-full bg-indigo-100 px-2 py-1 text-[10px] font-bold text-indigo-700">Follow-up recommended</span> : null}
           </div>
-          <h3 className="mt-2 text-sm font-bold text-slate-900" dir="auto">{record.proposal.title}</h3>
-          <p className="mt-1 text-xs leading-5 text-slate-600" dir="auto">{record.proposal.details}</p>
+          <button
+            type="button"
+            onClick={() => setExpanded(value => !value)}
+            aria-expanded={expanded}
+            className="shrink-0 rounded-lg border border-indigo-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-indigo-700 hover:bg-indigo-50"
+          >
+            {expanded ? 'Hide details ▴' : 'Show details ▾'}
+          </button>
         </div>
-        <div className="text-end text-[10px] leading-4 text-slate-500">
-          <div className="font-bold text-slate-700">{resolvedAgentIds.length}/{eligibleAgentIds.length} votes resolved</div>
-          <div>{finalRoundComplete ? 'Final round complete' : 'Voting round in progress'}</div>
+        <h3 className="text-sm font-bold text-slate-900 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden" dir="auto" title={record.proposal.title}>{record.proposal.title}</h3>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] font-bold text-slate-700">{resolvedAgentIds.length}/{eligibleAgentIds.length} votes</span>
+            {tally.map(([choice, count]) => <span key={choice} className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${voteTone[choice]}`}>{choice}: {count}</span>)}
+            <span className="text-[10px] text-slate-500">{finalRoundComplete ? 'Final round complete' : 'Voting in progress'}</span>
+          </div>
+          <div className="flex gap-2">
+            {decision?.status === 'approved' ? (
+              <span className="rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700">✓ Decision approved</span>
+            ) : (
+              <>
+                <button type="button" onClick={requestRevision} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Request revision</button>
+                <button type="button" onClick={approve} disabled={!canApprove} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500">{consensusReached ? 'Approve & conclude meeting' : 'Approve voted decision'}</button>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
+      {expanded ? (
+        <div className="max-h-[min(45vh,520px)] overflow-y-auto border-t border-indigo-100">
+          <p className="px-4 pt-3 text-xs leading-5 text-slate-600" dir="auto">{record.proposal.details}</p>
       <p className="px-4 pt-3 text-xs text-slate-600" dir="auto">{record.proposal.voteQuestion}</p>
 
       <div className="grid gap-4 p-4 lg:grid-cols-[1.15fr_0.85fr]">
@@ -310,21 +345,11 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
         </div>
       ) : null}
 
-      <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-4 py-3">
-        <p className="max-w-2xl text-[10px] leading-4 text-slate-500">
-          Specialist votes are decision evidence, not final authority. The user remains the final approver. Approval is enabled after the final round and all specialist votes are resolved or explicitly skipped — or as soon as every vote is in and nobody disagrees.
-        </p>
-        <div className="flex gap-2">
-          {decision?.status === 'approved' ? (
-            <span className="rounded-lg bg-emerald-100 px-3 py-2 text-xs font-bold text-emerald-700">✓ Decision approved</span>
-          ) : (
-            <>
-              <button type="button" onClick={requestRevision} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">Request revision</button>
-              <button type="button" onClick={approve} disabled={!canApprove} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500">{consensusReached ? 'Approve & conclude meeting' : 'Approve voted decision'}</button>
-            </>
-          )}
+          <p className="border-t border-slate-100 px-4 py-3 text-[10px] leading-4 text-slate-500">
+            Specialist votes are decision evidence, not final authority. The user remains the final approver. Approval is enabled after the final round and all specialist votes are resolved or explicitly skipped — or as soon as every vote is in and nobody disagrees.
+          </p>
         </div>
-      </footer>
+      ) : null}
     </section>
   );
 }

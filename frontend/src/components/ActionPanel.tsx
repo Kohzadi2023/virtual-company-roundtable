@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AutoRunRoundControl } from '@/components/AutoRunRoundControl';
 import { ContextCopyControls } from '@/components/ContextCopyControls';
 import { Toast, type ToastMessage } from '@/components/Toast';
@@ -18,12 +18,28 @@ import { useWorkspaceStore } from '@/store/workspaceStore';
 
 function useAutoResize(value: string) {
   const ref = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => {
+  const fit = useCallback(() => {
     const element = ref.current;
     if (!element) return;
     element.style.height = 'auto';
-    element.style.height = `${Math.min(Math.max(element.scrollHeight, 56), 220)}px`;
-  }, [value]);
+    element.style.height = `${Math.min(Math.max(element.scrollHeight, 56), 160)}px`;
+  }, []);
+  useEffect(fit, [value, fit]);
+  // Re-fit when the width changes. Measured once while the panel was still
+  // narrow (placeholder wrapping), the box stayed at its maximum height forever
+  // and took a third of the screen from the conversation.
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || typeof ResizeObserver === 'undefined') return;
+    let width = element.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (element.clientWidth === width) return;
+      width = element.clientWidth;
+      fit();
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [fit]);
   return ref;
 }
 
@@ -233,7 +249,7 @@ export function ActionPanel({ roomId }: { roomId: string }) {
   };
 
   return (
-    <section className="shrink-0 bg-[#f8fafc] px-4 pb-3" aria-label="Discussion actions">
+    <section className="sticky bottom-0 z-20 shrink-0 bg-[#f8fafc] px-4 pb-3 pt-1" aria-label="Discussion actions">
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.05)]">
         <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50 px-2 py-1.5">
           <label htmlFor="message-mode" className="sr-only">Message type</label>
@@ -305,7 +321,7 @@ export function ActionPanel({ roomId }: { roomId: string }) {
                 <ToolButton label="☺" title="Emoji" onClick={() => setUserMessage(value => `${value} 🙂`)} />
               </div>
             </div>
-            <div className="flex shrink-0 items-center gap-2 sm:w-36 sm:flex-col sm:justify-end">
+            <div className="flex shrink-0 items-center gap-2 sm:w-28 sm:flex-col sm:justify-end">
               <button type="button" onClick={sendUser} disabled={!userMessage.trim()} className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40">✈ Send</button>
               <span className="hidden text-center text-[10px] text-slate-400 sm:block">Ctrl + Enter</span>
             </div>
@@ -315,7 +331,7 @@ export function ActionPanel({ roomId }: { roomId: string }) {
             {roomAgents.length === 0 ? (
               <div className="rounded-lg border border-dashed border-slate-300 p-4 text-center text-sm text-slate-500">No specialists are in this room.</div>
             ) : (
-              <div className="grid gap-2 xl:grid-cols-[1fr_220px]">
+              <div className="space-y-2">
                 <textarea
                   key="agent-response"
                   id="agent-response"
@@ -330,16 +346,15 @@ export function ActionPanel({ roomId }: { roomId: string }) {
                     }
                   }}
                   placeholder={`Paste ${selectedAgent?.name ?? 'Agent'}'s response here...`}
-                  className="h-[180px] w-full resize-none overflow-y-auto rounded-lg border border-slate-300 bg-white p-3 text-start text-sm text-slate-800 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 xl:h-full"
+                  className="h-[104px] max-h-[40vh] min-h-[72px] w-full resize-y overflow-y-auto rounded-lg border border-slate-300 bg-white p-3 text-start text-sm text-slate-800 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
                 />
 
-                <div className="flex flex-col justify-center gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   {selectedAgent && selectedRole ? <ContextCopyControls room={room} agent={selectedAgent} role={selectedRole} cursor={cursor} onNotify={notify} onApiResponse={receiveApiResponse} /> : null}
-                  <div className="grid grid-cols-2 gap-2 xl:grid-cols-1">
-                    <button type="button" onClick={pasteAgentResponse} disabled={!selectedAgent} className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-40">📋 Paste</button>
-                    <button type="button" onClick={submitAgent} disabled={!selectedAgent || !agentResponse.trim()} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">Add Response</button>
+                  <div className="ms-auto flex items-center gap-2">
+                    <button type="button" onClick={pasteAgentResponse} disabled={!selectedAgent} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">📋 Paste</button>
+                    <button type="button" onClick={submitAgent} disabled={!selectedAgent || !agentResponse.trim()} title="Ctrl + Enter" className="rounded-lg bg-emerald-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">Add Response</button>
                   </div>
-                  <span className="text-center text-[10px] text-slate-400">Ctrl + Enter adds response</span>
                 </div>
               </div>
             )}
