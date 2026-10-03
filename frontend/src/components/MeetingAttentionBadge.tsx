@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { attentionReasonLabel, findRoomsNeedingAttention } from '@/lib/meetingAttention';
+import { textDirection } from '@/lib/textDirection';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
 /**
@@ -34,9 +35,10 @@ export function MeetingAttentionBadge() {
               key={item.roomId}
               type="button"
               onClick={() => setActiveRoom(item.roomId)}
-              className="flex w-full flex-col items-start gap-0.5 rounded-lg px-2.5 py-2 text-start text-xs hover:bg-amber-50"
+              dir={textDirection(item.roomName)}
+              className="flex w-full flex-col items-stretch gap-0.5 rounded-lg px-2.5 py-2 text-start text-xs hover:bg-amber-50"
             >
-              <span dir="auto" className="line-clamp-1 font-semibold text-slate-800">{item.roomName}</span>
+              <span className="line-clamp-1 font-semibold text-slate-800">{item.roomName}</span>
               <span className="text-[11px] text-amber-700">{attentionReasonLabel(item.reason)}</span>
             </button>
           ))}

@@ -15,6 +15,7 @@ import {
   type DecisionChecklistStatus,
 } from '@/lib/decisionVoting';
 import { concludeMeetingOnConsensus, loadMeetingOrchestration, resetCurrentRound } from '@/lib/meetingOrchestration';
+import { textDirection } from '@/lib/textDirection';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 import type { ActionItemStatus, VoteChoice } from '@/types/domain';
 
@@ -207,7 +208,7 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
             {expanded ? 'Hide details ▴' : 'Show details ▾'}
           </button>
         </div>
-        <h3 className="text-sm font-bold text-slate-900 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden" dir="auto" title={record.proposal.title}>{record.proposal.title}</h3>
+        <h3 className="text-sm font-bold text-slate-900 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden" dir={textDirection(record.proposal.title)} title={record.proposal.title}>{record.proposal.title}</h3>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-[11px] font-bold text-slate-700">{resolvedAgentIds.length}/{eligibleAgentIds.length} votes</span>

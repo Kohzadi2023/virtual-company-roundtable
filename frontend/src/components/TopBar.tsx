@@ -3,6 +3,7 @@ import { Toast, type ToastMessage } from '@/components/Toast';
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
 import { getAgentRoomMembership } from '@/lib/roomMembership';
 import { addAllCompanyToRoom } from '@/lib/roomMembershipActions';
+import { textDirection } from '@/lib/textDirection';
 import { useClickOutside } from '@/lib/useClickOutside';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
@@ -127,14 +128,20 @@ export function TopBar() {
         </div>
 
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 px-3 sm:flex-nowrap sm:gap-3 sm:px-4">
+          {/* Direction comes from what the title mostly is (not its first letter), and
+              applies to the icon and the subtitle too, so a Persian title sits next
+              to its icon with the subtitle aligned under it instead of the three
+              parts pulling to opposite edges. */}
+          <div dir={textDirection(activeRoom?.name ?? '')} className="flex min-w-0 flex-1 items-center gap-3">
           <div className="grid h-9 w-9 shrink-0 place-items-center self-start rounded-lg bg-violet-50 text-violet-600" aria-hidden="true">▣</div>
           <div className="min-w-0 flex-1">
-            <h1 dir="auto" className="line-clamp-2 break-words text-start text-[17px] font-bold leading-5 text-[#111b3a]">{activeRoom?.name ?? 'Company Roundtable'}</h1>
+            <h1 className="line-clamp-2 break-words text-start text-[17px] font-bold leading-5 text-[#111b3a]">{activeRoom?.name ?? 'Company Roundtable'}</h1>
             <p className="truncate text-[13px] text-slate-500">
               {activeRoom
                 ? `${activeProject ? `${activeProject.emoji} ${activeProject.name} · ` : ''}${activeRoom.agentIds.length} specialists in this room`
                 : 'Discuss · Analyze · Challenge · Build Better'}
             </p>
+          </div>
           </div>
 
           {/* Workspace-wide actions (not scoped to the active room) */}

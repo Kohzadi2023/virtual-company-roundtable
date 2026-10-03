@@ -8,6 +8,7 @@ import { loadMeetingOrchestration } from '@/lib/meetingOrchestration';
 import { deleteRoom } from '@/lib/roomActions';
 import { groupRoomsByProject } from '@/lib/roomGrouping';
 import { daysSinceActivity, isRoomStale } from '@/lib/roomStaleness';
+import { textDirection } from '@/lib/textDirection';
 import { useClickOutside } from '@/lib/useClickOutside';
 import { useIsCompactViewport } from '@/lib/useIsCompactViewport';
 import { DEFAULT_PROJECT_ID, useWorkspaceStore } from '@/store/workspaceStore';
@@ -105,6 +106,7 @@ export function OtherRoomsPanel() {
     const active = room.id === activeRoomId;
     const hasMessages = room.messages.length > 0;
     const stale = isRoomStale(room, now, meetingPhases[room.id]?.phase === 'closed');
+    const titleDir = textDirection(room.name);
     return (
       <div
         key={room.id}
@@ -121,10 +123,10 @@ export function OtherRoomsPanel() {
         className={`cursor-grab rounded-lg border p-2.5 transition active:cursor-grabbing ${nested ? 'ms-4 border-s-2' : ''} ${active ? 'border-blue-300 bg-blue-50 shadow-sm' : 'border-slate-200 bg-white hover:border-blue-200 hover:bg-blue-50/50'}`}
       >
         <div className="flex items-start gap-1">
-          <button type="button" onClick={() => setActiveRoom(room.id)} className="min-w-0 flex flex-1 items-start gap-2 text-start" title={`Open ${room.name}`}>
-            {nested ? <span className="shrink-0 pt-0.5 text-slate-400" aria-hidden="true">↳</span> : null}
+          <button type="button" dir={titleDir} onClick={() => setActiveRoom(room.id)} className="min-w-0 flex flex-1 items-start gap-2 text-start" title={`Open ${room.name}`}>
+            {nested ? <span className="shrink-0 pt-0.5 text-slate-400 rtl:-scale-x-100" aria-hidden="true">↳</span> : null}
             <span className="shrink-0 text-base" aria-hidden="true">{room.emoji}</span>
-            <span dir="auto" className="min-w-0 flex-1 line-clamp-2 break-words text-start text-[12px] font-semibold leading-4 text-slate-800">{room.name}</span>
+            <span className="min-w-0 flex-1 line-clamp-2 break-words text-start text-[12px] font-semibold leading-4 text-slate-800">{room.name}</span>
           </button>
           <button type="button" onClick={() => setMinutesRoomId(room.id)} disabled={!hasMessages} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[13px] text-blue-600 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent" title={hasMessages ? 'Meeting Minutes' : 'No messages for Meeting Minutes'} aria-label={`Meeting Minutes for ${room.name}`}>▤</button>
           <button type="button" onClick={() => void handleCopyFullChat(room.id)} disabled={!hasMessages} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[13px] text-indigo-600 transition hover:bg-indigo-50 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent" title={hasMessages ? 'Copy Full Chat' : 'No messages to copy'} aria-label={`Copy Full Chat for ${room.name}`}>⧉</button>
