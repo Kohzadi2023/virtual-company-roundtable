@@ -153,12 +153,12 @@ export function TopBar() {
               {roomMenuOpen && (
                 <div className="fixed inset-x-3 top-16 w-auto overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl sm:absolute sm:inset-x-auto sm:end-0 sm:top-12 sm:w-[460px]">
                   <div className="border-b border-slate-200 p-3">
-                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Rooms</div>
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Rooms</div>
                     <div className="max-h-32 space-y-1 overflow-y-auto">
                       {rooms.filter(room => !room.archivedAt).map(room => (
                         <button key={room.id} type="button" onClick={() => setActiveRoom(room.id)} className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-start text-sm ${room.id === activeRoomId ? 'bg-blue-50 font-semibold text-blue-700' : 'text-slate-700 hover:bg-slate-50'}`}>
                           <span className="truncate"><span className="me-2">{room.emoji}</span>{room.name}</span>
-                          <span className="text-[11px] text-slate-400">{room.agentIds.length} members</span>
+                          <span className="text-[11px] text-slate-500">{room.agentIds.length} members</span>
                         </button>
                       ))}
                     </div>
@@ -182,7 +182,7 @@ export function TopBar() {
                   {activeRoom && (
                     <div className="grid max-h-[58vh] grid-cols-2 divide-x divide-slate-200">
                       <div className="p-3">
-                        <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Add or remove a team</div>
+                        <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Add or remove a team</div>
                         <div className="space-y-1.5">
                           {teams.map(team => {
                             const selected = activeRoom.teamIds?.includes(team.id) ?? false;
@@ -203,12 +203,12 @@ export function TopBar() {
                       </div>
                       <div className="p-3">
                         <div className="mb-2 flex items-center justify-between gap-2">
-                          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Individual specialists</div>
+                          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Individual specialists</div>
                           <button
                             type="button"
                             onClick={handleAddAllCompany}
                             disabled={allCompanyAdded}
-                            className="shrink-0 rounded-md border border-violet-200 bg-violet-50 px-2 py-1 text-[10px] font-semibold text-violet-700 transition hover:bg-violet-100 disabled:cursor-default disabled:border-emerald-200 disabled:bg-emerald-50 disabled:text-emerald-700"
+                            className="shrink-0 rounded-md border border-violet-200 bg-violet-50 px-2 py-1 text-[11px] font-semibold text-violet-700 transition hover:bg-violet-100 disabled:cursor-default disabled:border-emerald-200 disabled:bg-emerald-50 disabled:text-emerald-700"
                             title="Add every company member to this room"
                           >
                             {allCompanyAdded ? '✓ All Company' : '+ Add All Company'}
@@ -236,10 +236,10 @@ export function TopBar() {
                               >
                                 <input type="checkbox" checked={membership.present} disabled={locked} onChange={() => toggleAgentInRoom(activeRoom.id, agent.id)} />
                                 <span className="min-w-0 flex-1 truncate font-medium text-slate-700">{agent.name}</span>
-                                {isFacilitator ? <span className="rounded bg-violet-100 px-1 py-0.5 text-[9px] font-semibold text-violet-700">FACILITATOR</span> : null}
-                                {!isFacilitator && membership.kind === 'team' ? <span className="rounded bg-emerald-100 px-1 py-0.5 text-[9px] font-semibold text-emerald-700">TEAM</span> : null}
-                                {!isFacilitator && membership.kind === 'direct-and-team' ? <span className="rounded bg-blue-100 px-1 py-0.5 text-[9px] font-semibold text-blue-700">DIRECT + TEAM</span> : null}
-                                <span className="max-w-24 truncate text-[10px] text-slate-400">{roleMap.get(agent.roleId)?.name}</span>
+                                {isFacilitator ? <span className="rounded bg-violet-100 px-1 py-0.5 text-[11px] font-semibold text-violet-700">FACILITATOR</span> : null}
+                                {!isFacilitator && membership.kind === 'team' ? <span className="rounded bg-emerald-100 px-1 py-0.5 text-[11px] font-semibold text-emerald-700">TEAM</span> : null}
+                                {!isFacilitator && membership.kind === 'direct-and-team' ? <span className="rounded bg-blue-100 px-1 py-0.5 text-[11px] font-semibold text-blue-700">DIRECT + TEAM</span> : null}
+                                <span className="max-w-24 truncate text-[11px] text-slate-500">{roleMap.get(agent.roleId)?.name}</span>
                               </label>
                             );
                           })}

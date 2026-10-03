@@ -171,7 +171,7 @@ export function CompanyPanel() {
           <span className="min-w-0">
             <span className="block truncate text-[13px] font-bold text-[#111b3a]">{agent.name}</span>
             <span className="block truncate text-[12px] text-slate-500">{role?.name ?? 'Specialist'}</span>
-            <span className={`block truncate text-[10px] font-semibold ${membership.kind === 'team' ? 'text-violet-600' : membership.kind === 'direct-and-team' ? 'text-emerald-600' : membership.kind === 'direct' ? 'text-blue-600' : 'text-slate-400'}`}>{membershipLabel}</span>
+            <span className={`block truncate text-[11px] font-semibold ${membership.kind === 'team' ? 'text-violet-600' : membership.kind === 'direct-and-team' ? 'text-emerald-600' : membership.kind === 'direct' ? 'text-blue-600' : 'text-slate-500'}`}>{membershipLabel}</span>
           </span>
         </button>
         <button
@@ -192,7 +192,7 @@ export function CompanyPanel() {
     <aside className="flex w-[318px] shrink-0 flex-col border-e border-slate-200 bg-[#fbfcfe]" aria-label="Virtual Company directory">
       <div className="flex items-center justify-between px-5 pb-2 pt-3">
         <h2 className="text-[14px] font-bold text-[#111b3a]">Company Directory</h2>
-        <button type="button" onClick={() => setManageOpen(value => !value)} className="grid h-7 w-7 place-items-center rounded-md text-lg text-slate-400 hover:bg-slate-100" aria-label="Manage company">⋯</button>
+        <button type="button" onClick={() => setManageOpen(value => !value)} className="grid h-7 w-7 place-items-center rounded-md text-lg text-slate-500 hover:bg-slate-100" aria-label="Manage company">⋯</button>
       </div>
 
       <div className="mx-4 mb-2 grid grid-cols-2 rounded-lg bg-slate-100 p-1 text-xs font-semibold">
@@ -206,8 +206,8 @@ export function CompanyPanel() {
 
       <div className="px-4 pb-2">
         <label className="relative block">
-          <span className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true">⌕</span>
-          <input value={search} onChange={event => setSearch(event.target.value)} placeholder={directoryTab === 'members' ? 'Search specialists...' : 'Search teams...'} className="h-9 w-full rounded-lg border border-slate-300 bg-white pe-3 ps-9 text-[13px] text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-blue-500 focus:outline-none" />
+          <span className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true">⌕</span>
+          <input value={search} onChange={event => setSearch(event.target.value)} placeholder={directoryTab === 'members' ? 'Search specialists...' : 'Search teams...'} className="h-9 w-full rounded-lg border border-slate-300 bg-white pe-3 ps-9 text-[13px] text-slate-800 shadow-sm placeholder:text-slate-500 focus:border-blue-500 focus:outline-none" />
         </label>
       </div>
 
@@ -224,10 +224,10 @@ export function CompanyPanel() {
                     className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-start hover:bg-slate-100"
                     aria-expanded={open}
                   >
-                    <span className={`text-[10px] text-slate-400 transition-transform ${open ? 'rotate-90' : ''}`} aria-hidden="true">▸</span>
+                    <span className={`text-[11px] text-slate-500 transition-transform ${open ? 'rotate-90' : ''}`} aria-hidden="true">▸</span>
                     <span className="text-sm" aria-hidden="true">{team.emoji}</span>
                     <span className="min-w-0 flex-1 truncate text-[11px] font-bold uppercase tracking-wide text-slate-500">{team.name}</span>
-                    <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500">{teamAgents.length}</span>
+                    <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500">{teamAgents.length}</span>
                   </button>
                   {open ? <div className="mt-0.5 space-y-1 ps-1">{teamAgents.map(renderAgentRow)}</div> : null}
                 </div>
@@ -235,14 +235,14 @@ export function CompanyPanel() {
             })}
             {groupedMembers.unassigned.length > 0 ? (
               <div className="mb-1.5">
-                <div className="px-2 py-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">
-                  Unassigned <span className="ms-1 rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500">{groupedMembers.unassigned.length}</span>
+                <div className="px-2 py-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                  Unassigned <span className="ms-1 rounded-full bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500">{groupedMembers.unassigned.length}</span>
                 </div>
                 <div className="space-y-1 ps-1">{groupedMembers.unassigned.map(renderAgentRow)}</div>
               </div>
             ) : null}
             {isSearching && groupedMembers.groups.length === 0 && groupedMembers.unassigned.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-slate-300 bg-white p-4 text-center text-xs text-slate-400">No specialists match “{search.trim()}”.</div>
+              <div className="rounded-lg border border-dashed border-slate-300 bg-white p-4 text-center text-xs text-slate-500">No specialists match “{search.trim()}”.</div>
             ) : null}
           </>
         ) : visibleTeams.map(team => {
@@ -255,11 +255,11 @@ export function CompanyPanel() {
                   <div className="flex items-center gap-2"><span className="text-lg">{team.emoji}</span><span className="truncate text-[13px] font-bold text-[#111b3a]">{team.name}</span></div>
                   <div className="mt-1 text-[11px] leading-4 text-slate-500">{team.description}</div>
                 </div>
-                {!team.builtIn && <button type="button" onClick={() => removeTeam(team.id)} className="text-xs text-slate-400 hover:text-red-600" title="Delete team">✕</button>}
+                {!team.builtIn && <button type="button" onClick={() => removeTeam(team.id)} className="text-xs text-slate-500 hover:text-red-600" title="Delete team">✕</button>}
               </div>
               <div className="mt-2 flex flex-wrap gap-1">
-                {team.agentIds.slice(0, 5).map(id => <span key={id} className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-600">{agentMap.get(id)?.name ?? 'Member'}</span>)}
-                {team.agentIds.length > 5 && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">+{team.agentIds.length - 5}</span>}
+                {team.agentIds.slice(0, 5).map(id => <span key={id} className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">{agentMap.get(id)?.name ?? 'Member'}</span>)}
+                {team.agentIds.length > 5 && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">+{team.agentIds.length - 5}</span>}
               </div>
               <button
                 type="button"
@@ -291,7 +291,7 @@ export function CompanyPanel() {
                 <select value={agentRoleId} onChange={event => setAgentRoleId(event.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">{roles.map(role => <option key={role.id} value={role.id}>{role.name}</option>)}</select>
               </div>
               <button type="button" onClick={createAgent} disabled={!agentName.trim()} className="w-full rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-40">Add Employee</button>
-              <p className="text-[11px] text-slate-400">New employees join the company directory only. Add them to rooms explicitly.</p>
+              <p className="text-[11px] text-slate-500">New employees join the company directory only. Add them to rooms explicitly.</p>
             </div>
           ) : mode === 'role' ? (
             <div className="space-y-2">
@@ -315,7 +315,7 @@ export function CompanyPanel() {
                     <label key={agent.id} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-xs hover:bg-slate-50">
                       <input type="checkbox" checked={teamMemberIds.includes(agent.id)} onChange={() => toggleTeamMember(agent.id)} />
                       <span className="font-medium text-slate-700">{agent.name}</span>
-                      <span className="truncate text-slate-400">· {roleMap.get(agent.roleId)?.name}</span>
+                      <span className="truncate text-slate-500">· {roleMap.get(agent.roleId)?.name}</span>
                     </label>
                   ))}
                 </div>

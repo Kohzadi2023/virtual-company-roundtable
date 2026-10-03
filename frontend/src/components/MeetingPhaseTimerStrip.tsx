@@ -102,7 +102,7 @@ export function MeetingPhaseTimerStrip({ roomId }: { roomId: string }) {
     <div className="flex min-h-10 shrink-0 flex-wrap items-center gap-2 bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
       <span className="rounded-full bg-white px-2.5 py-1 font-bold text-slate-700 ring-1 ring-slate-200">⏱ {PHASE_LABELS[phase]}</span>
       {phase !== 'closed' ? <span className="rounded-full bg-white px-2.5 py-1 font-semibold text-slate-500 ring-1 ring-slate-200">Preset {phaseMinutes} min</span> : null}
-      {timer ? <span className={`rounded-full bg-white px-2.5 py-1 font-mono text-xs font-bold ring-1 ring-slate-200 ${remaining === 0 ? 'text-rose-600' : 'text-slate-700'}`}>{String(Math.floor(remaining / 60)).padStart(2, '0')}:{String(remaining % 60).padStart(2, '0')}</span> : <span className="rounded-full bg-white px-2.5 py-1 text-slate-400 ring-1 ring-slate-200">Not started</span>}
+      {timer ? <span className={`rounded-full bg-white px-2.5 py-1 font-mono text-xs font-bold ring-1 ring-slate-200 ${remaining === 0 ? 'text-rose-600' : 'text-slate-700'}`}>{String(Math.floor(remaining / 60)).padStart(2, '0')}:{String(remaining % 60).padStart(2, '0')}</span> : <span className="rounded-full bg-white px-2.5 py-1 text-slate-500 ring-1 ring-slate-200">Not started</span>}
       <div className="ms-auto flex flex-wrap items-center gap-1.5">
         {phase !== 'closed' ? <button type="button" onClick={startPreset} className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 font-bold text-emerald-700">Start {phaseMinutes}m</button> : null}
         {running ? <button type="button" onClick={pause} className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 font-bold text-amber-700">Pause</button> : null}

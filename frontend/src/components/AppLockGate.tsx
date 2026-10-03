@@ -61,7 +61,7 @@ export function AppLockGate({ children }: AppLockGateProps) {
       <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
         <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-violet-500/20 text-2xl">🔐</div>
         <h1 className="mt-4 text-center text-xl font-bold">Virtual Company is locked</h1>
-        <p className="mt-2 text-center text-sm leading-6 text-slate-400">Enter your local PIN to open this workspace.</p>
+        <p className="mt-2 text-center text-sm leading-6 text-slate-500">Enter your local PIN to open this workspace.</p>
         <input
           autoFocus
           type="password"
@@ -78,7 +78,7 @@ export function AppLockGate({ children }: AppLockGateProps) {
         <button type="button" disabled={!pin || checking} onClick={() => void unlock()} className="mt-4 w-full rounded-xl bg-violet-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40">
           {checking ? 'Checking…' : 'Unlock'}
         </button>
-        <p className="mt-4 text-center text-[10px] leading-5 text-slate-500">App Lock is an optional Settings feature and is verified locally. Encrypted backup is a separate opt-in setting.</p>
+        <p className="mt-4 text-center text-[11px] leading-5 text-slate-500">App Lock is an optional Settings feature and is verified locally. Encrypted backup is a separate opt-in setting.</p>
       </div>
     </div>
   );

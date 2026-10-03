@@ -54,7 +54,7 @@ export function MeetingDevOverrideDialog({ roomId, onClose }: { roomId: string; 
             <h2 id="meeting-dev-override-title" className="text-base font-bold text-slate-900">Meeting Round Override</h2>
             <p className="mt-1 text-xs leading-5 text-slate-500">Debug-only controls. Normal meetings advance rounds automatically through Olivia, specialist turns, synthesis, and Start next round.</p>
           </div>
-          <button type="button" onClick={onClose} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-slate-100" aria-label="Close meeting round override">✕</button>
+          <button type="button" onClick={onClose} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-slate-100" aria-label="Close meeting round override">✕</button>
         </header>
 
         <div className="space-y-4 p-5">
@@ -77,7 +77,7 @@ export function MeetingDevOverrideDialog({ roomId, onClose }: { roomId: string; 
               <input value={roundName} onChange={event => setRoundName(event.target.value)} className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none focus:border-amber-400" />
             </label>
             <button type="button" onClick={saveRoundName} disabled={!roundName.trim()} className="mt-2 w-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm font-bold text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50">Save debug round name</button>
-            <p className="mt-2 text-[11px] leading-4 text-slate-400">Renaming changes the display label only. The semantic behavior of Rounds 1–4 remains fixed so specialist prompts cannot silently change meaning.</p>
+            <p className="mt-2 text-[11px] leading-4 text-slate-500">Renaming changes the display label only. The semantic behavior of Rounds 1–4 remains fixed so specialist prompts cannot silently change meaning.</p>
           </div>
         </div>
       </section>

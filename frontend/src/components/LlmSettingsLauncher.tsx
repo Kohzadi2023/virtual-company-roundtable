@@ -51,7 +51,7 @@ function BudgetField({
         }}
         className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
       />
-      <span className="mt-1 block text-[10px] leading-4 text-slate-400">{hint}</span>
+      <span className="mt-1 block text-[11px] leading-4 text-slate-500">{hint}</span>
     </label>
   );
 }
@@ -122,7 +122,7 @@ export function LlmSettingsLauncher() {
                 <h2 className="text-base font-bold text-slate-900">AI API (optional)</h2>
                 <p className="mt-0.5 text-xs text-slate-500">Connect your own Gemini key to run agents automatically. Without a key, nothing changes: you keep copying and pasting.</p>
               </div>
-              <button type="button" onClick={() => setOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Close AI API settings">✕</button>
+              <button type="button" onClick={() => setOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700" aria-label="Close AI API settings">✕</button>
             </header>
 
             <div className="space-y-4 p-5">
@@ -151,7 +151,7 @@ export function LlmSettingsLauncher() {
                     <button type="button" disabled={!keyDraft.trim()} onClick={saveKey} className="rounded-lg bg-violet-600 px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">Save key</button>
                   </div>
                 )}
-                <p className="mt-2 text-[10px] leading-4 text-slate-400">
+                <p className="mt-2 text-[11px] leading-4 text-slate-500">
                   The key stays in this browser/app on this device. It is never added to backups, exports, or debug snapshots. When you use “Run via API”, the prompt for that agent — including room messages and memory — is sent to Google.
                 </p>
               </section>
@@ -180,7 +180,7 @@ export function LlmSettingsLauncher() {
                     <option value="">Same as main model</option>
                     {MODELS.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
                   </select>
-                  <span className="mt-1 block text-[10px] leading-4 text-slate-400">A cheaper model for specialist turns can cut the bill noticeably; Olivia keeps the main model for staffing, proposals and synthesis.</span>
+                  <span className="mt-1 block text-[11px] leading-4 text-slate-500">A cheaper model for specialist turns can cut the bill noticeably; Olivia keeps the main model for staffing, proposals and synthesis.</span>
                 </label>
                 <label className="mt-3 block text-xs">
                   <span className="font-semibold text-slate-700">Thinking effort</span>
@@ -193,12 +193,12 @@ export function LlmSettingsLauncher() {
                     <option value="low">Low (cheaper, recommended)</option>
                     <option value="default">Model default (more reasoning, costs more)</option>
                   </select>
-                  <span className="mt-1 block text-[10px] leading-4 text-slate-400">Hidden reasoning is billed like output. If Gemini rejects this setting the app retries without it automatically.</span>
+                  <span className="mt-1 block text-[11px] leading-4 text-slate-500">Hidden reasoning is billed like output. If Gemini rejects this setting the app retries without it automatically.</span>
                 </label>
                 <div className="mt-3 flex items-start justify-between gap-3 text-xs">
                   <span>
                     <span className="font-semibold text-slate-700">Token saver</span>
-                    <span className="mt-0.5 block text-[10px] leading-4 text-slate-400">Summarises older discussion sooner (keeps the brief, Olivia's summaries and the latest decision proposal) so each call sends less. Cheaper, but later rounds can lose details from earlier ones; leave off for important meetings.</span>
+                    <span className="mt-0.5 block text-[11px] leading-4 text-slate-500">Summarises older discussion sooner (keeps the brief, Olivia's summaries and the latest decision proposal) so each call sends less. Cheaper, but later rounds can lose details from earlier ones; leave off for important meetings.</span>
                   </span>
                   <button
                     type="button"
@@ -211,7 +211,7 @@ export function LlmSettingsLauncher() {
                     <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${settings.tokenSaver ? 'start-[22px]' : 'start-0.5'}`} />
                   </button>
                 </div>
-                <p className="mt-3 text-[10px] leading-4 text-slate-400">Costs shown in the app are estimates from public prices, not a bill.</p>
+                <p className="mt-3 text-[11px] leading-4 text-slate-500">Costs shown in the app are estimates from public prices, not a bill.</p>
               </section>
 
               <section className="rounded-xl border border-slate-200 p-4">
@@ -225,7 +225,7 @@ export function LlmSettingsLauncher() {
                   <span>This month: <strong>{formatUsd(monthSpend)}</strong> of {formatUsd(budget.settings.perMonthUsd)} · {budget.entries.length} recorded calls{cacheShare === undefined ? '' : ` · ${Math.round(cacheShare * 100)}% of input served from cache`}</span>
                   <button type="button" onClick={resetUsage} className="font-semibold text-slate-500 underline hover:text-slate-800">Clear usage</button>
                 </div>
-                <p className="mt-2 text-[10px] leading-4 text-slate-400">Limits are enforced by this app only. They cannot stop spending made with the same key elsewhere.</p>
+                <p className="mt-2 text-[11px] leading-4 text-slate-500">Limits are enforced by this app only. They cannot stop spending made with the same key elsewhere.</p>
               </section>
 
               <div className="min-h-4 text-[11px] font-medium text-emerald-600" role="status">{status}</div>

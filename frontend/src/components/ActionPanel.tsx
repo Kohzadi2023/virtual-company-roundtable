@@ -280,14 +280,14 @@ export function ActionPanel({ roomId }: { roomId: string }) {
                 })}
               </select>
               {selectedAgent ? (
-                <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${selectedIsFacilitator ? 'bg-violet-100 text-violet-700' : 'bg-slate-200 text-slate-600'}`}>
+                <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${selectedIsFacilitator ? 'bg-violet-100 text-violet-700' : 'bg-slate-200 text-slate-600'}`}>
                   {selectedIsFacilitator ? 'FACILITATOR' : selectedRole?.name ?? 'SPECIALIST'}
                 </span>
               ) : null}
               <span className="ms-auto"><AutoRunRoundControl roomId={room.id} onNotify={notify} /></span>
             </>
           ) : (
-            <span className="text-[11px] text-slate-400">Send a new message as User</span>
+            <span className="text-[11px] text-slate-500">Send a new message as User</span>
           )}
         </div>
 
@@ -308,7 +308,7 @@ export function ActionPanel({ roomId }: { roomId: string }) {
                   }
                 }}
                 placeholder="Type your message here..."
-                className="block w-full resize-none overflow-y-auto border-0 bg-transparent px-3 py-2.5 text-start text-sm text-slate-800 outline-none placeholder:text-slate-400"
+                className="block w-full resize-none overflow-y-auto border-0 bg-transparent px-3 py-2.5 text-start text-sm text-slate-800 outline-none placeholder:text-slate-500"
               />
               <div className="flex items-center gap-1.5 border-t border-slate-100 px-2 py-1">
                 <ToolButton label="B" title="Bold" onClick={() => formatUser('**')} />
@@ -323,7 +323,7 @@ export function ActionPanel({ roomId }: { roomId: string }) {
             </div>
             <div className="flex shrink-0 items-center gap-2 sm:w-28 sm:flex-col sm:justify-end">
               <button type="button" onClick={sendUser} disabled={!userMessage.trim()} className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40">✈ Send</button>
-              <span className="hidden text-center text-[10px] text-slate-400 sm:block">Ctrl + Enter</span>
+              <span className="hidden text-center text-[11px] text-slate-500 sm:block">Ctrl + Enter</span>
             </div>
           </div>
         ) : (

@@ -18,7 +18,7 @@ import { ensureMeetingFacilitatorMembership } from '@/lib/roomMembershipActions'
 import { bootstrapPersistence, startPersistence } from '@/lib/storage';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
-const APP_VERSION = import.meta.env.VITE_APP_VERSION?.trim() || '2.8.31';
+const APP_VERSION = import.meta.env.VITE_APP_VERSION?.trim() || '2.8.32';
 // Dev diagnostics export room/session data, so keep them out of any build
 // that opts out explicitly (a public deployment sets VITE_ENABLE_DEV_TOOLS=
 // 'false'). Local `npm run dev` and any other build keep the current
@@ -85,7 +85,7 @@ export default function App() {
           {activeRoomId ? (
             <ChatRoom roomId={activeRoomId} />
           ) : (
-            <div className="grid min-w-0 flex-1 place-items-center text-slate-400">Create a room to start a discussion.</div>
+            <div className="grid min-w-0 flex-1 place-items-center text-slate-500">Create a room to start a discussion.</div>
           )}
           <OtherRoomsPanel />
         </div>

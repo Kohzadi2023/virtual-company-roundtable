@@ -139,7 +139,7 @@ export function SecuritySettingsLauncher() {
                 <h2 className="text-base font-bold text-slate-900">Settings</h2>
                 <p className="mt-0.5 text-xs text-slate-500">Security features are optional and disabled unless you choose to use them.</p>
               </div>
-              <button type="button" onClick={() => setOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Close Settings">✕</button>
+              <button type="button" onClick={() => setOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700" aria-label="Close Settings">✕</button>
             </header>
 
             <div className="space-y-4 p-5">
@@ -148,7 +148,7 @@ export function SecuritySettingsLauncher() {
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="text-sm font-bold text-slate-900">App Lock</h3>
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-500">Optional</span>
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-500">Optional</span>
                     </div>
                     <p className="mt-1 max-w-lg text-xs leading-5 text-slate-500">Require a local PIN when Virtual Company is opened. Turning this option off bypasses the lock without deleting the saved PIN.</p>
                   </div>
@@ -179,7 +179,7 @@ export function SecuritySettingsLauncher() {
                     )}
                   </div>
                 ) : configuredLock ? (
-                  <p className="mt-3 text-[11px] text-slate-400">A PIN is stored locally, but App Lock is currently disabled in Settings.</p>
+                  <p className="mt-3 text-[11px] text-slate-500">A PIN is stored locally, but App Lock is currently disabled in Settings.</p>
                 ) : null}
               </section>
 
@@ -188,7 +188,7 @@ export function SecuritySettingsLauncher() {
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="text-sm font-bold text-slate-900">Encrypted Backups</h3>
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-500">Optional</span>
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-500">Optional</span>
                     </div>
                     <p className="mt-1 max-w-lg text-xs leading-5 text-slate-500">Enable passphrase-protected workspace export/import. Encrypted backups use PBKDF2 and AES-256-GCM; this setting does not encrypt the normal SQLite database.</p>
                   </div>

@@ -90,7 +90,7 @@ export function HelpTutorialLauncher() {
               </div>
 
               <label className="shrink-0">
-                <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-400">{locale.languageLabel}</span>
+                <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">{locale.languageLabel}</span>
                 <select
                   value={language}
                   onChange={event => changeLanguage(event.target.value as TutorialLanguage)}
@@ -120,13 +120,13 @@ export function HelpTutorialLauncher() {
                     value={query}
                     onChange={event => setQuery(event.target.value)}
                     placeholder={locale.searchPlaceholder}
-                    className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-violet-400 focus:bg-white focus:ring-2 focus:ring-violet-100"
+                    className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none placeholder:text-slate-500 focus:border-violet-400 focus:bg-white focus:ring-2 focus:ring-violet-100"
                   />
-                  <p className="mt-2 text-[10px] leading-4 text-slate-400">{locale.guideOnlyNote}</p>
+                  <p className="mt-2 text-[11px] leading-4 text-slate-500">{locale.guideOnlyNote}</p>
                 </div>
 
                 <nav className="min-h-0 flex-1 overflow-y-auto p-3" aria-label={locale.contentsLabel}>
-                  <div className="mb-2 px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">{locale.contentsLabel}</div>
+                  <div className="mb-2 px-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">{locale.contentsLabel}</div>
                   <div className="space-y-1">
                     {filteredSections.map(section => (
                       <button

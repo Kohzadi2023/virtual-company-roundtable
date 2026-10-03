@@ -38,7 +38,7 @@ export function MeetingBriefStatus({ roomId }: { roomId: string }) {
     return (
       <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-3 py-2.5" role="status">
         <div className="flex flex-wrap items-center gap-2 text-amber-900">
-          <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ring-1 ring-amber-200">Meeting Brief</span>
+          <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ring-1 ring-amber-200">Meeting Brief</span>
           <strong className="text-sm font-bold">Needs clarification</strong>
           <span dir="auto" className="min-w-0 flex-1 text-start text-xs leading-5 text-amber-800">
             {latestBrief.clarificationQuestion || 'Olivia needs one clarification before the meeting brief can be finalized.'}
@@ -51,7 +51,7 @@ export function MeetingBriefStatus({ roomId }: { roomId: string }) {
   return (
     <div className="shrink-0 border-b border-blue-100 bg-blue-50 px-3 py-2.5" role="status">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-blue-700 ring-1 ring-blue-200">Meeting Brief</span>
+        <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-blue-700 ring-1 ring-blue-200">Meeting Brief</span>
         <strong className="text-sm font-bold text-blue-900">Olivia is preparing it automatically</strong>
         <span className="text-xs font-medium text-blue-600">No action required from you.</span>
       </div>

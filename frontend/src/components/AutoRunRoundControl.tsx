@@ -70,7 +70,7 @@ export function AutoRunRoundControl({ roomId, onNotify }: AutoRunRoundControlPro
     return (
       <span className="inline-flex items-center gap-2 rounded-md border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-[11px] font-semibold text-violet-700" role="status">
         Running {running.agentName} (turn {running.turn})…
-        <button type="button" onClick={() => abort.current?.abort()} className="rounded bg-white px-2 py-0.5 text-[10px] font-bold text-rose-600 ring-1 ring-rose-200 hover:bg-rose-50">Stop</button>
+        <button type="button" onClick={() => abort.current?.abort()} className="rounded bg-white px-2 py-0.5 text-[11px] font-bold text-rose-600 ring-1 ring-rose-200 hover:bg-rose-50">Stop</button>
       </span>
     );
   }
@@ -83,8 +83,8 @@ export function AutoRunRoundControl({ roomId, onNotify }: AutoRunRoundControlPro
           {' '}· meeting {formatUsd(meetingSpend)}/{formatUsd(budget.settings.perMeetingUsd)}
           {overBudget ? <strong className="text-rose-600"> · may hit your budget and stop early</strong> : null}
         </span>
-        <button type="button" onClick={() => void start()} className="rounded bg-violet-600 px-2.5 py-1 text-[10px] font-bold text-white hover:bg-violet-700">Start</button>
-        <button type="button" onClick={() => setConfirming(false)} className="rounded px-2 py-1 text-[10px] font-semibold text-slate-500 hover:bg-white">Cancel</button>
+        <button type="button" onClick={() => void start()} className="rounded bg-violet-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-violet-700">Start</button>
+        <button type="button" onClick={() => setConfirming(false)} className="rounded px-2 py-1 text-[11px] font-semibold text-slate-500 hover:bg-white">Cancel</button>
       </span>
     );
   }
