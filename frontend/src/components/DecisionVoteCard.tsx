@@ -193,17 +193,17 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
       <header className="space-y-2 bg-indigo-50/70 px-4 py-2.5">
         <div className="flex items-center gap-2">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="rounded-full bg-indigo-100 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-indigo-700">Olivia decision proposal</span>
-            <span className="rounded-full bg-white px-2 py-1 text-[11px] font-bold text-slate-600 ring-1 ring-slate-200">{record.proposal.outcome.replaceAll('_', ' ')}</span>
-            {decision ? <span className={`rounded-full px-2 py-1 text-[11px] font-bold uppercase ${decision.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : decision.status === 'reversed' ? 'bg-slate-100 text-slate-500' : 'bg-amber-100 text-amber-700'}`}>{decision.status}</span> : null}
-            {consensusReached && decision?.status !== 'approved' ? <span className="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-bold text-emerald-700">Consensus reached</span> : null}
-            {followUpRecommendation && !consolidatedFollowUp ? <span className="rounded-full bg-indigo-100 px-2 py-1 text-[11px] font-bold text-indigo-700">Follow-up recommended</span> : null}
+            <span className="rounded-full bg-indigo-100 px-2 py-1 text-[12px] font-bold uppercase tracking-wide text-indigo-700">Olivia decision proposal</span>
+            <span className="rounded-full bg-white px-2 py-1 text-[12px] font-bold text-slate-600 ring-1 ring-slate-200">{record.proposal.outcome.replaceAll('_', ' ')}</span>
+            {decision ? <span className={`rounded-full px-2 py-1 text-[12px] font-bold uppercase ${decision.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : decision.status === 'reversed' ? 'bg-slate-100 text-slate-500' : 'bg-amber-100 text-amber-700'}`}>{decision.status}</span> : null}
+            {consensusReached && decision?.status !== 'approved' ? <span className="rounded-full bg-emerald-100 px-2 py-1 text-[12px] font-bold text-emerald-700">Consensus reached</span> : null}
+            {followUpRecommendation && !consolidatedFollowUp ? <span className="rounded-full bg-indigo-100 px-2 py-1 text-[12px] font-bold text-indigo-700">Follow-up recommended</span> : null}
           </div>
           <button
             type="button"
             onClick={() => setExpanded(value => !value)}
             aria-expanded={expanded}
-            className="shrink-0 rounded-lg border border-indigo-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-indigo-700 hover:bg-indigo-50"
+            className="shrink-0 rounded-lg border border-indigo-200 bg-white px-2.5 py-1.5 text-[12px] font-bold text-indigo-700 hover:bg-indigo-50"
           >
             {expanded ? 'Hide details ▴' : 'Show details ▾'}
           </button>
@@ -211,9 +211,9 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
         <h3 className="text-sm font-bold text-slate-900 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden" dir={textDirection(record.proposal.title)} title={record.proposal.title}>{record.proposal.title}</h3>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] font-bold text-slate-700">{resolvedAgentIds.length}/{eligibleAgentIds.length} votes</span>
-            {tally.map(([choice, count]) => <span key={choice} className={`rounded-full border px-2 py-0.5 text-[11px] font-bold ${voteTone[choice]}`}>{choice}: {count}</span>)}
-            <span className="text-[11px] text-slate-500">{finalRoundComplete ? 'Final round complete' : 'Voting in progress'}</span>
+            <span className="text-[12px] font-bold text-slate-700">{resolvedAgentIds.length}/{eligibleAgentIds.length} votes</span>
+            {tally.map(([choice, count]) => <span key={choice} className={`rounded-full border px-2 py-0.5 text-[12px] font-bold ${voteTone[choice]}`}>{choice}: {count}</span>)}
+            <span className="text-[12px] text-slate-500">{finalRoundComplete ? 'Final round complete' : 'Voting in progress'}</span>
           </div>
           <div className="flex gap-2">
             {decision?.status === 'approved' ? (
@@ -235,7 +235,7 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
 
       <div className="grid gap-4 p-4 lg:grid-cols-[1.15fr_0.85fr]">
         <div>
-          <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Decision checklist</h4>
+          <h4 className="text-[12px] font-bold uppercase tracking-wide text-slate-500">Decision checklist</h4>
           <div className="mt-2 space-y-2">
             {record.proposal.checklist.map((item, index) => {
               const followUp = decision ? findChecklistFollowUp(actionItems, decision.id, item.item) : undefined;
@@ -245,7 +245,7 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
                     <span className="mt-0.5 font-bold">{item.status === 'satisfied' ? '✓' : item.status === 'condition' ? '△' : '!'}</span>
                     <div className="min-w-0 flex-1">
                       <div className="font-semibold" dir="auto">{item.item}</div>
-                      {item.evidence ? <div className="mt-1 text-[11px] opacity-75" dir="auto">{item.evidence}</div> : null}
+                      {item.evidence ? <div className="mt-1 text-[12px] opacity-75" dir="auto">{item.evidence}</div> : null}
                       {item.status !== 'satisfied' ? (
                         <div className="mt-1.5">
                           {followUp ? (
@@ -253,7 +253,7 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
                               type="button"
                               onClick={() => followUp.roomId && setActiveRoom(followUp.roomId)}
                               disabled={!followUp.roomId}
-                              className="rounded-full border border-current/30 bg-white/60 px-2 py-0.5 text-[11px] font-bold hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+                              className="rounded-full border border-current/30 bg-white/60 px-2 py-0.5 text-[12px] font-bold hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               ↪ Follow-up: {followUpStatusLabel[followUp.status]}
                             </button>
@@ -262,7 +262,7 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
                               type="button"
                               onClick={() => continueChecklistItemInFollowUp(item.item, item.evidence, item.status)}
                               disabled={!decision}
-                              className="rounded-full border border-current/30 bg-white/60 px-2 py-0.5 text-[11px] font-bold hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+                              className="rounded-full border border-current/30 bg-white/60 px-2 py-0.5 text-[12px] font-bold hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               Continue in follow-up meeting
                             </button>
@@ -278,9 +278,9 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
         </div>
 
         <div>
-          <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Team vote</h4>
+          <h4 className="text-[12px] font-bold uppercase tracking-wide text-slate-500">Team vote</h4>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {tally.map(([choice, count]) => <span key={choice} className={`rounded-full border px-2 py-1 text-[11px] font-bold ${voteTone[choice]}`}>{choice}: {count}</span>)}
+            {tally.map(([choice, count]) => <span key={choice} className={`rounded-full border px-2 py-1 text-[12px] font-bold ${voteTone[choice]}`}>{choice}: {count}</span>)}
           </div>
           <div className="mt-3 space-y-1.5">
             {eligibleAgentIds.map(agentId => {
@@ -290,11 +290,11 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
               const parsed = rationaleByAgent.get(agentId);
               return (
                 <div key={agentId} className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
-                  <div className="flex items-center justify-between gap-2 text-[11px]">
+                  <div className="flex items-center justify-between gap-2 text-[12px]">
                     <span className="font-semibold text-slate-700">{agent?.name ?? agentId}</span>
-                    {choice ? <span className={`rounded-full border px-2 py-0.5 text-[11px] font-bold ${voteTone[choice]}`}>{choice}</span> : skipped ? <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-bold text-slate-500">skipped</span> : <span className="text-[11px] font-semibold text-slate-500">waiting for vote</span>}
+                    {choice ? <span className={`rounded-full border px-2 py-0.5 text-[12px] font-bold ${voteTone[choice]}`}>{choice}</span> : skipped ? <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[12px] font-bold text-slate-500">skipped</span> : <span className="text-[12px] font-semibold text-slate-500">waiting for vote</span>}
                   </div>
-                  {parsed?.rationale ? <div className="mt-1 text-[11px] leading-4 text-slate-500" dir="auto">{parsed.rationale}</div> : null}
+                  {parsed?.rationale ? <div className="mt-1 text-[12px] leading-4 text-slate-500" dir="auto">{parsed.rationale}</div> : null}
                 </div>
               );
             })}
@@ -306,7 +306,7 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
         <div className="border-t border-indigo-100 bg-indigo-50/40 px-4 py-3" aria-label="Olivia's follow-up meeting recommendation">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <div className="text-[11px] font-bold uppercase tracking-wide text-indigo-600">Olivia recommends a follow-up meeting</div>
+              <div className="text-[12px] font-bold uppercase tracking-wide text-indigo-600">Olivia recommends a follow-up meeting</div>
               <div className="mt-1 text-sm font-semibold text-slate-800" dir="auto">{followUpRecommendation.title}</div>
               {followUpRecommendation.reason ? <p className="mt-1 text-xs leading-5 text-slate-600" dir="auto">{followUpRecommendation.reason}</p> : null}
             </div>
@@ -346,7 +346,7 @@ export function DecisionVoteCard({ roomId }: { roomId: string }) {
         </div>
       ) : null}
 
-          <p className="border-t border-slate-100 px-4 py-3 text-[11px] leading-4 text-slate-500">
+          <p className="border-t border-slate-100 px-4 py-3 text-[12px] leading-4 text-slate-500">
             Specialist votes are decision evidence, not final authority. The user remains the final approver. Approval is enabled after the final round and all specialist votes are resolved or explicitly skipped — or as soon as every vote is in and nobody disagrees.
           </p>
         </div>

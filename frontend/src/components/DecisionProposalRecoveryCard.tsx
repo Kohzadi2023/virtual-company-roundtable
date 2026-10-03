@@ -82,15 +82,15 @@ export function DecisionProposalRecoveryCard({ roomId }: { roomId: string }) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-sm font-bold text-slate-900">Waiting for Olivia’s final decision</h3>
-            <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-amber-800 ring-1 ring-amber-200">Meeting paused</span>
+            <span className="rounded-full bg-white px-2 py-0.5 text-[12px] font-bold uppercase tracking-wide text-amber-800 ring-1 ring-amber-200">Meeting paused</span>
           </div>
           <p className="mt-1 text-xs leading-5 text-slate-700">
             Olivia’s latest response was saved, but it did not include a valid decision proposal. The final round will not advance until she produces one.
           </p>
-          <p className="mt-1 text-[11px] leading-5 text-slate-500">
+          <p className="mt-1 text-[12px] leading-5 text-slate-500">
             Use Regenerate Response to prepare a focused recovery prompt and open Olivia’s linked AI chat.
           </p>
-          {message ? <p className="mt-2 text-[11px] font-medium text-amber-900" role="status">{message}</p> : null}
+          {message ? <p className="mt-2 text-[12px] font-medium text-amber-900" role="status">{message}</p> : null}
         </div>
         <button
           type="button"

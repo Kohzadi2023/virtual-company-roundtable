@@ -33,10 +33,10 @@ export function FooterToolsMenu() {
       >
         <span aria-hidden="true">⌘</span>
         <span>Tools</span>
-        <span className={`text-[11px] text-slate-500 transition ${open ? 'rotate-180' : ''}`} aria-hidden="true">▴</span>
+        <span className={`text-[12px] text-slate-500 transition ${open ? 'rotate-180' : ''}`} aria-hidden="true">▴</span>
       </button>
       <div className={panelClass}>
-        <div className="menu-heading px-2 pb-2 pt-1 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Workspace tools</div>
+        <div className="menu-heading px-2 pb-2 pt-1 text-[12px] font-bold uppercase tracking-[0.14em] text-slate-500">Workspace tools</div>
         <div
           className="grid gap-1 [&>button]:w-full [&>button]:justify-start [&>button]:px-2.5 [&>button]:py-2 [&>button]:text-xs"
           onClick={event => {

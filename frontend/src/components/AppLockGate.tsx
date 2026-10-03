@@ -78,7 +78,7 @@ export function AppLockGate({ children }: AppLockGateProps) {
         <button type="button" disabled={!pin || checking} onClick={() => void unlock()} className="mt-4 w-full rounded-xl bg-violet-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40">
           {checking ? 'Checking…' : 'Unlock'}
         </button>
-        <p className="mt-4 text-center text-[11px] leading-5 text-slate-500">App Lock is an optional Settings feature and is verified locally. Encrypted backup is a separate opt-in setting.</p>
+        <p className="mt-4 text-center text-[12px] leading-5 text-slate-500">App Lock is an optional Settings feature and is verified locally. Encrypted backup is a separate opt-in setting.</p>
       </div>
     </div>
   );

@@ -197,7 +197,7 @@ export function ProjectCenterLauncher() {
             <div className="flex h-[82vh] w-[min(1180px,94vw)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
               <aside className="flex w-72 shrink-0 flex-col border-e border-slate-200 bg-slate-50">
                 <div className="border-b border-slate-200 px-4 py-4">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-violet-600">Workspace</div>
+                  <div className="text-[12px] font-semibold uppercase tracking-[0.16em] text-violet-600">Workspace</div>
                   <h2 className="mt-1 text-lg font-bold text-slate-900">Project Center</h2>
                   <p className="mt-1 text-xs leading-5 text-slate-500">Rooms, decisions and execution in one place.</p>
                   <button
@@ -218,11 +218,11 @@ export function ProjectCenterLauncher() {
                     <span className="text-lg" aria-hidden="true">🗂️</span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-xs font-semibold text-slate-800">All Projects</span>
-                      <span className="mt-0.5 block text-[11px] text-slate-500">Dashboard across every project</span>
+                      <span className="mt-0.5 block text-[12px] text-slate-500">Dashboard across every project</span>
                     </span>
                   </button>
 
-                  <div className="mb-2 px-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Projects</div>
+                  <div className="mb-2 px-2 text-[12px] font-bold uppercase tracking-[0.14em] text-slate-500">Projects</div>
                   <div className="space-y-1.5">
                     {projects.map(project => {
                       const selected = project.id === resolvedProjectId;
@@ -237,7 +237,7 @@ export function ProjectCenterLauncher() {
                           <span className="text-lg" aria-hidden="true">{project.emoji}</span>
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-xs font-semibold text-slate-800">{project.name}</span>
-                            <span className="mt-0.5 block text-[11px] text-slate-500">{roomCount} room{roomCount === 1 ? '' : 's'}</span>
+                            <span className="mt-0.5 block text-[12px] text-slate-500">{roomCount} room{roomCount === 1 ? '' : 's'}</span>
                           </span>
                         </button>
                       );
@@ -259,13 +259,13 @@ export function ProjectCenterLauncher() {
                     <button
                       type="button"
                       onClick={() => moveRoomToSelectedProject(activeRoom.id)}
-                      className="shrink-0 rounded-lg border border-violet-300 bg-violet-50 px-3 py-2 text-[11px] font-semibold text-violet-800 hover:bg-violet-100"
+                      className="shrink-0 rounded-lg border border-violet-300 bg-violet-50 px-3 py-2 text-[12px] font-semibold text-violet-800 hover:bg-violet-100"
                       title={`Move ${activeRoom.name} into ${selectedProject.name}`}
                     >
                       + Move active room here
                     </button>
                   ) : null}
-                  <div className="flex gap-2 text-[11px]">
+                  <div className="flex gap-2 text-[12px]">
                     <span className="rounded-full bg-blue-50 px-2.5 py-1 font-semibold text-blue-700">{isAllProjects ? rooms.length : projectRooms.length} rooms</span>
                     <span className="rounded-full bg-amber-50 px-2.5 py-1 font-semibold text-amber-700">{projectDecisions.length} decisions</span>
                     <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">{projectActions.filter(item => item.status !== 'done').length} open actions</span>
@@ -290,16 +290,16 @@ export function ProjectCenterLauncher() {
                       <div className="grid gap-3 sm:grid-cols-3">
                         <div className="rounded-xl border border-slate-200 bg-white p-4">
                           <div className="text-2xl font-bold text-slate-800">{projects.length}</div>
-                          <div className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Projects</div>
+                          <div className="mt-1 text-[12px] font-semibold uppercase tracking-wide text-slate-500">Projects</div>
                         </div>
                         <div className="rounded-xl border border-slate-200 bg-white p-4">
                           <div className="text-2xl font-bold text-amber-700">{decisions.length}</div>
-                          <div className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Decisions</div>
+                          <div className="mt-1 text-[12px] font-semibold uppercase tracking-wide text-slate-500">Decisions</div>
                         </div>
                         <div className="rounded-xl border border-slate-200 bg-white p-4">
                           <div className="text-2xl font-bold text-emerald-700">{actionItems.filter(item => item.status !== 'done').length}</div>
-                          <div className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Open action items</div>
-                          {overdueTotal > 0 ? <div className="mt-1 text-[11px] font-bold text-rose-600">{overdueTotal} overdue</div> : null}
+                          <div className="mt-1 text-[12px] font-semibold uppercase tracking-wide text-slate-500">Open action items</div>
+                          {overdueTotal > 0 ? <div className="mt-1 text-[12px] font-bold text-rose-600">{overdueTotal} overdue</div> : null}
                         </div>
                       </div>
                     </div>
@@ -325,13 +325,13 @@ export function ProjectCenterLauncher() {
                                   <button type="button" onClick={() => { setActiveRoom(room.id); setOpen(false); }} className="min-w-0 flex-1 text-start text-sm font-semibold leading-5 text-slate-800 hover:text-blue-600">
                                     <span className="me-2">{room.emoji}</span>{room.name}
                                   </button>
-                                  {room.id === activeRoomId ? <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[11px] font-bold text-violet-700">ACTIVE</span> : null}
+                                  {room.id === activeRoomId ? <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[12px] font-bold text-violet-700">ACTIVE</span> : null}
                                 </div>
                                 <div className="mt-2">
-                                  <span className="inline-flex rounded-md bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-500">{room.messages.length} messages</span>
+                                  <span className="inline-flex rounded-md bg-slate-100 px-2 py-1 text-[12px] font-medium text-slate-500">{room.messages.length} messages</span>
                                 </div>
                                 <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-3">
-                                  <span className="text-[11px] font-medium text-slate-500">Move to</span>
+                                  <span className="text-[12px] font-medium text-slate-500">Move to</span>
                                   <select value={room.projectId ?? ''} onChange={event => setRoomProject(room.id, event.target.value)} className="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-2 py-2 text-xs text-slate-700">
                                     {projects.map(project => <option key={project.id} value={project.id}>{project.emoji} {project.name}</option>)}
                                   </select>
@@ -355,9 +355,9 @@ export function ProjectCenterLauncher() {
                               <div key={room.id} className="flex items-center gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
                                 <div className="min-w-0 flex-1">
                                   <div className="truncate text-sm font-semibold text-slate-800"><span className="me-2">{room.emoji}</span>{room.name}</div>
-                                  <div className="mt-1.5 truncate text-[11px] text-slate-500">Currently in {projectNameForRoom(room)} · {room.messages.length} messages</div>
+                                  <div className="mt-1.5 truncate text-[12px] text-slate-500">Currently in {projectNameForRoom(room)} · {room.messages.length} messages</div>
                                 </div>
-                                <button type="button" onClick={() => moveRoomToSelectedProject(room.id)} className="shrink-0 rounded-md border border-violet-300 bg-white px-3 py-2 text-[11px] font-semibold text-violet-800 hover:bg-violet-50">Move here</button>
+                                <button type="button" onClick={() => moveRoomToSelectedProject(room.id)} className="shrink-0 rounded-md border border-violet-300 bg-white px-3 py-2 text-[12px] font-semibold text-violet-800 hover:bg-violet-50">Move here</button>
                               </div>
                             ))}
                           </div>
@@ -371,7 +371,7 @@ export function ProjectCenterLauncher() {
                       {isAllProjects ? null : (
                         <div className="h-fit rounded-xl border border-slate-200 bg-slate-50 p-4">
                           <h4 className="text-sm font-bold text-slate-800">Record a decision</h4>
-                          <p className="mt-1 text-[11px] text-slate-500">Start as Proposed, then explicitly approve or reverse it.</p>
+                          <p className="mt-1 text-[12px] text-slate-500">Start as Proposed, then explicitly approve or reverse it.</p>
                           <input value={decisionTitle} onChange={event => setDecisionTitle(event.target.value)} placeholder="Decision title" className="mt-3 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs" />
                           <textarea value={decisionDetails} onChange={event => setDecisionDetails(event.target.value)} placeholder="Decision details / rationale" rows={4} className="mt-2 w-full resize-y rounded-md border border-slate-300 bg-white px-3 py-2 text-xs" />
                           <select value={decisionRoomId} onChange={event => setDecisionRoomId(event.target.value)} className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs">
@@ -390,7 +390,7 @@ export function ProjectCenterLauncher() {
                               key={status}
                               type="button"
                               onClick={() => setDecisionStatusFilter(status)}
-                              className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${decisionStatusFilter === status ? 'border-violet-300 bg-violet-100 text-violet-800' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'}`}
+                              className={`rounded-full border px-2.5 py-1 text-[12px] font-semibold transition ${decisionStatusFilter === status ? 'border-violet-300 bg-violet-100 text-violet-800' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'}`}
                             >
                               {status === 'all' ? 'All' : decisionStatusLabel[status]} ({status === 'all' ? projectDecisions.length : projectDecisions.filter(decision => decision.status === status).length})
                             </button>
@@ -411,13 +411,13 @@ export function ProjectCenterLauncher() {
                                 <div className="min-w-0 flex-1">
                                   <h5 className="text-sm font-bold text-slate-800">{decision.title}</h5>
                                   {decision.details ? <p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-slate-600">{decision.details}</p> : null}
-                                  <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-500">
+                                  <div className="mt-2 flex flex-wrap gap-2 text-[12px] text-slate-500">
                                     {decisionProject ? <span className="font-semibold text-violet-600">{decisionProject.emoji} {decisionProject.name}</span> : null}
                                     {room ? <span>{room.emoji} {room.name}</span> : <span>Project level</span>}
                                     {decision.evidence ? <span>Evidence: {decision.evidence}</span> : null}
                                   </div>
                                 </div>
-                                <select value={decision.status} onChange={event => updateDecision(decision.id, { status: event.target.value as DecisionStatus })} className="rounded-md border border-slate-200 px-2 py-1.5 text-[11px] font-semibold">
+                                <select value={decision.status} onChange={event => updateDecision(decision.id, { status: event.target.value as DecisionStatus })} className="rounded-md border border-slate-200 px-2 py-1.5 text-[12px] font-semibold">
                                   {(Object.keys(decisionStatusLabel) as DecisionStatus[]).map(status => <option key={status} value={status}>{decisionStatusLabel[status]}</option>)}
                                 </select>
                                 <button type="button" onClick={() => deleteDecision(decision.id)} className="grid h-7 w-7 place-items-center rounded-md text-slate-500 hover:bg-rose-50 hover:text-rose-600" title="Delete decision">⌫</button>
@@ -462,7 +462,7 @@ export function ProjectCenterLauncher() {
                               key={status}
                               type="button"
                               onClick={() => setActionStatusFilter(status)}
-                              className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${actionStatusFilter === status ? 'border-violet-300 bg-violet-100 text-violet-800' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'}`}
+                              className={`rounded-full border px-2.5 py-1 text-[12px] font-semibold transition ${actionStatusFilter === status ? 'border-violet-300 bg-violet-100 text-violet-800' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'}`}
                             >
                               {status === 'all' ? 'All' : actionStatusLabel[status]} ({status === 'all' ? projectActions.length : projectActions.filter(actionItem => actionItem.status === status).length})
                             </button>
@@ -483,7 +483,7 @@ export function ProjectCenterLauncher() {
                               <div className="flex items-start gap-3">
                                 <div className="min-w-0 flex-1">
                                   <h5 className={`text-sm font-bold ${actionItem.status === 'done' ? 'text-slate-500 line-through' : 'text-slate-800'}`}>{actionItem.title}</h5>
-                                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
+                                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-slate-500">
                                     {actionProject ? <span className="font-semibold text-violet-600">{actionProject.emoji} {actionProject.name}</span> : null}
                                     <span>Owner: {actionItem.owner || 'Not assigned'}</span>
                                     <span className={reminder === 'overdue' ? 'font-bold text-rose-600' : undefined}>Deadline: {actionItem.deadline || 'Not set'}</span>
@@ -494,7 +494,7 @@ export function ProjectCenterLauncher() {
                                     {actionItem.evidence ? <span>Evidence: {actionItem.evidence}</span> : null}
                                   </div>
                                 </div>
-                                <select value={actionItem.status} onChange={event => updateActionItem(actionItem.id, { status: event.target.value as ActionItemStatus })} className="rounded-md border border-slate-200 px-2 py-1.5 text-[11px] font-semibold">
+                                <select value={actionItem.status} onChange={event => updateActionItem(actionItem.id, { status: event.target.value as ActionItemStatus })} className="rounded-md border border-slate-200 px-2 py-1.5 text-[12px] font-semibold">
                                   {(Object.keys(actionStatusLabel) as ActionItemStatus[]).map(status => <option key={status} value={status}>{actionStatusLabel[status]}</option>)}
                                 </select>
                                 <button type="button" onClick={() => deleteActionItem(actionItem.id)} className="grid h-7 w-7 place-items-center rounded-md text-slate-500 hover:bg-rose-50 hover:text-rose-600" title="Delete action item">⌫</button>
@@ -529,7 +529,7 @@ export function ProjectCenterLauncher() {
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-600">Workspace</div>
+                    <div className="text-[12px] font-bold uppercase tracking-[0.16em] text-violet-600">Workspace</div>
                     <h3 className="mt-1 text-xl font-bold text-slate-900">Create a new project</h3>
                     <p className="mt-1 text-sm leading-6 text-slate-500">Create the project first, then move or create rooms inside it.</p>
                   </div>

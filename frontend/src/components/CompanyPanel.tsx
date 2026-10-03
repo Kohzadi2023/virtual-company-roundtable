@@ -171,7 +171,7 @@ export function CompanyPanel() {
           <span className="min-w-0">
             <span className="block truncate text-[13px] font-bold text-[#111b3a]">{agent.name}</span>
             <span className="block truncate text-[12px] text-slate-500">{role?.name ?? 'Specialist'}</span>
-            <span className={`block truncate text-[11px] font-semibold ${membership.kind === 'team' ? 'text-violet-600' : membership.kind === 'direct-and-team' ? 'text-emerald-600' : membership.kind === 'direct' ? 'text-blue-600' : 'text-slate-500'}`}>{membershipLabel}</span>
+            <span className={`block truncate text-[12px] font-semibold ${membership.kind === 'team' ? 'text-violet-600' : membership.kind === 'direct-and-team' ? 'text-emerald-600' : membership.kind === 'direct' ? 'text-blue-600' : 'text-slate-500'}`}>{membershipLabel}</span>
           </span>
         </button>
         <button
@@ -225,7 +225,7 @@ export function CompanyPanel() {
                     className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2.5 text-start hover:bg-indigo-50"
                     aria-expanded={open}
                   >
-                    <span className={`text-[11px] text-slate-500 transition-transform ${open ? 'rotate-90' : ''}`} aria-hidden="true">▸</span>
+                    <span className={`text-[12px] text-slate-500 transition-transform ${open ? 'rotate-90' : ''}`} aria-hidden="true">▸</span>
                     <span className="text-base" aria-hidden="true">{team.emoji}</span>
                     <span className="min-w-0 flex-1 truncate text-xs font-bold uppercase tracking-wide text-indigo-800">{team.name}</span>
                     <span className="shrink-0 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">{teamAgents.length}</span>
@@ -255,13 +255,13 @@ export function CompanyPanel() {
                 <div className="min-w-0">
                   <div className="mb-1 text-xs font-bold uppercase tracking-wide text-indigo-600">Team · {team.agentIds.length} member{team.agentIds.length === 1 ? '' : 's'}</div>
                   <div className="flex items-center gap-2"><span className="text-lg">{team.emoji}</span><span className="truncate text-[13px] font-bold text-[#111b3a]">{team.name}</span></div>
-                  <div className="mt-1 text-[11px] leading-4 text-slate-500">{team.description}</div>
+                  <div className="mt-1 text-[12px] leading-4 text-slate-500">{team.description}</div>
                 </div>
                 {!team.builtIn && <button type="button" onClick={() => removeTeam(team.id)} className="text-xs text-slate-500 hover:text-red-600" title="Delete team">✕</button>}
               </div>
               <div className="mt-2 flex flex-wrap gap-1">
-                {team.agentIds.slice(0, 5).map(id => <span key={id} className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">{agentMap.get(id)?.name ?? 'Member'}</span>)}
-                {team.agentIds.length > 5 && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">+{team.agentIds.length - 5}</span>}
+                {team.agentIds.slice(0, 5).map(id => <span key={id} className="rounded-full bg-slate-100 px-2 py-0.5 text-[12px] text-slate-600">{agentMap.get(id)?.name ?? 'Member'}</span>)}
+                {team.agentIds.length > 5 && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[12px] text-slate-500">+{team.agentIds.length - 5}</span>}
               </div>
               <button
                 type="button"
@@ -293,7 +293,7 @@ export function CompanyPanel() {
                 <select value={agentRoleId} onChange={event => setAgentRoleId(event.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">{roles.map(role => <option key={role.id} value={role.id}>{role.name}</option>)}</select>
               </div>
               <button type="button" onClick={createAgent} disabled={!agentName.trim()} className="w-full rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-40">Add Employee</button>
-              <p className="text-[11px] text-slate-500">New employees join the company directory only. Add them to rooms explicitly.</p>
+              <p className="text-[12px] text-slate-500">New employees join the company directory only. Add them to rooms explicitly.</p>
             </div>
           ) : mode === 'role' ? (
             <div className="space-y-2">
@@ -330,7 +330,7 @@ export function CompanyPanel() {
 
       <div className="border-t border-slate-200 bg-white p-3">
         <button type="button" onClick={() => setManageOpen(value => !value)} className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-[13px] font-semibold text-slate-700 shadow-sm hover:bg-slate-50"><span aria-hidden="true">👥</span> Manage Company</button>
-        <div className="mt-2 flex items-center justify-between px-1 text-[11px] text-slate-500"><span>Virtual Company</span><SyncBadge /></div>
+        <div className="mt-2 flex items-center justify-between px-1 text-[12px] text-slate-500"><span>Virtual Company</span><SyncBadge /></div>
       </div>
     </aside>
   );

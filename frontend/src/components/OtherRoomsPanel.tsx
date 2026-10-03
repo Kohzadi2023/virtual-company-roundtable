@@ -133,7 +133,7 @@ export function OtherRoomsPanel() {
           <button type="button" onClick={() => handleOpenSettings(room.id)} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[13px] text-slate-500 transition hover:bg-slate-100 hover:text-slate-800" title="Room Settings" aria-label={`Room Settings for ${room.name}`}>⚙</button>
           <button type="button" onClick={() => handleDelete(room.id, room.name)} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[13px] text-slate-500 transition hover:bg-rose-50 hover:text-rose-600" title="Delete Room" aria-label={`Delete ${room.name}`}>⌫</button>
         </div>
-        <button type="button" onClick={() => setActiveRoom(room.id)} className="mt-1.5 flex w-full items-center justify-between gap-2 text-start"><span className="min-w-0 truncate text-[11px] text-slate-500">{room.agentIds.length} specialists · {room.messages.length} messages</span>{stale ? <span className="shrink-0 rounded-full bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold text-amber-700" title="No activity for a while — finish, archive or resume this room">⏱ {daysSinceActivity(room, now)}d inactive</span> : null}{active ? <span className="text-[11px] font-semibold text-blue-600">ACTIVE</span> : null}</button>
+        <button type="button" onClick={() => setActiveRoom(room.id)} className="mt-1.5 flex w-full items-center justify-between gap-2 text-start"><span className="min-w-0 truncate text-[12px] text-slate-500">{room.agentIds.length} specialists · {room.messages.length} messages</span>{stale ? <span className="shrink-0 rounded-full bg-amber-50 px-1.5 py-0.5 text-[12px] font-semibold text-amber-700" title="No activity for a while — finish, archive or resume this room">⏱ {daysSinceActivity(room, now)}d inactive</span> : null}{active ? <span className="text-[12px] font-semibold text-blue-600">ACTIVE</span> : null}</button>
       </div>
     );
   };
@@ -144,8 +144,8 @@ export function OtherRoomsPanel() {
         <button type="button" onClick={() => setOpen(true)} className="group flex h-full w-full flex-col items-center py-3 text-slate-500 transition hover:bg-blue-50 hover:text-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500" title="Open Other Rooms" aria-label="Open Other Rooms">
           <span className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-lg text-slate-500 shadow-sm transition group-hover:border-blue-200 group-hover:text-blue-600" aria-hidden="true">‹</span>
           <span className="mt-3 text-base" aria-hidden="true">🗂️</span>
-          <span className="mt-2 [writing-mode:vertical-rl] text-[11px] font-semibold uppercase tracking-wide">Other Rooms</span>
-          <span className="mt-3 rounded-full bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-600">{visibleRooms.length}</span>
+          <span className="mt-2 [writing-mode:vertical-rl] text-[12px] font-semibold uppercase tracking-wide">Other Rooms</span>
+          <span className="mt-3 rounded-full bg-slate-100 px-1.5 py-0.5 text-[12px] font-semibold text-slate-600">{visibleRooms.length}</span>
         </button>
       </aside>
     );
@@ -165,7 +165,7 @@ export function OtherRoomsPanel() {
 
         <div className="border-b border-slate-200 bg-white px-4 py-3">
           <div className="flex items-center justify-between gap-3">
-            <div><h2 className="text-[14px] font-bold text-[#111b3a]">Other Rooms</h2><p className="mt-0.5 text-[11px] text-slate-500">Active discussion rooms</p></div>
+            <div><h2 className="text-[14px] font-bold text-[#111b3a]">Other Rooms</h2><p className="mt-0.5 text-[12px] text-slate-500">Active discussion rooms</p></div>
             <div className="flex items-center gap-2">
               {!compact ? (
                 <button
@@ -179,7 +179,7 @@ export function OtherRoomsPanel() {
                   📌
                 </button>
               ) : null}
-              <span className="rounded-full bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-600">{visibleRooms.length}</span>
+              <span className="rounded-full bg-blue-50 px-2 py-1 text-[12px] font-semibold text-blue-600">{visibleRooms.length}</span>
             </div>
           </div>
         </div>
@@ -214,7 +214,7 @@ export function OtherRoomsPanel() {
                       className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-start hover:bg-slate-100"
                       aria-expanded={groupOpen}
                     >
-                      <span className={`text-[11px] text-slate-500 transition-transform ${groupOpen ? 'rotate-90' : ''}`} aria-hidden="true">▸</span>
+                      <span className={`text-[12px] text-slate-500 transition-transform ${groupOpen ? 'rotate-90' : ''}`} aria-hidden="true">▸</span>
                       <span className="text-base" aria-hidden="true">{project.emoji}</span>
                       <span className="min-w-0 flex-1 truncate text-xs font-bold uppercase tracking-wide text-slate-700">{project.name}</span>
                       <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">{roomCount}</span>
@@ -222,7 +222,7 @@ export function OtherRoomsPanel() {
 
                     {groupOpen ? (
                       projectRooms.length === 0 ? (
-                        <div className="ms-1 mt-1 rounded-lg border border-dashed border-slate-200 px-2.5 py-2 text-[11px] text-slate-500">
+                        <div className="ms-1 mt-1 rounded-lg border border-dashed border-slate-200 px-2.5 py-2 text-[12px] text-slate-500">
                           Drag a room here to move it into {project.name}.
                         </div>
                       ) : (
@@ -244,7 +244,7 @@ export function OtherRoomsPanel() {
         </div>
 
         <div className="border-t border-slate-200 bg-white px-3 py-2">
-          <div className="flex items-center justify-between text-[11px] text-slate-500"><span>{visibleRooms.length} active · {archivedCount} archived · {projects.length} projects</span><SyncBadge /></div>
+          <div className="flex items-center justify-between text-[12px] text-slate-500"><span>{visibleRooms.length} active · {archivedCount} archived · {projects.length} projects</span><SyncBadge /></div>
         </div>
       </aside>
 
