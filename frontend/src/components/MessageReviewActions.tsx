@@ -93,18 +93,18 @@ export function MessageReviewActions({
       {position ? createPortal(
         <div
           ref={popoverRef}
-          className="fixed z-[110] w-72 rounded-xl border border-slate-200 bg-white p-3 text-start text-[10px] text-slate-500 shadow-2xl"
+          className="fixed z-[110] w-72 rounded-xl border border-slate-200 bg-white p-3 text-start text-[11px] text-slate-500 shadow-2xl"
           style={{ top: position.top, left: position.left }}
         >
-          <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Send this contribution to</div>
+          <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Send this contribution to</div>
           <select value={selected?.id ?? ''} onChange={event => setTargetAgentId(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-300 px-2 py-2 text-xs">
             {available.map(agent => <option key={agent.id} value={agent.id}>{agent.name}</option>)}
           </select>
           <div className="mt-2 grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => setKind('second-opinion')} className={`rounded-lg border px-2 py-2 text-[10px] font-semibold ${kind === 'second-opinion' ? 'border-cyan-300 bg-cyan-50 text-cyan-700' : 'border-slate-200 text-slate-500'}`}>Second Opinion</button>
-            <button type="button" onClick={() => setKind('handoff')} className={`rounded-lg border px-2 py-2 text-[10px] font-semibold ${kind === 'handoff' ? 'border-violet-300 bg-violet-50 text-violet-700' : 'border-slate-200 text-slate-500'}`}>Handoff</button>
+            <button type="button" onClick={() => setKind('second-opinion')} className={`rounded-lg border px-2 py-2 text-[11px] font-semibold ${kind === 'second-opinion' ? 'border-cyan-300 bg-cyan-50 text-cyan-700' : 'border-slate-200 text-slate-500'}`}>Second Opinion</button>
+            <button type="button" onClick={() => setKind('handoff')} className={`rounded-lg border px-2 py-2 text-[11px] font-semibold ${kind === 'handoff' ? 'border-violet-300 bg-violet-50 text-violet-700' : 'border-slate-200 text-slate-500'}`}>Handoff</button>
           </div>
-          <button type="button" onClick={submit} className="mt-2 w-full rounded-lg bg-slate-900 px-3 py-2 text-[10px] font-bold text-white">Create request & make next speaker</button>
+          <button type="button" onClick={submit} className="mt-2 w-full rounded-lg bg-slate-900 px-3 py-2 text-[11px] font-bold text-white">Create request & make next speaker</button>
         </div>,
         document.body,
       ) : null}

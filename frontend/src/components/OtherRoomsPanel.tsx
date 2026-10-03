@@ -122,16 +122,16 @@ export function OtherRoomsPanel() {
       >
         <div className="flex items-start gap-1">
           <button type="button" onClick={() => setActiveRoom(room.id)} className="min-w-0 flex flex-1 items-start gap-2 text-start" title={`Open ${room.name}`}>
-            {nested ? <span className="shrink-0 pt-0.5 text-slate-300" aria-hidden="true">↳</span> : null}
+            {nested ? <span className="shrink-0 pt-0.5 text-slate-400" aria-hidden="true">↳</span> : null}
             <span className="shrink-0 text-base" aria-hidden="true">{room.emoji}</span>
             <span dir="auto" className="min-w-0 flex-1 line-clamp-2 break-words text-start text-[12px] font-semibold leading-4 text-slate-800">{room.name}</span>
           </button>
           <button type="button" onClick={() => setMinutesRoomId(room.id)} disabled={!hasMessages} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[13px] text-blue-600 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent" title={hasMessages ? 'Meeting Minutes' : 'No messages for Meeting Minutes'} aria-label={`Meeting Minutes for ${room.name}`}>▤</button>
           <button type="button" onClick={() => void handleCopyFullChat(room.id)} disabled={!hasMessages} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[13px] text-indigo-600 transition hover:bg-indigo-50 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent" title={hasMessages ? 'Copy Full Chat' : 'No messages to copy'} aria-label={`Copy Full Chat for ${room.name}`}>⧉</button>
           <button type="button" onClick={() => handleOpenSettings(room.id)} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[13px] text-slate-500 transition hover:bg-slate-100 hover:text-slate-800" title="Room Settings" aria-label={`Room Settings for ${room.name}`}>⚙</button>
-          <button type="button" onClick={() => handleDelete(room.id, room.name)} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[13px] text-slate-400 transition hover:bg-rose-50 hover:text-rose-600" title="Delete Room" aria-label={`Delete ${room.name}`}>⌫</button>
+          <button type="button" onClick={() => handleDelete(room.id, room.name)} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[13px] text-slate-500 transition hover:bg-rose-50 hover:text-rose-600" title="Delete Room" aria-label={`Delete ${room.name}`}>⌫</button>
         </div>
-        <button type="button" onClick={() => setActiveRoom(room.id)} className="mt-1.5 flex w-full items-center justify-between gap-2 text-start"><span className="min-w-0 truncate text-[10px] text-slate-400">{room.agentIds.length} specialists · {room.messages.length} messages</span>{stale ? <span className="shrink-0 rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold text-amber-700" title="No activity for a while — finish, archive or resume this room">⏱ {daysSinceActivity(room, now)}d inactive</span> : null}{active ? <span className="text-[9px] font-semibold text-blue-600">ACTIVE</span> : null}</button>
+        <button type="button" onClick={() => setActiveRoom(room.id)} className="mt-1.5 flex w-full items-center justify-between gap-2 text-start"><span className="min-w-0 truncate text-[11px] text-slate-500">{room.agentIds.length} specialists · {room.messages.length} messages</span>{stale ? <span className="shrink-0 rounded-full bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold text-amber-700" title="No activity for a while — finish, archive or resume this room">⏱ {daysSinceActivity(room, now)}d inactive</span> : null}{active ? <span className="text-[11px] font-semibold text-blue-600">ACTIVE</span> : null}</button>
       </div>
     );
   };
@@ -139,11 +139,11 @@ export function OtherRoomsPanel() {
   if (!open) {
     return (
       <aside className="flex w-12 shrink-0 border-s border-slate-200 bg-white" aria-label="Collapsed Other Rooms">
-        <button type="button" onClick={() => setOpen(true)} className="group flex h-full w-full flex-col items-center py-3 text-slate-400 transition hover:bg-blue-50 hover:text-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500" title="Open Other Rooms" aria-label="Open Other Rooms">
+        <button type="button" onClick={() => setOpen(true)} className="group flex h-full w-full flex-col items-center py-3 text-slate-500 transition hover:bg-blue-50 hover:text-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500" title="Open Other Rooms" aria-label="Open Other Rooms">
           <span className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-lg text-slate-500 shadow-sm transition group-hover:border-blue-200 group-hover:text-blue-600" aria-hidden="true">‹</span>
           <span className="mt-3 text-base" aria-hidden="true">🗂️</span>
-          <span className="mt-2 [writing-mode:vertical-rl] text-[10px] font-semibold uppercase tracking-wide">Other Rooms</span>
-          <span className="mt-3 rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-slate-600">{visibleRooms.length}</span>
+          <span className="mt-2 [writing-mode:vertical-rl] text-[11px] font-semibold uppercase tracking-wide">Other Rooms</span>
+          <span className="mt-3 rounded-full bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-600">{visibleRooms.length}</span>
         </button>
       </aside>
     );
@@ -163,13 +163,13 @@ export function OtherRoomsPanel() {
 
         <div className="border-b border-slate-200 bg-white px-4 py-3">
           <div className="flex items-center justify-between gap-3">
-            <div><h2 className="text-[14px] font-bold text-[#111b3a]">Other Rooms</h2><p className="mt-0.5 text-[11px] text-slate-400">Active discussion rooms</p></div>
+            <div><h2 className="text-[14px] font-bold text-[#111b3a]">Other Rooms</h2><p className="mt-0.5 text-[11px] text-slate-500">Active discussion rooms</p></div>
             <div className="flex items-center gap-2">
               {!compact ? (
                 <button
                   type="button"
                   onClick={() => setPinned(value => !value)}
-                  className={`grid h-8 w-8 place-items-center rounded-lg border text-sm shadow-sm transition ${pinned ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-400 hover:bg-slate-50 hover:text-slate-700'}`}
+                  className={`grid h-8 w-8 place-items-center rounded-lg border text-sm shadow-sm transition ${pinned ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}
                   title={pinned ? 'Unpin Other Rooms' : 'Pin Other Rooms'}
                   aria-label={pinned ? 'Unpin Other Rooms' : 'Pin Other Rooms'}
                   aria-pressed={pinned}
@@ -177,14 +177,14 @@ export function OtherRoomsPanel() {
                   📌
                 </button>
               ) : null}
-              <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-600">{visibleRooms.length}</span>
+              <span className="rounded-full bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-600">{visibleRooms.length}</span>
             </div>
           </div>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-3">
           {visibleRooms.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-slate-300 bg-white p-4 text-center text-xs text-slate-400">No active rooms. Create one from Room Settings or restore an archived room from Workspace.</div>
+            <div className="rounded-lg border border-dashed border-slate-300 bg-white p-4 text-center text-xs text-slate-500">No active rooms. Create one from Room Settings or restore an archived room from Workspace.</div>
           ) : (
             <div className="space-y-2">
               {groupedRooms.map(({ project, rooms: projectRooms, roomCount }) => {
@@ -212,15 +212,15 @@ export function OtherRoomsPanel() {
                       className="flex w-full items-center gap-2 rounded-lg px-1.5 py-1.5 text-start hover:bg-slate-100"
                       aria-expanded={groupOpen}
                     >
-                      <span className={`text-[10px] text-slate-400 transition-transform ${groupOpen ? 'rotate-90' : ''}`} aria-hidden="true">▸</span>
+                      <span className={`text-[11px] text-slate-500 transition-transform ${groupOpen ? 'rotate-90' : ''}`} aria-hidden="true">▸</span>
                       <span className="text-sm" aria-hidden="true">{project.emoji}</span>
                       <span className="min-w-0 flex-1 truncate text-[11px] font-bold uppercase tracking-wide text-slate-500">{project.name}</span>
-                      <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500">{roomCount}</span>
+                      <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500">{roomCount}</span>
                     </button>
 
                     {groupOpen ? (
                       projectRooms.length === 0 ? (
-                        <div className="ms-1 mt-1 rounded-lg border border-dashed border-slate-200 px-2.5 py-2 text-[10px] text-slate-400">
+                        <div className="ms-1 mt-1 rounded-lg border border-dashed border-slate-200 px-2.5 py-2 text-[11px] text-slate-500">
                           Drag a room here to move it into {project.name}.
                         </div>
                       ) : (

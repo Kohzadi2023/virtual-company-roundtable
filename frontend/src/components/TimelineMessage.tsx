@@ -253,10 +253,10 @@ export function TimelineMessage({ roomId, message, isLast = false }: TimelineMes
         <header className="mb-1 flex min-h-6 flex-wrap items-center gap-2 text-[12px]">
           <strong className="text-[14px] font-bold text-[#111b3a]">{author}</strong>
           {!isUser && message.roleNameSnapshot && <span className="text-slate-500">{message.roleNameSnapshot}</span>}
-          <time className="text-slate-400" dateTime={new Date(message.createdAt).toISOString()}>{formatTimestamp(message.createdAt)}</time>
-          {message.pinned ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">📌 PINNED</span> : null}
-          {reaction ? <span className="rounded bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 shadow-sm">{reaction.icon} {reaction.label}</span> : null}
-          {message.branchRoomId ? <button type="button" onClick={createBranch} className="rounded bg-violet-50 px-1.5 py-0.5 text-[9px] font-bold text-violet-700">⑂ BRANCH</button> : null}
+          <time className="text-slate-500" dateTime={new Date(message.createdAt).toISOString()}>{formatTimestamp(message.createdAt)}</time>
+          {message.pinned ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-bold text-amber-700">📌 PINNED</span> : null}
+          {reaction ? <span className="rounded bg-white px-1.5 py-0.5 text-[11px] font-semibold text-slate-600 shadow-sm">{reaction.icon} {reaction.label}</span> : null}
+          {message.branchRoomId ? <button type="button" onClick={createBranch} className="rounded bg-violet-50 px-1.5 py-0.5 text-[11px] font-bold text-violet-700">⑂ BRANCH</button> : null}
         </header>
 
         <div className={`rounded-lg border px-3 py-2 text-[13px] leading-5 shadow-[0_1px_2px_rgba(15,23,42,0.025)] ${isUser ? 'border-blue-100 bg-blue-50' : messageTone(role?.id)}`}>
@@ -270,10 +270,10 @@ export function TimelineMessage({ roomId, message, isLast = false }: TimelineMes
           )}
         </div>
 
-        {(message.tags?.length ?? 0) > 0 ? <div className="mt-1.5 flex flex-wrap gap-1">{message.tags?.map(tag => <button key={tag} type="button" onClick={() => removeTag(tag)} className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-semibold text-slate-500 hover:bg-rose-50 hover:text-rose-600">#{tag} ×</button>)}</div> : null}
+        {(message.tags?.length ?? 0) > 0 ? <div className="mt-1.5 flex flex-wrap gap-1">{message.tags?.map(tag => <button key={tag} type="button" onClick={() => removeTag(tag)} className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500 hover:bg-rose-50 hover:text-rose-600">#{tag} ×</button>)}</div> : null}
 
         {!editing && (
-          <div className="mt-1.5 flex flex-wrap items-center justify-end gap-1 text-[10px] text-slate-500" aria-label="Message collaboration actions">
+          <div className="mt-1.5 flex flex-wrap items-center justify-end gap-1 text-[11px] text-slate-500" aria-label="Message collaboration actions">
             <div className="relative">
               <button type="button" onClick={() => setReactionOpen(value => !value)} className="rounded-md px-2 py-1 font-medium hover:bg-slate-100">{reaction ? `${reaction.icon} ${reaction.label}` : 'React'}</button>
               {reactionOpen ? <div className="absolute bottom-7 end-0 z-20 flex gap-1 rounded-lg border border-slate-200 bg-white p-1.5 shadow-xl">{REACTIONS.map(item => <button key={item.value} type="button" onClick={() => setReaction(item.value)} title={item.label} className="grid h-7 w-7 place-items-center rounded hover:bg-slate-100">{item.icon}</button>)}</div> : null}
@@ -289,7 +289,7 @@ export function TimelineMessage({ roomId, message, isLast = false }: TimelineMes
           <div
             ref={moreMenuPanelRef}
             role="menu"
-            className="fixed z-[100] max-h-[70vh] w-52 space-y-0.5 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1.5 text-start text-[10px] text-slate-500 shadow-2xl"
+            className="fixed z-[100] max-h-[70vh] w-52 space-y-0.5 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1.5 text-start text-[11px] text-slate-500 shadow-2xl"
             style={{ top: moreMenuPosition.top, left: moreMenuPosition.left }}
           >
             <button type="button" role="menuitem" onClick={() => { rememberMessage(); closeMoreMenu(); }} className="block w-full rounded-md px-2 py-1.5 text-start font-medium hover:bg-violet-50 hover:text-violet-700">🧠 Remember</button>
@@ -309,7 +309,7 @@ export function TimelineMessage({ roomId, message, isLast = false }: TimelineMes
           document.body,
         ) : null}
 
-        {historyOpen && (message.versions?.length ?? 0) > 0 ? <div className="mt-2 rounded-lg border border-slate-200 bg-white p-3"><div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">Previous versions</div><div className="max-h-48 space-y-2 overflow-y-auto">{[...(message.versions ?? [])].reverse().map((version, index) => <details key={`${version.savedAt}-${index}`} className="rounded border border-slate-100 p-2"><summary className="cursor-pointer text-[10px] font-semibold text-slate-500">{new Date(version.savedAt).toLocaleString()}</summary><div className="mt-2 whitespace-pre-wrap text-xs leading-5 text-slate-600">{version.content}</div></details>)}</div></div> : null}
+        {historyOpen && (message.versions?.length ?? 0) > 0 ? <div className="mt-2 rounded-lg border border-slate-200 bg-white p-3"><div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">Previous versions</div><div className="max-h-48 space-y-2 overflow-y-auto">{[...(message.versions ?? [])].reverse().map((version, index) => <details key={`${version.savedAt}-${index}`} className="rounded border border-slate-100 p-2"><summary className="cursor-pointer text-[11px] font-semibold text-slate-500">{new Date(version.savedAt).toLocaleString()}</summary><div className="mt-2 whitespace-pre-wrap text-xs leading-5 text-slate-600">{version.content}</div></details>)}</div></div> : null}
       </div>
     </article>
   );

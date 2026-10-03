@@ -26,7 +26,7 @@ function EmptyDiscussionState() {
           </svg>
         </div>
         <h2 className="text-xl font-bold tracking-tight text-slate-800">Start the company discussion</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-400">
+        <p className="mt-2 text-sm leading-6 text-slate-500">
           Send a User message, then choose the specialist you want to hear from. Each employee contributes from their fixed role and expertise.
         </p>
       </div>
@@ -44,7 +44,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     element.scrollTo({ top: element.scrollHeight, behavior: 'smooth' });
   }, [room?.messages.length]);
 
-  if (!room) return <div className="grid h-full place-items-center text-slate-400">Room not found</div>;
+  if (!room) return <div className="grid h-full place-items-center text-slate-500">Room not found</div>;
 
   const latestOliviaResponseId = [...room.messages]
     .reverse()

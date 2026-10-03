@@ -82,7 +82,7 @@ export function DecisionProposalRecoveryCard({ roomId }: { roomId: string }) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-sm font-bold text-slate-900">Waiting for Olivia’s final decision</h3>
-            <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800 ring-1 ring-amber-200">Meeting paused</span>
+            <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-amber-800 ring-1 ring-amber-200">Meeting paused</span>
           </div>
           <p className="mt-1 text-xs leading-5 text-slate-700">
             Olivia’s latest response was saved, but it did not include a valid decision proposal. The final round will not advance until she produces one.

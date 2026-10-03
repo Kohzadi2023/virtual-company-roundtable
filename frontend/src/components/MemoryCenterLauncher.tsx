@@ -19,7 +19,7 @@ export function MemoryCenterLauncher() {
       title="Company, project and memory intelligence"
     >
       <span aria-hidden="true">◈</span> Memory Center
-      {pending > 0 ? <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold text-violet-700">{pending}</span> : null}
+      {pending > 0 ? <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[11px] font-bold text-violet-700">{pending}</span> : null}
     </button>
   );
 }

@@ -138,29 +138,29 @@ export function TraceabilityCenterLauncher() {
               <select value={resolvedProjectId} onChange={event => setProjectId(event.target.value)} className="max-w-64 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs">
                 {projects.map(item => <option key={item.id} value={item.id}>{item.emoji} {item.name}</option>)}
               </select>
-              <button type="button" onClick={() => setOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100">✕</button>
+              <button type="button" onClick={() => setOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">✕</button>
             </header>
 
             <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 p-5">
               <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
                 <section className="rounded-xl border border-slate-200 bg-white p-4">
                   <div className="flex items-center justify-between gap-3">
-                    <div><h3 className="text-sm font-bold text-slate-800">Decision Dependency Graph</h3><p className="mt-1 text-[10px] text-slate-400">Columns represent dependency depth. Red cards depend on a reversed parent.</p></div>
-                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-500">{dependencies.length} links</span>
+                    <div><h3 className="text-sm font-bold text-slate-800">Decision Dependency Graph</h3><p className="mt-1 text-[11px] text-slate-500">Columns represent dependency depth. Red cards depend on a reversed parent.</p></div>
+                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-500">{dependencies.length} links</span>
                   </div>
-                  {graph.length === 0 ? <div className="mt-4 rounded-lg border border-dashed border-slate-300 p-6 text-center text-xs text-slate-400">No project decisions yet.</div> : (
+                  {graph.length === 0 ? <div className="mt-4 rounded-lg border border-dashed border-slate-300 p-6 text-center text-xs text-slate-500">No project decisions yet.</div> : (
                     <div className="mt-4 grid gap-3 overflow-x-auto" style={{ gridTemplateColumns: `repeat(${maxDepth + 1}, minmax(210px, 1fr))` }}>
                       {Array.from({ length: maxDepth + 1 }, (_, depth) => (
                         <div key={depth} className="min-w-0 space-y-2 rounded-lg bg-slate-50 p-2">
-                          <div className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Depth {depth}</div>
+                          <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Depth {depth}</div>
                           {graph.filter(node => node.depth === depth).map(node => {
                             const linked = projectActions.filter(action => decisionIdForAction(action) === node.decision.id);
                             return <article key={node.decision.id} className={`rounded-lg border p-3 ${node.impactedByReversal ? 'border-rose-300 bg-rose-50' : node.decision.status === 'approved' ? 'border-emerald-200 bg-emerald-50/40' : 'border-slate-200 bg-white'}`}>
                               <div className="text-[11px] font-bold text-slate-800">{node.decision.title}</div>
-                              <div className="mt-1 text-[9px] uppercase text-slate-400">{node.decision.status}</div>
-                              {node.parentIds.length > 0 ? <div className="mt-2 text-[9px] text-slate-500">← {node.parentIds.map(id => projectDecisions.find(item => item.id === id)?.title ?? id).join(' · ')}</div> : <div className="mt-2 text-[9px] text-slate-400">Root decision</div>}
-                              <div className="mt-2 flex justify-between text-[9px]"><span className="text-blue-600">{linked.length} linked actions</span><span className="text-slate-400">{node.childIds.length} dependents</span></div>
-                              {node.impactedByReversal ? <div className="mt-2 rounded bg-rose-100 px-2 py-1 text-[9px] font-bold text-rose-700">⚠ Parent decision reversed</div> : null}
+                              <div className="mt-1 text-[11px] uppercase text-slate-500">{node.decision.status}</div>
+                              {node.parentIds.length > 0 ? <div className="mt-2 text-[11px] text-slate-500">← {node.parentIds.map(id => projectDecisions.find(item => item.id === id)?.title ?? id).join(' · ')}</div> : <div className="mt-2 text-[11px] text-slate-500">Root decision</div>}
+                              <div className="mt-2 flex justify-between text-[11px]"><span className="text-blue-600">{linked.length} linked actions</span><span className="text-slate-500">{node.childIds.length} dependents</span></div>
+                              {node.impactedByReversal ? <div className="mt-2 rounded bg-rose-100 px-2 py-1 text-[11px] font-bold text-rose-700">⚠ Parent decision reversed</div> : null}
                             </article>;
                           })}
                         </div>
@@ -171,19 +171,19 @@ export function TraceabilityCenterLauncher() {
 
                 <section className="rounded-xl border border-slate-200 bg-white p-4">
                   <h3 className="text-sm font-bold text-slate-800">Due-Date Reminders</h3>
-                  <p className="mt-1 text-[10px] leading-4 text-slate-400">In-app reminders remain local. Desktop notifications are optional and require browser/WebView permission.</p>
+                  <p className="mt-1 text-[11px] leading-4 text-slate-500">In-app reminders remain local. Desktop notifications are optional and require browser/WebView permission.</p>
                   <label className="mt-4 flex items-center justify-between rounded-lg border border-slate-200 p-3 text-xs"><span>Desktop notifications</span><input type="checkbox" checked={preferences.desktopEnabled} onChange={event => toggleDesktop(event.target.checked)} /></label>
-                  <label className="mt-2 block text-[10px] font-bold uppercase tracking-wide text-slate-400">Due-soon window
+                  <label className="mt-2 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Due-soon window
                     <select value={preferences.dueSoonHours} onChange={event => saveReminderPreferences({ ...preferences, dueSoonHours: Number(event.target.value) })} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-normal normal-case text-slate-700">
                       {[1, 4, 12, 24, 48, 72, 168].map(hours => <option key={hours} value={hours}>{hours < 24 ? `${hours} hours` : `${hours / 24} days`}</option>)}
                     </select>
                   </label>
                   <label className="mt-2 flex items-center justify-between rounded-lg border border-slate-200 p-3 text-xs"><span>Notify when meeting timer ends</span><input type="checkbox" checked={preferences.timerNotifications} onChange={event => saveReminderPreferences({ ...preferences, timerNotifications: event.target.checked })} /></label>
-                  <div className="mt-2 text-[10px] text-slate-400">Permission: <strong>{permissionStatus}</strong></div>
+                  <div className="mt-2 text-[11px] text-slate-500">Permission: <strong>{permissionStatus}</strong></div>
                   {permissionStatus !== 'granted' && permissionStatus !== 'unsupported' ? <button type="button" onClick={() => void requestDesktopPermission()} className="mt-2 w-full rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs font-bold text-cyan-700">Enable Desktop Reminders</button> : null}
 
                   <div className="mt-4 space-y-2">
-                    {dueItems.length === 0 ? <div className="rounded-lg border border-dashed border-slate-300 p-4 text-center text-[10px] text-slate-400">No overdue or due-soon actions.</div> : dueItems.map(({ action, state }) => <div key={action.id} className={`rounded-lg border p-2.5 ${state === 'overdue' ? 'border-rose-200 bg-rose-50' : 'border-amber-200 bg-amber-50'}`}><div className="text-[10px] font-bold text-slate-700">{action.title}</div><div className="mt-1 text-[9px] text-slate-500">{state === 'overdue' ? 'OVERDUE' : 'DUE SOON'} · {action.deadline} · {action.owner || 'Unassigned'}</div></div>)}
+                    {dueItems.length === 0 ? <div className="rounded-lg border border-dashed border-slate-300 p-4 text-center text-[11px] text-slate-500">No overdue or due-soon actions.</div> : dueItems.map(({ action, state }) => <div key={action.id} className={`rounded-lg border p-2.5 ${state === 'overdue' ? 'border-rose-200 bg-rose-50' : 'border-amber-200 bg-amber-50'}`}><div className="text-[11px] font-bold text-slate-700">{action.title}</div><div className="mt-1 text-[11px] text-slate-500">{state === 'overdue' ? 'OVERDUE' : 'DUE SOON'} · {action.deadline} · {action.owner || 'Unassigned'}</div></div>)}
                   </div>
                 </section>
               </div>
@@ -191,17 +191,17 @@ export function TraceabilityCenterLauncher() {
               <div className="mt-4 grid gap-4 xl:grid-cols-2">
                 <section className="rounded-xl border border-slate-200 bg-white p-4">
                   <h3 className="text-sm font-bold text-slate-800">Decision → Action Traceability</h3>
-                  <div className="mt-3 space-y-2">{projectDecisions.map(decision => { const linked = projectActions.filter(action => decisionIdForAction(action) === decision.id); return <details key={decision.id} className="rounded-lg border border-slate-200 p-3"><summary className="cursor-pointer text-xs font-semibold text-slate-700">{decision.title} <span className="ms-2 text-[9px] font-normal text-slate-400">{linked.length} actions</span></summary><div className="mt-2 space-y-1">{linked.length ? linked.map(action => <div key={action.id} className="rounded bg-slate-50 px-2 py-1.5 text-[10px] text-slate-600">↳ {action.title} · {action.status}</div>) : <div className="text-[10px] text-slate-400">No linked action yet.</div>}</div></details>; })}</div>
+                  <div className="mt-3 space-y-2">{projectDecisions.map(decision => { const linked = projectActions.filter(action => decisionIdForAction(action) === decision.id); return <details key={decision.id} className="rounded-lg border border-slate-200 p-3"><summary className="cursor-pointer text-xs font-semibold text-slate-700">{decision.title} <span className="ms-2 text-[11px] font-normal text-slate-500">{linked.length} actions</span></summary><div className="mt-2 space-y-1">{linked.length ? linked.map(action => <div key={action.id} className="rounded bg-slate-50 px-2 py-1.5 text-[11px] text-slate-600">↳ {action.title} · {action.status}</div>) : <div className="text-[11px] text-slate-500">No linked action yet.</div>}</div></details>; })}</div>
                 </section>
 
                 <section className="rounded-xl border border-slate-200 bg-white p-4">
-                  <div className="flex items-center justify-between"><h3 className="text-sm font-bold text-slate-800">Second Opinion / Handoff Queue</h3><span className="text-[10px] text-slate-400">Auto-completes when target agent replies</span></div>
-                  <div className="mt-3 space-y-2">{reviewRequests.length === 0 ? <div className="rounded-lg border border-dashed border-slate-300 p-4 text-center text-[10px] text-slate-400">No review requests for this project.</div> : reviewRequests.map(request => <div key={request.id} className="flex items-center gap-2 rounded-lg border border-slate-200 p-2.5"><span className={`rounded px-2 py-1 text-[9px] font-bold ${request.status === 'done' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{request.status}</span><div className="min-w-0 flex-1"><div className="truncate text-[10px] font-semibold text-slate-700">{request.kind === 'second-opinion' ? 'Second Opinion' : 'Handoff'} → {request.targetAgentId}</div><div className="truncate text-[9px] text-slate-400">{request.note}</div></div></div>)}</div>
+                  <div className="flex items-center justify-between"><h3 className="text-sm font-bold text-slate-800">Second Opinion / Handoff Queue</h3><span className="text-[11px] text-slate-500">Auto-completes when target agent replies</span></div>
+                  <div className="mt-3 space-y-2">{reviewRequests.length === 0 ? <div className="rounded-lg border border-dashed border-slate-300 p-4 text-center text-[11px] text-slate-500">No review requests for this project.</div> : reviewRequests.map(request => <div key={request.id} className="flex items-center gap-2 rounded-lg border border-slate-200 p-2.5"><span className={`rounded px-2 py-1 text-[11px] font-bold ${request.status === 'done' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{request.status}</span><div className="min-w-0 flex-1"><div className="truncate text-[11px] font-semibold text-slate-700">{request.kind === 'second-opinion' ? 'Second Opinion' : 'Handoff'} → {request.targetAgentId}</div><div className="truncate text-[11px] text-slate-500">{request.note}</div></div></div>)}</div>
                 </section>
               </div>
 
               <section className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-                <div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-bold text-slate-800">Complete Project Package v2</h3><p className="mt-1 text-[10px] text-slate-400">Includes rooms, messages, files, minutes, decisions, actions, deliverables, project memories, dependencies, Kanban state, reviews and room snapshots.</p></div><button type="button" onClick={exportCompleteProject} disabled={!project} className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-bold text-white disabled:opacity-40">Export Complete Package</button></div>
+                <div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-bold text-slate-800">Complete Project Package v2</h3><p className="mt-1 text-[11px] text-slate-500">Includes rooms, messages, files, minutes, decisions, actions, deliverables, project memories, dependencies, Kanban state, reviews and room snapshots.</p></div><button type="button" onClick={exportCompleteProject} disabled={!project} className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-bold text-white disabled:opacity-40">Export Complete Package</button></div>
               </section>
             </div>
           </section>

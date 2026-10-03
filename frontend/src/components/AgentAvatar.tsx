@@ -116,7 +116,7 @@ export function AgentAvatar({
                   <div className="text-[11px] font-bold text-blue-300">{group.name}</div>
                   <div className="mt-1 flex flex-wrap gap-1">
                     {group.skills.map(skill => (
-                      <span key={skill} className="rounded bg-slate-700 px-1.5 py-0.5 text-[10px] leading-4 text-slate-100">{skill}</span>
+                      <span key={skill} className="rounded bg-slate-700 px-1.5 py-0.5 text-[11px] leading-4 text-slate-100">{skill}</span>
                     ))}
                   </div>
                 </div>
@@ -143,7 +143,7 @@ export function AgentAvatar({
           {limitations.length > 0 && (
             <div className="mt-3 rounded-lg border border-amber-700/50 bg-amber-950/30 p-2">
               <div className="text-[11px] font-semibold text-amber-300">Professional boundaries</div>
-              <div className="mt-1 text-[10px] leading-4 text-amber-100/90">{limitations.join(' ')}</div>
+              <div className="mt-1 text-[11px] leading-4 text-amber-100/90">{limitations.join(' ')}</div>
             </div>
           )}
         </div>,
