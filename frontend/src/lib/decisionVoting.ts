@@ -42,7 +42,7 @@ const VOTE_MARKER = 'VC_DECISION_VOTE';
 const DECISION_EVIDENCE_PREFIX = `${PROPOSAL_MARKER}:`;
 const VOTE_ID_PREFIX = 'vc-decision-vote:';
 
-function parseJsonBlock<T>(content: string, marker: string): T | null {
+export function parseJsonBlock<T>(content: string, marker: string): T | null {
   const markerIndex = content.lastIndexOf(marker);
   if (markerIndex < 0) return null;
   const tail = content.slice(markerIndex + marker.length);

@@ -8,6 +8,7 @@ import {
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
 import { getRoomLanguage } from '@/lib/languages';
 import { explicitItems, statedVerdicts, uniqueMessages } from '@/lib/meetingMinutes';
+import { collectObjections } from '@/lib/objections';
 import type { ActionItem, DecisionRecord, Message, Room, VoteChoice } from '@/types/domain';
 
 /**
@@ -34,6 +35,16 @@ interface BriefLabels {
   topic: string;
   positions: string;
   noTension: string;
+  objectionsHeading: string;
+  noObjections: string;
+  verdictsHeading: string;
+  raisedBy: string;
+  objection: string;
+  against: string;
+  severity: string;
+  finalVote: string;
+  carriedHeading: string;
+  carriedNote: string;
   dissents: string;
   noDissent: string;
   aiNote: string;
@@ -83,6 +94,16 @@ const en: BriefLabels = {
   topic: 'Topic',
   positions: 'Positions',
   noTension: 'No topic with conflicting stated verdicts was found.',
+  objectionsHeading: 'Objections raised in the critique round',
+  noObjections: 'No structured objections were recorded. Specialists may have disagreed in prose only; the discussion itself is the record.',
+  verdictsHeading: 'Conflicting stated verdicts',
+  raisedBy: 'Raised by',
+  objection: 'Objection',
+  against: 'Against',
+  severity: 'Severity',
+  finalVote: 'Final vote',
+  carriedHeading: 'Objections on record from specialists who then voted agree',
+  carriedNote: 'The record does not show whether these were answered. Confirm each one before relying on the consensus.',
   dissents: 'Unresolved Minority Dissents',
   noDissent: 'No concern or disagreement was recorded.',
   aiNote: 'Every voter is an AI specialist persona, so agreement among them is not independent validation. Test the conclusion with a human before relying on it.',
@@ -142,6 +163,16 @@ const fa: BriefLabels = {
   topic: 'موضوع',
   positions: 'مواضع',
   noTension: 'موضوعی با حکم‌های متناقض پیدا نشد.',
+  objectionsHeading: 'اعتراض‌های ثبت‌شده در دور نقد',
+  noObjections: 'اعتراض ساخت‌یافته‌ای ثبت نشده است. شاید متخصصان فقط در متن مخالفت کرده‌اند؛ خود گفتگو سند است.',
+  verdictsHeading: 'حکم‌های متناقض',
+  raisedBy: 'مطرح‌کننده',
+  objection: 'اعتراض',
+  against: 'علیه',
+  severity: 'شدت',
+  finalVote: 'رأی نهایی',
+  carriedHeading: 'اعتراض‌های ثبت‌شده از کسانی که بعداً موافق رأی دادند',
+  carriedNote: 'سابقه نشان نمی‌دهد به این‌ها پاسخ داده شده یا نه. پیش از تکیه بر اجماع، هرکدام را بررسی کنید.',
   dissents: 'مخالفت‌های بدون پاسخ اقلیت',
   noDissent: 'هیچ نگرانی یا مخالفتی ثبت نشده است.',
   aiNote: 'همه‌ی رأی‌دهندگان شخصیت‌های هوش مصنوعی هستند؛ پس توافق آن‌ها اعتبارسنجی مستقل نیست. پیش از تکیه بر نتیجه، آن را با یک انسان بیازمایید.',
@@ -307,6 +338,8 @@ export function buildExecutiveDecisionBrief(
   const dissenters = voters.filter(voter => voter.choice === 'concern' || voter.choice === 'disagree');
   const voterConditions = voters.flatMap(voter => voter.conditions.map(condition => ({ from: voter.name, text: condition })));
   const tensions = conflictingVerdicts(messages);
+  const objections = collectObjections(room.messages);
+  const finalVoteOf = (agentId: string) => voters.find(voter => voter.agentId === agentId)?.choice;
   const rows = actionRows(room, actionItems, messages, t);
   const participants = new Set(messages.map(message => message.authorType === 'user' ? 'User' : authorLabel(message)));
 
@@ -337,7 +370,20 @@ export function buildExecutiveDecisionBrief(
     lines.push(`**${t.noProposal}.** ${t.noProposalNote}`);
   }
 
-  lines.push('', `## 2. ${t.matrix}`, '', t.matrixIntro, '');
+  lines.push('', `## 2. ${t.matrix}`, '', `### ${t.objectionsHeading}`, '');
+  if (objections.length > 0) {
+    lines.push(
+      `| ${t.topic} | ${t.raisedBy} | ${t.severity} | ${t.objection} | ${t.against} | ${t.finalVote} |`,
+      '| --- | --- | --- | --- | --- | --- |',
+      ...objections.map(item => {
+        const vote = finalVoteOf(item.agentId);
+        return `| ${cell(item.topic)} | ${cell(item.role ? `${item.author} · ${item.role}` : item.author)} | ${item.severity} | ${cell(item.objection)} | ${cell(item.against) || '—'} | ${vote ? t.choices[vote] : '—'} |`;
+      }),
+    );
+  } else {
+    lines.push(`- ${t.noObjections}`);
+  }
+  lines.push('', `### ${t.verdictsHeading}`, '', t.matrixIntro, '');
   if (tensions.length > 0) {
     lines.push(
       `| ${t.topic} | ${t.positions} |`,
@@ -357,6 +403,16 @@ export function buildExecutiveDecisionBrief(
     }
   } else {
     lines.push(`- ${voters.length > 0 ? t.noDissent : t.none}`);
+  }
+  const carried = objections.filter(item => {
+    const vote = finalVoteOf(item.agentId);
+    return vote !== 'concern' && vote !== 'disagree';
+  });
+  if (carried.length > 0) {
+    lines.push('', `### ${t.carriedHeading}`, '', t.carriedNote, '');
+    for (const item of carried) {
+      lines.push(`- **${item.author} — ${item.topic}** (${item.severity}): ${item.objection}`);
+    }
   }
   if (voters.length > 0) lines.push('', `> ${t.aiNote}`);
 
