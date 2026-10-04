@@ -47,23 +47,25 @@ export function parseObjections(content: string): Objection[] {
 }
 
 /**
- * Every objection specialists put on the record, strongest first. When a
- * specialist re-sent the block (a regenerated reply), only their latest
- * message counts so the same objection is not listed twice.
+ * Every objection specialists put on the record, strongest first. An
+ * objection is identified by who raised it and its topic: re-stating the same
+ * topic (a later round, or a regenerated reply) replaces the earlier wording
+ * rather than listing it twice, while a later block that is empty or covers
+ * other topics never erases what was already on the record.
  */
 export function collectObjections(messages: readonly Message[]): RaisedObjection[] {
-  const latestByAgent = new Map<string, Message>();
+  const byKey = new Map<string, RaisedObjection>();
   for (const message of messages) {
     if (message.authorType !== 'agent' || !message.authorId || message.authorId === MEETING_FACILITATOR_AGENT_ID) continue;
     if (!message.content.includes(MARKER)) continue;
-    latestByAgent.set(message.authorId, message);
+    for (const objection of parseObjections(message.content)) {
+      byKey.set(`${message.authorId}|${objection.topic.toLocaleLowerCase()}`, {
+        ...objection,
+        agentId: message.authorId,
+        author: message.authorNameSnapshot ?? message.authorId,
+        role: message.roleNameSnapshot ?? '',
+      });
+    }
   }
-  return [...latestByAgent.values()]
-    .flatMap(message => parseObjections(message.content).map(objection => ({
-      ...objection,
-      agentId: message.authorId!,
-      author: message.authorNameSnapshot ?? message.authorId!,
-      role: message.roleNameSnapshot ?? '',
-    })))
-    .sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
+  return [...byKey.values()].sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
 }
