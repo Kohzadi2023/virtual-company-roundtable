@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { MarkdownDocument } from '@/components/MarkdownDocument';
 import { copyText } from '@/lib/clipboard';
+import { buildExecutiveDecisionBrief } from '@/lib/executiveBrief';
 import { getRoomLanguage } from '@/lib/languages';
 import { buildMeetingMinutes } from '@/lib/meetingMinutes';
 import { buildMeetingMinutesPrompt } from '@/lib/meetingMinutesPrompt';
+import { printMarkdown } from '@/lib/printMarkdown';
 import { saveRoomMeetingMinutes } from '@/lib/roomActions';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
@@ -15,7 +17,9 @@ interface MeetingMinutesDialogProps {
 export function MeetingMinutesDialog({ roomId, onClose }: MeetingMinutesDialogProps) {
   const room = useWorkspaceStore(state => state.rooms.find(item => item.id === roomId));
   const decisions = useWorkspaceStore(state => state.decisions);
-  const [minutesMode, setMinutesMode] = useState<'local' | 'manual'>('local');
+  const actionItems = useWorkspaceStore(state => state.actionItems);
+  const [minutesMode, setMinutesMode] = useState<'local' | 'manual' | 'brief'>('local');
+  const [printError, setPrintError] = useState('');
   const [documentView, setDocumentView] = useState<'preview' | 'edit'>('preview');
   const [manualResult, setManualResult] = useState('');
   const [copied, setCopied] = useState(false);
@@ -26,7 +30,8 @@ export function MeetingMinutesDialog({ roomId, onClose }: MeetingMinutesDialogPr
   const language = getRoomLanguage(room?.languageCode);
   const localMinutes = useMemo(() => room ? buildMeetingMinutes(room, decisions) : '', [room, decisions]);
   const manualPrompt = useMemo(() => room ? buildMeetingMinutesPrompt(room) : '', [room]);
-  const activeMinutes = minutesMode === 'manual' ? manualResult.trim() : localMinutes;
+  const executiveBrief = useMemo(() => room ? buildExecutiveDecisionBrief(room, decisions, actionItems) : '', [room, decisions, actionItems]);
+  const activeMinutes = minutesMode === 'manual' ? manualResult.trim() : minutesMode === 'brief' ? executiveBrief : localMinutes;
   const savedMinutes = room?.meetingMinutes;
   const conversationChanged = Boolean(savedMinutes && room && savedMinutes.sourceMessageCount !== room.messages.length);
 
@@ -39,6 +44,7 @@ export function MeetingMinutesDialog({ roomId, onClose }: MeetingMinutesDialogPr
     setPromptCopied(false);
     setPromptCopyError(false);
     setHistoryOpen(false);
+    setPrintError('');
   }, [roomId]);
 
   if (!roomId || !room) return null;
@@ -80,13 +86,22 @@ export function MeetingMinutesDialog({ roomId, onClose }: MeetingMinutesDialogPr
     }
   };
 
+  const handlePrint = () => {
+    setPrintError('');
+    try {
+      printMarkdown(executiveBrief, { title: `${room.name} — Executive Decision Brief`, dir: language.dir });
+    } catch (error) {
+      setPrintError(error instanceof Error ? error.message : 'Printing failed.');
+    }
+  };
+
   const handleDownload = () => {
     if (!activeMinutes) return;
     const blob = new Blob([activeMinutes], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `${room.name.replace(/[^\p{L}\p{N}._-]+/gu, '-').replace(/^-+|-+$/g, '') || 'meeting'}-minutes.md`;
+    anchor.download = `${room.name.replace(/[^\p{L}\p{N}._-]+/gu, '-').replace(/^-+|-+$/g, '') || 'meeting'}-${minutesMode === 'brief' ? 'decision-brief' : 'minutes'}.md`;
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
@@ -127,13 +142,16 @@ export function MeetingMinutesDialog({ roomId, onClose }: MeetingMinutesDialogPr
           </div>
         ) : null}
 
-        <div className="grid grid-cols-2 border-b border-slate-200 bg-slate-50 p-1">
+        <div className="grid grid-cols-3 border-b border-slate-200 bg-slate-50 p-1">
           <button type="button" onClick={() => setMinutesMode('local')} className={`rounded-lg px-3 py-2 text-xs font-semibold transition ${minutesMode === 'local' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>Local Draft</button>
           <button type="button" onClick={() => { setMinutesMode('manual'); setDocumentView(manualResult.trim() ? 'preview' : 'edit'); }} className={`rounded-lg px-3 py-2 text-xs font-semibold transition ${minutesMode === 'manual' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>Manual AI · Copy / Paste</button>
+          <button type="button" onClick={() => setMinutesMode('brief')} className={`rounded-lg px-3 py-2 text-xs font-semibold transition ${minutesMode === 'brief' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>Decision Brief</button>
         </div>
 
         {minutesMode === 'local' ? (
           <div className="min-h-0 flex-1 overflow-y-auto bg-white px-5 py-5"><MarkdownDocument content={localMinutes} dir={language.dir} /></div>
+        ) : minutesMode === 'brief' ? (
+          <div className="min-h-0 flex-1 overflow-y-auto bg-white px-5 py-5"><MarkdownDocument content={executiveBrief} dir={language.dir} /></div>
         ) : (
           <div className="min-h-0 flex-1 overflow-y-auto p-5">
             <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
@@ -196,11 +214,15 @@ export function MeetingMinutesDialog({ roomId, onClose }: MeetingMinutesDialogPr
               ? savedMinutes
                 ? `Saved in room · ${savedMinutes.sourceMessageCount} source messages · ${new Date(savedMinutes.savedAt).toLocaleString()}`
                 : 'Manual mode: paste the AI result to save it in this room.'
-              : 'Local deterministic draft — rendered as Markdown, no AI used.'}
+              : minutesMode === 'brief'
+                ? 'Executive brief built locally from the decision proposal, votes and action items of this room — no AI used.'
+                : 'Local deterministic draft — rendered as Markdown, no AI used.'}
           </span>
           <div className="flex items-center gap-2">
+            {printError ? <span className="text-[12px] font-medium text-rose-600" role="alert">{printError}</span> : null}
+            {minutesMode === 'brief' ? <button type="button" onClick={handlePrint} disabled={!executiveBrief} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">Print / Save PDF</button> : null}
             <button type="button" onClick={handleDownload} disabled={!activeMinutes} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">Download .md</button>
-            <button type="button" onClick={() => void handleCopyMinutes()} disabled={!activeMinutes} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40">{copied ? 'Copied' : 'Copy Minutes'}</button>
+            <button type="button" onClick={() => void handleCopyMinutes()} disabled={!activeMinutes} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40">{copied ? 'Copied' : minutesMode === 'brief' ? 'Copy Brief' : 'Copy Minutes'}</button>
           </div>
         </div>
       </div>

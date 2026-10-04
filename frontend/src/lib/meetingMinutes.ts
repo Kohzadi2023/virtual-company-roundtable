@@ -45,7 +45,7 @@ function firstSentence(value: string, max = 240): string {
   return sentence.length > max ? `${sentence.slice(0, max - 1)}…` : sentence;
 }
 
-function explicitItems(content: string, kind: 'decision' | 'action'): string[] {
+export function explicitItems(content: string, kind: 'decision' | 'action'): string[] {
   const patterns = kind === 'decision'
     ? /^(?:decision|decided|تصمیم|تصمیم‌گیری|décision|decisión|قرار شد|entscheidung|karar|decisione)\s*[:：-]\s*(.+)$/i
     : /^(?:action|action item|todo|اقدام|وظیفه|action à faire|acción|کار بعدی|aufgabe|aktion|aksiyon|görev|azione|attività)\s*[:：-]\s*(.+)$/i;
@@ -62,13 +62,13 @@ function explicitItems(content: string, kind: 'decision' | 'action'): string[] {
 // and matching "go" in ordinary prose would produce noise.
 const VERDICT_LINE = /^(.{2,80}?)\s*[:：]\s*(NO[-_ ]?GO|CONDITIONAL[-_ ]GO|GO|DEFER(?:\s*\/\s*BLOCKED)?|BLOCKED)(?![A-Za-z])\s*(\([^)\n]{1,40}\))?/;
 
-interface StatedVerdict {
+export interface StatedVerdict {
   subject: string;
   verdict: string;
   authors: string[];
 }
 
-function statedVerdicts(messages: readonly Message[]): StatedVerdict[] {
+export function statedVerdicts(messages: readonly Message[]): StatedVerdict[] {
   const byKey = new Map<string, StatedVerdict>();
   for (const message of messages) {
     if (message.authorType !== 'agent') continue;
@@ -91,7 +91,7 @@ function statedVerdicts(messages: readonly Message[]): StatedVerdict[] {
   return [...byKey.values()].sort((left, right) => right.authors.length - left.authors.length);
 }
 
-function uniqueMessages(messages: readonly Message[]): Message[] {
+export function uniqueMessages(messages: readonly Message[]): Message[] {
   const seen = new Set<string>();
   return messages.filter(message => {
     const key = `${message.authorType}|${duplicateFingerprint(message.content)}`;
