@@ -128,20 +128,20 @@ export function OliviaStaffingCard({ roomId }: { roomId: string }) {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-sm font-bold text-slate-900">Waiting for Olivia to assemble the team</h3>
-              <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-amber-800 ring-1 ring-amber-200">Meeting paused</span>
+              <span className="rounded-full bg-white px-2 py-0.5 text-[12px] font-bold uppercase tracking-wide text-amber-800 ring-1 ring-amber-200">Meeting paused</span>
             </div>
             <p className="mt-1 text-xs leading-5 text-slate-700">
               Olivia’s latest response was saved, but no valid staffing plan was detected. No specialists have been invited and the meeting will not advance until Olivia provides a staffing plan.
             </p>
-            <p className="mt-1 text-[11px] leading-5 text-slate-500">
+            <p className="mt-1 text-[12px] leading-5 text-slate-500">
               Use Regenerate Response to prepare the correct staffing request and open Olivia’s linked AI chat. The meeting stays paused until a valid VC_STAFFING_PLAN is added.
             </p>
             {advancedPastStaffing ? (
-              <p className="mt-2 text-[11px] font-semibold text-rose-700">
+              <p className="mt-2 text-[12px] font-semibold text-rose-700">
                 This room previously advanced past staffing without a valid plan. Regeneration will return it to staffing first.
               </p>
             ) : null}
-            {message ? <p className="mt-2 text-[11px] font-medium text-amber-900" role="status">{message}</p> : null}
+            {message ? <p className="mt-2 text-[12px] font-medium text-amber-900" role="status">{message}</p> : null}
           </div>
           <div className="flex shrink-0 flex-col gap-2">
             <button
@@ -205,7 +205,7 @@ export function OliviaStaffingCard({ roomId }: { roomId: string }) {
         <button
           type="button"
           onClick={() => setManuallyExpanded(true)}
-          className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-[11px] font-semibold text-teal-700 transition hover:bg-teal-100"
+          className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-[12px] font-semibold text-teal-700 transition hover:bg-teal-100"
           title="Show the full staffing plan"
         >
           <span aria-hidden="true">🧭</span>
@@ -274,9 +274,9 @@ export function OliviaStaffingCard({ roomId }: { roomId: string }) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <h3 className="text-sm font-bold text-slate-900">Olivia Staffing Plan</h3>
-            <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-teal-700 ring-1 ring-teal-200">{plan.teamName}</span>
+            <span className="rounded-full bg-white px-2 py-0.5 text-[12px] font-bold uppercase tracking-wide text-teal-700 ring-1 ring-teal-200">{plan.teamName}</span>
             <span
-              className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ring-1 ${READINESS_CLASS[readiness.effectiveReadiness]}`}
+              className={`rounded-full px-2 py-0.5 text-[12px] font-bold uppercase tracking-wide ring-1 ${READINESS_CLASS[readiness.effectiveReadiness]}`}
               title={readiness.modelReadiness !== readiness.effectiveReadiness
                 ? `Olivia reported ${READINESS_LABEL[readiness.modelReadiness]}; shown here is Virtual Company's own check of the room's actual state.`
                 : undefined}
@@ -287,7 +287,7 @@ export function OliviaStaffingCard({ roomId }: { roomId: string }) {
               <button
                 type="button"
                 onClick={() => setManuallyExpanded(false)}
-                className="ms-auto shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-teal-600 hover:bg-white hover:text-teal-800"
+                className="ms-auto shrink-0 rounded-md px-1.5 py-0.5 text-[12px] font-semibold text-teal-600 hover:bg-white hover:text-teal-800"
                 title="Collapse to a summary"
               >
                 ▴ Collapse
@@ -298,13 +298,13 @@ export function OliviaStaffingCard({ roomId }: { roomId: string }) {
 
           {readiness.blockers.length > 0 ? (
             <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-2.5">
-              <p className="text-[11px] font-bold text-amber-800">
+              <p className="text-[12px] font-bold text-amber-800">
                 {pendingApproval
                   ? `${readiness.blockers.length} pending staffing action${readiness.blockers.length === 1 ? '' : 's'}`
                   : `${readiness.blockers.length} unresolved staffing blocker${readiness.blockers.length === 1 ? '' : 's'}`}
               </p>
               {pendingApproval ? (
-                <p className="mt-1 text-[11px] leading-4 text-amber-700">
+                <p className="mt-1 text-[12px] leading-4 text-amber-700">
                   These are planned changes awaiting your approval, not failed operations. Review Olivia’s plan, then choose Invite Team.
                 </p>
               ) : null}
@@ -312,7 +312,7 @@ export function OliviaStaffingCard({ roomId }: { roomId: string }) {
                 {readiness.blockers.map(blocker => (
                   <li
                     key={blocker.type === 'required-participant-missing' ? `p:${blocker.participantId}` : `h:${blocker.role}`}
-                    className="text-[11px] text-amber-800"
+                    className="text-[12px] text-amber-800"
                   >
                     • {describeStaffingAction(blocker, pendingApproval)}
                   </li>
@@ -327,7 +327,7 @@ export function OliviaStaffingCard({ roomId }: { roomId: string }) {
                 <span
                   key={participant.agentId}
                   title={participant.reason}
-                  className="rounded-md bg-white px-2 py-1 text-[11px] text-slate-600 ring-1 ring-slate-200"
+                  className="rounded-md bg-white px-2 py-1 text-[12px] text-slate-600 ring-1 ring-slate-200"
                 >
                   <strong className="text-slate-800">{participant.name}</strong>
                   <span className={`ms-1 ${participant.priority === 'required' ? 'text-teal-700' : 'text-slate-500'}`}>
@@ -345,14 +345,14 @@ export function OliviaStaffingCard({ roomId }: { roomId: string }) {
                   <div className="flex items-center gap-2">
                     <span aria-hidden="true">{hire.emoji || '🧑‍💼'}</span>
                     <strong className="text-xs text-slate-900">{hire.agentName}</strong>
-                    <span className="text-[11px] text-slate-500">{hire.roleName}</span>
-                    <span className={`text-[11px] font-bold uppercase ${hire.priority === 'required' ? 'text-amber-700' : 'text-slate-500'}`}>
+                    <span className="text-[12px] text-slate-500">{hire.roleName}</span>
+                    <span className={`text-[12px] font-bold uppercase ${hire.priority === 'required' ? 'text-amber-700' : 'text-slate-500'}`}>
                       {hire.priority}
                     </span>
                   </div>
-                  {hire.reason ? <p className="mt-1 text-[11px] text-slate-500">{hire.reason}</p> : null}
+                  {hire.reason ? <p className="mt-1 text-[12px] text-slate-500">{hire.reason}</p> : null}
                   <div className="mt-1 flex flex-wrap gap-1">
-                    {hire.skills.map(skill => <span key={skill} className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-600">{skill}</span>)}
+                    {hire.skills.map(skill => <span key={skill} className="rounded bg-slate-100 px-1.5 py-0.5 text-[12px] font-medium text-slate-600">{skill}</span>)}
                   </div>
                 </div>
               ))}
@@ -361,10 +361,10 @@ export function OliviaStaffingCard({ roomId }: { roomId: string }) {
 
           {blockedHires.length > 0 ? (
             <div className="mt-2 rounded-lg border border-rose-200 bg-rose-50 p-2.5">
-              <p className="text-[11px] font-bold text-rose-800">Needs a human, not an AI agent — Invite Team will not create these:</p>
+              <p className="text-[12px] font-bold text-rose-800">Needs a human, not an AI agent — Invite Team will not create these:</p>
               <ul className="mt-1 space-y-1">
                 {blockedHires.map(hire => (
-                  <li key={`${hire.agentName}:${hire.roleName}`} className="text-[11px] text-rose-700">
+                  <li key={`${hire.agentName}:${hire.roleName}`} className="text-[12px] text-rose-700">
                     <strong>{hire.roleName}</strong> ({hire.type}){hire.reason ? ` — ${hire.reason}` : ''}
                   </li>
                 ))}
@@ -372,7 +372,7 @@ export function OliviaStaffingCard({ roomId }: { roomId: string }) {
             </div>
           ) : null}
 
-          {message ? <p className="mt-2 text-[11px] font-medium text-teal-800" role="status">{message}</p> : null}
+          {message ? <p className="mt-2 text-[12px] font-medium text-teal-800" role="status">{message}</p> : null}
         </div>
 
         <button

@@ -18,7 +18,7 @@ import { ensureMeetingFacilitatorMembership } from '@/lib/roomMembershipActions'
 import { bootstrapPersistence, startPersistence } from '@/lib/storage';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
-const APP_VERSION = import.meta.env.VITE_APP_VERSION?.trim() || '2.8.36';
+const APP_VERSION = import.meta.env.VITE_APP_VERSION?.trim() || '2.8.37';
 // Dev diagnostics export room/session data, so keep them out of any build
 // that opts out explicitly (a public deployment sets VITE_ENABLE_DEV_TOOLS=
 // 'false'). Local `npm run dev` and any other build keep the current
@@ -90,7 +90,7 @@ export default function App() {
           <OtherRoomsPanel />
         </div>
 
-        <footer className="flex h-9 shrink-0 items-center border-t border-slate-200 bg-white px-4 text-[11px] text-slate-500">
+        <footer className="flex h-9 shrink-0 items-center border-t border-slate-200 bg-white px-4 text-[12px] text-slate-500">
           <div className="flex shrink-0 items-center gap-2">
             <span className="font-medium text-slate-600">▣ Virtual Company v{APP_VERSION}</span>
             <span className="h-3 w-px bg-slate-200" aria-hidden="true" />

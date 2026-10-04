@@ -196,15 +196,15 @@ export function AgentMemoryDialogHost() {
             </div>
           </div>
 
-          <label className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Agent</label>
+          <label className="mb-1 block text-[12px] font-bold uppercase tracking-wide text-slate-500">Agent</label>
           <select value={agentId} onChange={event => { setAgentId(event.target.value); resetForm(); }} className="mb-3 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs">
             {agents.map(agent => <option key={agent.id} value={agent.id}>{agent.name} · {roles.find(role => role.id === agent.roleId)?.name ?? 'Specialist'}</option>)}
           </select>
 
-          <label className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Search memories</label>
+          <label className="mb-1 block text-[12px] font-bold uppercase tracking-wide text-slate-500">Search memories</label>
           <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search title or content…" className="mb-3 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs" />
 
-          <div className="mb-3 grid grid-cols-2 gap-1 rounded-lg bg-slate-200/60 p-1 text-[11px] font-semibold">
+          <div className="mb-3 grid grid-cols-2 gap-1 rounded-lg bg-slate-200/60 p-1 text-[12px] font-semibold">
             {(['active', 'all'] as const).map(value => <button key={value} type="button" onClick={() => setStatusFilter(value)} className={`rounded-md px-2 py-1.5 capitalize ${statusFilter === value ? 'bg-white text-violet-700 shadow-sm' : 'text-slate-500'}`}>{value}</button>)}
           </div>
 
@@ -212,7 +212,7 @@ export function AgentMemoryDialogHost() {
             <button type="button" onClick={() => setCategoryFilter('all')} className={`w-full rounded-md px-2 py-1.5 text-start text-xs ${categoryFilter === 'all' ? 'bg-violet-100 font-semibold text-violet-700' : 'text-slate-600 hover:bg-white'}`}>All categories</button>
             {categories.map(item => {
               const count = suite.agentMemories.filter(entry => entry.agentId === agentId && entry.category === item.value && (statusFilter === 'all' || entry.status === statusFilter)).length;
-              return <button key={item.value} type="button" onClick={() => setCategoryFilter(item.value)} className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-start text-xs ${categoryFilter === item.value ? 'bg-violet-100 font-semibold text-violet-700' : 'text-slate-600 hover:bg-white'}`}><span>{item.icon} {item.label}</span><span className="text-[11px] text-slate-500">{count}</span></button>;
+              return <button key={item.value} type="button" onClick={() => setCategoryFilter(item.value)} className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-start text-xs ${categoryFilter === item.value ? 'bg-violet-100 font-semibold text-violet-700' : 'text-slate-600 hover:bg-white'}`}><span>{item.icon} {item.label}</span><span className="text-[12px] text-slate-500">{count}</span></button>;
             })}
           </div>
         </aside>
@@ -243,24 +243,24 @@ export function AgentMemoryDialogHost() {
                         <div className="flex items-start gap-3">
                           <div className="min-w-0 flex-1">
                             <div className="mb-1 flex flex-wrap items-center gap-1.5">
-                              <span className="rounded bg-violet-50 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-violet-700">{categoryLabel(entry.category)}</span>
-                              <span className={`rounded px-1.5 py-0.5 text-[11px] font-bold uppercase ${entry.importance === 'high' ? 'bg-rose-50 text-rose-700' : entry.importance === 'medium' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>{entry.importance}</span>
-                              <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[11px] font-semibold text-blue-700">{scopeProject ? `${scopeProject.emoji} ${scopeProject.name}` : 'Company-wide'}</span>
-                              {expired ? <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-bold text-slate-500">EXPIRED</span> : null}
+                              <span className="rounded bg-violet-50 px-1.5 py-0.5 text-[12px] font-bold uppercase tracking-wide text-violet-700">{categoryLabel(entry.category)}</span>
+                              <span className={`rounded px-1.5 py-0.5 text-[12px] font-bold uppercase ${entry.importance === 'high' ? 'bg-rose-50 text-rose-700' : entry.importance === 'medium' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>{entry.importance}</span>
+                              <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[12px] font-semibold text-blue-700">{scopeProject ? `${scopeProject.emoji} ${scopeProject.name}` : 'Company-wide'}</span>
+                              {expired ? <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[12px] font-bold text-slate-500">EXPIRED</span> : null}
                             </div>
                             <h3 className="text-sm font-bold text-slate-900">{entry.title}</h3>
                             <p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-slate-600">{entry.content}</p>
-                            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                            <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] text-slate-500">
                               <span>Updated {new Date(entry.updatedAt).toLocaleString()}</span>
                               {sourceRoom ? <button type="button" onClick={() => openSource(entry)} className="font-semibold text-blue-600 hover:text-blue-700">Source: {sourceRoom.name}</button> : null}
                             </div>
                           </div>
                           <div className="flex shrink-0 flex-col gap-1">
-                            <select value={entry.status} onChange={event => updateAgentMemory(entry.id, { status: event.target.value as AgentMemoryStatus })} className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] capitalize text-slate-600">
+                            <select value={entry.status} onChange={event => updateAgentMemory(entry.id, { status: event.target.value as AgentMemoryStatus })} className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[12px] capitalize text-slate-600">
                               {statuses.map(value => <option key={value} value={value}>{value}</option>)}
                             </select>
-                            <button type="button" onClick={() => edit(entry)} className="rounded-md px-2 py-1 text-[11px] font-semibold text-blue-600 hover:bg-blue-50">Edit</button>
-                            <button type="button" onClick={() => { if (window.confirm('Delete this memory permanently?')) deleteAgentMemory(entry.id); }} className="rounded-md px-2 py-1 text-[11px] font-semibold text-rose-600 hover:bg-rose-50">Delete</button>
+                            <button type="button" onClick={() => edit(entry)} className="rounded-md px-2 py-1 text-[12px] font-semibold text-blue-600 hover:bg-blue-50">Edit</button>
+                            <button type="button" onClick={() => { if (window.confirm('Delete this memory permanently?')) deleteAgentMemory(entry.id); }} className="rounded-md px-2 py-1 text-[12px] font-semibold text-rose-600 hover:bg-rose-50">Delete</button>
                           </div>
                         </div>
                       </article>
@@ -273,30 +273,30 @@ export function AgentMemoryDialogHost() {
             <aside className="overflow-y-auto border-s border-slate-200 bg-slate-50 p-4">
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="text-sm font-bold text-slate-900">{editingId ? 'Edit Memory' : 'Add Memory'}</h3>
-                {editingId ? <button type="button" onClick={resetForm} className="text-[11px] font-semibold text-slate-500 hover:text-slate-800">Cancel edit</button> : null}
+                {editingId ? <button type="button" onClick={resetForm} className="text-[12px] font-semibold text-slate-500 hover:text-slate-800">Cancel edit</button> : null}
               </div>
 
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-2">
-                  <label className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Category<select value={category} onChange={event => setCategory(event.target.value as AgentMemoryCategory)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs font-normal normal-case text-slate-700">{categories.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
-                  <label className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Importance<select value={importance} onChange={event => setImportance(event.target.value as AgentMemoryImportance)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs font-normal normal-case text-slate-700"><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></label>
+                  <label className="text-[12px] font-bold uppercase tracking-wide text-slate-500">Category<select value={category} onChange={event => setCategory(event.target.value as AgentMemoryCategory)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs font-normal normal-case text-slate-700">{categories.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+                  <label className="text-[12px] font-bold uppercase tracking-wide text-slate-500">Importance<select value={importance} onChange={event => setImportance(event.target.value as AgentMemoryImportance)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs font-normal normal-case text-slate-700"><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></label>
                 </div>
 
-                <label className="block text-[11px] font-bold uppercase tracking-wide text-slate-500">Scope<select value={projectId} onChange={event => setProjectId(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs font-normal normal-case text-slate-700"><option value="">Company-wide memory</option>{projects.map(project => <option key={project.id} value={project.id}>{project.emoji} {project.name}</option>)}</select></label>
+                <label className="block text-[12px] font-bold uppercase tracking-wide text-slate-500">Scope<select value={projectId} onChange={event => setProjectId(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs font-normal normal-case text-slate-700"><option value="">Company-wide memory</option>{projects.map(project => <option key={project.id} value={project.id}>{project.emoji} {project.name}</option>)}</select></label>
 
-                <label className="block text-[11px] font-bold uppercase tracking-wide text-slate-500">Title<input value={title} onChange={event => setTitle(event.target.value)} placeholder="What should this agent remember?" className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-normal normal-case text-slate-800" /></label>
+                <label className="block text-[12px] font-bold uppercase tracking-wide text-slate-500">Title<input value={title} onChange={event => setTitle(event.target.value)} placeholder="What should this agent remember?" className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-normal normal-case text-slate-800" /></label>
 
-                <label className="block text-[11px] font-bold uppercase tracking-wide text-slate-500">Memory<textarea value={content} onChange={event => setContent(event.target.value)} rows={8} placeholder="Durable fact, decision, assumption, risk, constraint, lesson…" className="mt-1 w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-normal normal-case leading-5 text-slate-800" /></label>
+                <label className="block text-[12px] font-bold uppercase tracking-wide text-slate-500">Memory<textarea value={content} onChange={event => setContent(event.target.value)} rows={8} placeholder="Durable fact, decision, assumption, risk, constraint, lesson…" className="mt-1 w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-normal normal-case leading-5 text-slate-800" /></label>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <label className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Status<select value={status} onChange={event => setStatus(event.target.value as AgentMemoryStatus)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs font-normal capitalize text-slate-700">{statuses.map(value => <option key={value} value={value}>{value}</option>)}</select></label>
-                  <label className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Expires<input type="date" value={expiresOn} onChange={event => setExpiresOn(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs font-normal text-slate-700" /></label>
+                  <label className="text-[12px] font-bold uppercase tracking-wide text-slate-500">Status<select value={status} onChange={event => setStatus(event.target.value as AgentMemoryStatus)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs font-normal capitalize text-slate-700">{statuses.map(value => <option key={value} value={value}>{value}</option>)}</select></label>
+                  <label className="text-[12px] font-bold uppercase tracking-wide text-slate-500">Expires<input type="date" value={expiresOn} onChange={event => setExpiresOn(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs font-normal text-slate-700" /></label>
                 </div>
 
-                {(sourceRoomId || sourceMessageId) ? <div className="rounded-lg border border-blue-100 bg-blue-50 p-2 text-[11px] leading-4 text-blue-700">Source provenance is attached to this memory{sourceRoomId ? ` from ${rooms.find(room => room.id === sourceRoomId)?.name ?? 'the discussion room'}` : ''}.</div> : null}
+                {(sourceRoomId || sourceMessageId) ? <div className="rounded-lg border border-blue-100 bg-blue-50 p-2 text-[12px] leading-4 text-blue-700">Source provenance is attached to this memory{sourceRoomId ? ` from ${rooms.find(room => room.id === sourceRoomId)?.name ?? 'the discussion room'}` : ''}.</div> : null}
 
                 <button type="button" onClick={save} disabled={!agentId || !title.trim() || !content.trim()} className="w-full rounded-lg bg-violet-600 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40">{editingId ? 'Save Changes' : 'Save to Persistent Memory'}</button>
-                <p className="text-[11px] leading-4 text-slate-500">Only active, non-expired memories for this Agent and the current Company/Project are injected into Copy Context. Room conversation history remains separate.</p>
+                <p className="text-[12px] leading-4 text-slate-500">Only active, non-expired memories for this Agent and the current Company/Project are injected into Copy Context. Room conversation history remains separate.</p>
               </div>
             </aside>
           </div>

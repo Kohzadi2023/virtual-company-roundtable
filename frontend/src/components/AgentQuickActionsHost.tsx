@@ -79,7 +79,7 @@ export function AgentQuickActionsHost() {
 
   return (
     <div className="fixed z-[260] w-60 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-2xl" style={{ left: menu.x, top: menu.y }} onClick={event => event.stopPropagation()}>
-      <div className="border-b border-slate-100 px-3 py-2"><div className="text-xs font-bold text-slate-800">{agent.name}</div><div className="text-[11px] text-slate-500">{role?.name ?? 'Specialist'} · Quick Actions</div></div>
+      <div className="border-b border-slate-100 px-3 py-2"><div className="text-xs font-bold text-slate-800">{agent.name}</div><div className="text-[12px] text-slate-500">{role?.name ?? 'Specialist'} · Quick Actions</div></div>
       <button type="button" onClick={() => void copyContext().finally(() => setMenu(null))} disabled={!room || !role} className="block w-full px-3 py-2 text-start text-xs text-slate-700 hover:bg-blue-50 disabled:opacity-40">⧉ Copy Context</button>
       <button type="button" onClick={() => { if (chat?.url) openOrFocusExternalChat(agent.id, chat.url); setMenu(null); }} disabled={!chat?.url} className="block w-full px-3 py-2 text-start text-xs text-slate-700 hover:bg-violet-50 disabled:opacity-40">↗ Open / Focus external chat</button>
       <button type="button" onClick={() => { openAgentMemory({ agentId: agent.id }); setMenu(null); }} className="block w-full px-3 py-2 text-start text-xs text-slate-700 hover:bg-violet-50">🧠 View memory</button>

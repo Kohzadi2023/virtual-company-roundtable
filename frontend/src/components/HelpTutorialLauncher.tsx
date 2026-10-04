@@ -73,7 +73,7 @@ export function HelpTutorialLauncher() {
         ref={launcherRef}
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold text-violet-600 transition hover:bg-violet-50 hover:text-violet-800"
+        className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[12px] font-semibold text-violet-600 transition hover:bg-violet-50 hover:text-violet-800"
         title="Help and tutorial"
       >
         <span aria-hidden="true">?</span> Help
@@ -90,7 +90,7 @@ export function HelpTutorialLauncher() {
               </div>
 
               <label className="shrink-0">
-                <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">{locale.languageLabel}</span>
+                <span className="mb-1 block text-[12px] font-bold uppercase tracking-wide text-slate-500">{locale.languageLabel}</span>
                 <select
                   value={language}
                   onChange={event => changeLanguage(event.target.value as TutorialLanguage)}
@@ -122,11 +122,11 @@ export function HelpTutorialLauncher() {
                     placeholder={locale.searchPlaceholder}
                     className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none placeholder:text-slate-500 focus:border-violet-400 focus:bg-white focus:ring-2 focus:ring-violet-100"
                   />
-                  <p className="mt-2 text-[11px] leading-4 text-slate-500">{locale.guideOnlyNote}</p>
+                  <p className="mt-2 text-[12px] leading-4 text-slate-500">{locale.guideOnlyNote}</p>
                 </div>
 
                 <nav className="min-h-0 flex-1 overflow-y-auto p-3" aria-label={locale.contentsLabel}>
-                  <div className="mb-2 px-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">{locale.contentsLabel}</div>
+                  <div className="mb-2 px-2 text-[12px] font-bold uppercase tracking-wider text-slate-500">{locale.contentsLabel}</div>
                   <div className="space-y-1">
                     {filteredSections.map(section => (
                       <button
@@ -174,7 +174,7 @@ export function HelpTutorialLauncher() {
                               <ol className="space-y-2 rounded-xl border border-blue-100 bg-blue-50/60 p-4">
                                 {section.steps.map((step, index) => (
                                   <li key={index} className="flex items-start gap-3">
-                                    <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-blue-600 text-[11px] font-bold text-white">{index + 1}</span>
+                                    <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-blue-600 text-[12px] font-bold text-white">{index + 1}</span>
                                     <span>{step}</span>
                                   </li>
                                 ))}

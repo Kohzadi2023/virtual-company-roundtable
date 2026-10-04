@@ -53,7 +53,7 @@ function BudgetField({
         }}
         className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
       />
-      <span className="mt-1 block text-[11px] leading-4 text-slate-500">{hint}</span>
+      <span className="mt-1 block text-[12px] leading-4 text-slate-500">{hint}</span>
     </label>
   );
 }
@@ -112,7 +112,7 @@ export function LlmSettingsLauncher() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+        className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[12px] font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
         title="Optional: run agents through the Gemini API with your own key"
       >
         <span aria-hidden="true">⚡</span> AI API
@@ -155,7 +155,7 @@ export function LlmSettingsLauncher() {
                     <button type="button" disabled={!keyDraft.trim()} onClick={saveKey} className="rounded-lg bg-violet-600 px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">Save key</button>
                   </div>
                 )}
-                <p className="mt-2 text-[11px] leading-4 text-slate-500">
+                <p className="mt-2 text-[12px] leading-4 text-slate-500">
                   The key stays in this browser/app on this device. It is never added to backups, exports, or debug snapshots. When you use “Run via API”, the prompt for that agent — including room messages and memory — is sent to Google.
                 </p>
               </section>
@@ -184,7 +184,7 @@ export function LlmSettingsLauncher() {
                     <option value="">Same as main model</option>
                     {MODELS.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
                   </select>
-                  <span className="mt-1 block text-[11px] leading-4 text-slate-500">A cheaper model for specialist turns can cut the bill noticeably; Olivia keeps the main model for staffing, proposals and synthesis.</span>
+                  <span className="mt-1 block text-[12px] leading-4 text-slate-500">A cheaper model for specialist turns can cut the bill noticeably; Olivia keeps the main model for staffing, proposals and synthesis.</span>
                 </label>
                 <label className="mt-3 block text-xs">
                   <span className="font-semibold text-slate-700">Thinking effort</span>
@@ -197,7 +197,7 @@ export function LlmSettingsLauncher() {
                     <option value="low">Low (cheaper, recommended)</option>
                     <option value="default">Model default (more reasoning, costs more)</option>
                   </select>
-                  <span className="mt-1 block text-[11px] leading-4 text-slate-500">Hidden reasoning is billed like output. If Gemini rejects this setting the app retries without it automatically.</span>
+                  <span className="mt-1 block text-[12px] leading-4 text-slate-500">Hidden reasoning is billed like output. If Gemini rejects this setting the app retries without it automatically.</span>
                 </label>
                 <label className="mt-3 block text-xs">
                   <span className="font-semibold text-slate-700">Answer length</span>
@@ -216,7 +216,7 @@ export function LlmSettingsLauncher() {
                 <div className="mt-3 flex items-start justify-between gap-3 text-xs">
                   <span>
                     <span className="font-semibold text-slate-700">Token saver</span>
-                    <span className="mt-0.5 block text-[11px] leading-4 text-slate-500">Summarises older discussion sooner (keeps the brief, Olivia's summaries and the latest decision proposal) so each call sends less. Cheaper, but later rounds can lose details from earlier ones; leave off for important meetings.</span>
+                    <span className="mt-0.5 block text-[12px] leading-4 text-slate-500">Summarises older discussion sooner (keeps the brief, Olivia's summaries and the latest decision proposal) so each call sends less. Cheaper, but later rounds can lose details from earlier ones; leave off for important meetings.</span>
                   </span>
                   <button
                     type="button"
@@ -229,7 +229,7 @@ export function LlmSettingsLauncher() {
                     <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${settings.tokenSaver ? 'start-[22px]' : 'start-0.5'}`} />
                   </button>
                 </div>
-                <p className="mt-3 text-[11px] leading-4 text-slate-500">Costs shown in the app are estimates from public prices, not a bill.</p>
+                <p className="mt-3 text-[12px] leading-4 text-slate-500">Costs shown in the app are estimates from public prices, not a bill.</p>
               </section>
 
               <section className="rounded-xl border border-slate-200 p-4">
@@ -262,10 +262,10 @@ export function LlmSettingsLauncher() {
                     </table>
                   </div>
                 ) : null}
-                <p className="mt-2 text-[11px] leading-4 text-slate-500">Limits are enforced by this app only. They cannot stop spending made with the same key elsewhere.</p>
+                <p className="mt-2 text-[12px] leading-4 text-slate-500">Limits are enforced by this app only. They cannot stop spending made with the same key elsewhere.</p>
               </section>
 
-              <div className="min-h-4 text-[11px] font-medium text-emerald-600" role="status">{status}</div>
+              <div className="min-h-4 text-[12px] font-medium text-emerald-600" role="status">{status}</div>
             </div>
           </section>
         </div>

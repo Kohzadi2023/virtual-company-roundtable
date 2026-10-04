@@ -48,8 +48,8 @@ export function CollapsibleCompanyDirectory() {
         >
           <span className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-lg text-slate-500 shadow-sm transition group-hover:border-blue-200 group-hover:text-blue-600" aria-hidden="true">›</span>
           <span className="mt-3 text-base" aria-hidden="true">👥</span>
-          <span className="mt-2 [writing-mode:vertical-rl] rotate-180 text-[11px] font-semibold uppercase tracking-wide">Company Directory</span>
-          <span className="mt-3 rounded-full bg-blue-50 px-1.5 py-0.5 text-[11px] font-semibold text-blue-600" title={`${agents.length} specialists · ${teams.length} teams`}>{agents.length}</span>
+          <span className="mt-2 [writing-mode:vertical-rl] rotate-180 text-[12px] font-semibold uppercase tracking-wide">Company Directory</span>
+          <span className="mt-3 rounded-full bg-blue-50 px-1.5 py-0.5 text-[12px] font-semibold text-blue-600" title={`${agents.length} specialists · ${teams.length} teams`}>{agents.length}</span>
         </button>
       </aside>
     );

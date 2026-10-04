@@ -165,7 +165,7 @@ export function TopBar() {
                       {rooms.filter(room => !room.archivedAt).map(room => (
                         <button key={room.id} type="button" onClick={() => setActiveRoom(room.id)} className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-start text-sm ${room.id === activeRoomId ? 'bg-blue-50 font-semibold text-blue-700' : 'text-slate-700 hover:bg-slate-50'}`}>
                           <span className="truncate"><span className="me-2">{room.emoji}</span>{room.name}</span>
-                          <span className="text-[11px] text-slate-500">{room.agentIds.length} members</span>
+                          <span className="text-[12px] text-slate-500">{room.agentIds.length} members</span>
                         </button>
                       ))}
                     </div>
@@ -215,7 +215,7 @@ export function TopBar() {
                             type="button"
                             onClick={handleAddAllCompany}
                             disabled={allCompanyAdded}
-                            className="shrink-0 rounded-md border border-violet-200 bg-violet-50 px-2 py-1 text-[11px] font-semibold text-violet-700 transition hover:bg-violet-100 disabled:cursor-default disabled:border-emerald-200 disabled:bg-emerald-50 disabled:text-emerald-700"
+                            className="shrink-0 rounded-md border border-violet-200 bg-violet-50 px-2 py-1 text-[12px] font-semibold text-violet-700 transition hover:bg-violet-100 disabled:cursor-default disabled:border-emerald-200 disabled:bg-emerald-50 disabled:text-emerald-700"
                             title="Add every company member to this room"
                           >
                             {allCompanyAdded ? '✓ All Company' : '+ Add All Company'}
@@ -243,10 +243,10 @@ export function TopBar() {
                               >
                                 <input type="checkbox" checked={membership.present} disabled={locked} onChange={() => toggleAgentInRoom(activeRoom.id, agent.id)} />
                                 <span className="min-w-0 flex-1 truncate font-medium text-slate-700">{agent.name}</span>
-                                {isFacilitator ? <span className="rounded bg-violet-100 px-1 py-0.5 text-[11px] font-semibold text-violet-700">FACILITATOR</span> : null}
-                                {!isFacilitator && membership.kind === 'team' ? <span className="rounded bg-emerald-100 px-1 py-0.5 text-[11px] font-semibold text-emerald-700">TEAM</span> : null}
-                                {!isFacilitator && membership.kind === 'direct-and-team' ? <span className="rounded bg-blue-100 px-1 py-0.5 text-[11px] font-semibold text-blue-700">DIRECT + TEAM</span> : null}
-                                <span className="max-w-24 truncate text-[11px] text-slate-500">{roleMap.get(agent.roleId)?.name}</span>
+                                {isFacilitator ? <span className="rounded bg-violet-100 px-1 py-0.5 text-[12px] font-semibold text-violet-700">FACILITATOR</span> : null}
+                                {!isFacilitator && membership.kind === 'team' ? <span className="rounded bg-emerald-100 px-1 py-0.5 text-[12px] font-semibold text-emerald-700">TEAM</span> : null}
+                                {!isFacilitator && membership.kind === 'direct-and-team' ? <span className="rounded bg-blue-100 px-1 py-0.5 text-[12px] font-semibold text-blue-700">DIRECT + TEAM</span> : null}
+                                <span className="max-w-24 truncate text-[12px] text-slate-500">{roleMap.get(agent.roleId)?.name}</span>
                               </label>
                             );
                           })}
@@ -261,7 +261,7 @@ export function TopBar() {
 
           <div className="flex shrink-0 items-center gap-2 border-s border-slate-200 ps-4">
             <span className="grid h-9 w-9 place-items-center rounded-full bg-blue-600 text-sm font-bold text-white">U</span>
-            <div><div className="text-[13px] font-semibold text-slate-900">User</div><div className="text-[11px] text-slate-500">Owner</div></div>
+            <div><div className="text-[13px] font-semibold text-slate-900">User</div><div className="text-[12px] text-slate-500">Owner</div></div>
           </div>
         </div>
       </header>

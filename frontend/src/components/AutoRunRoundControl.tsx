@@ -68,23 +68,23 @@ export function AutoRunRoundControl({ roomId, onNotify }: AutoRunRoundControlPro
 
   if (running) {
     return (
-      <span className="inline-flex items-center gap-2 rounded-md border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-[11px] font-semibold text-violet-700" role="status">
+      <span className="inline-flex items-center gap-2 rounded-md border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-[12px] font-semibold text-violet-700" role="status">
         Running {running.agentName} (turn {running.turn})…
-        <button type="button" onClick={() => abort.current?.abort()} className="rounded bg-white px-2 py-0.5 text-[11px] font-bold text-rose-600 ring-1 ring-rose-200 hover:bg-rose-50">Stop</button>
+        <button type="button" onClick={() => abort.current?.abort()} className="rounded bg-white px-2 py-0.5 text-[12px] font-bold text-rose-600 ring-1 ring-rose-200 hover:bg-rose-50">Stop</button>
       </span>
     );
   }
 
   if (confirming) {
     return (
-      <span className="inline-flex flex-wrap items-center gap-2 rounded-md border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-[11px] text-violet-800" role="group" aria-label="Confirm automatic round">
+      <span className="inline-flex flex-wrap items-center gap-2 rounded-md border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-[12px] text-violet-800" role="group" aria-label="Confirm automatic round">
         <span>
           Run {turns} turn{turns === 1 ? '' : 's'} via API · est. up to <strong>{formatUsd(forecast)}</strong>
           {' '}· meeting {formatUsd(meetingSpend)}/{formatUsd(budget.settings.perMeetingUsd)}
           {overBudget ? <strong className="text-rose-600"> · may hit your budget and stop early</strong> : null}
         </span>
-        <button type="button" onClick={() => void start()} className="rounded bg-violet-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-violet-700">Start</button>
-        <button type="button" onClick={() => setConfirming(false)} className="rounded px-2 py-1 text-[11px] font-semibold text-slate-500 hover:bg-white">Cancel</button>
+        <button type="button" onClick={() => void start()} className="rounded bg-violet-600 px-2.5 py-1 text-[12px] font-bold text-white hover:bg-violet-700">Start</button>
+        <button type="button" onClick={() => setConfirming(false)} className="rounded px-2 py-1 text-[12px] font-semibold text-slate-500 hover:bg-white">Cancel</button>
       </span>
     );
   }
@@ -93,7 +93,7 @@ export function AutoRunRoundControl({ roomId, onNotify }: AutoRunRoundControlPro
     <button
       type="button"
       onClick={() => setConfirming(true)}
-      className="rounded-md border border-violet-300 bg-white px-2.5 py-1.5 text-[11px] font-bold text-violet-700 hover:bg-violet-50"
+      className="rounded-md border border-violet-300 bg-white px-2.5 py-1.5 text-[12px] font-bold text-violet-700 hover:bg-violet-50"
       title="Let the API answer each remaining turn of this round. Pauses at anything that needs your approval."
     >
       ▶ Run round via API
