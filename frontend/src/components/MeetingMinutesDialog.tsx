@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { MarkdownDocument } from '@/components/MarkdownDocument';
 import { copyText } from '@/lib/clipboard';
+import { downloadTextFile, safeFileStem } from '@/lib/downloadText';
 import { buildExecutiveDecisionBrief } from '@/lib/executiveBrief';
 import { getRoomLanguage } from '@/lib/languages';
 import { buildMeetingMinutes } from '@/lib/meetingMinutes';
@@ -97,15 +98,7 @@ export function MeetingMinutesDialog({ roomId, onClose }: MeetingMinutesDialogPr
 
   const handleDownload = () => {
     if (!activeMinutes) return;
-    const blob = new Blob([activeMinutes], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `${room.name.replace(/[^\p{L}\p{N}._-]+/gu, '-').replace(/^-+|-+$/g, '') || 'meeting'}-${minutesMode === 'brief' ? 'decision-brief' : 'minutes'}.md`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(url);
+    downloadTextFile(`${safeFileStem(room.name, 'meeting')}-${minutesMode === 'brief' ? 'decision-brief' : 'minutes'}.md`, activeMinutes);
   };
 
   return (

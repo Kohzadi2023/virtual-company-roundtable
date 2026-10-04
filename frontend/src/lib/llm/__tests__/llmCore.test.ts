@@ -266,7 +266,7 @@ describe('runLlm', () => {
     await runLlm(request, { roomId: 'r', provider, now: () => 1_000 });
     expect(generate).toHaveBeenCalledWith('KEY', request);
     const [recorded] = loadBudgetState().entries;
-    expect(recorded).toMatchObject({ roomId: 'r', inputTokens: 1000, outputTokens: 1000 });
+    expect(recorded).toMatchObject({ roomId: 'r', inputTokens: 1000, outputTokens: 1000, thoughtTokens: 500 });
     expect(recorded?.costUsd).toBeGreaterThan(0);
   });
 
