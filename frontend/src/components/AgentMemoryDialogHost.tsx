@@ -149,10 +149,13 @@ export function AgentMemoryDialogHost() {
       content,
       status,
       importance,
-      ...(projectId ? { projectId } : { crossProject: true }),
+      // Explicit undefined (not omitted) so editing an entry to company-wide or
+      // removing its expiry clears the old value instead of keeping it.
+      projectId: projectId || undefined,
+      crossProject: projectId ? undefined : true,
       ...(sourceRoomId ? { sourceRoomId } : {}),
       ...(sourceMessageId ? { sourceMessageId } : {}),
-      ...(expiresAt ? { expiresAt } : {}),
+      expiresAt,
     };
     if (editingId) {
       updateAgentMemory(editingId, base);
