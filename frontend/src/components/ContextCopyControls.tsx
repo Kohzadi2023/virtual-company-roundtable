@@ -16,11 +16,11 @@ import {
   MEETING_ORCHESTRATION_EVENT,
   setExternalAgentChat,
 } from '@/lib/meetingOrchestration';
-import { buildApiTurnPrompt } from '@/lib/llm/apiContext';
+import { apiContextOptions, buildApiTurnPrompt } from '@/lib/llm/apiContext';
 import { describeLlmError, formatUsd, isCancelled, runPromptViaApi } from '@/lib/llm/apiRun';
 import { loadBudgetState, meetingSpendUsd } from '@/lib/llm/budget';
 import { hasApiKey } from '@/lib/llm/credentials';
-import { LLM_CHANGE_EVENT, getLlmSettings } from '@/lib/llm/llmSettings';
+import { LLM_CHANGE_EVENT } from '@/lib/llm/llmSettings';
 import { estimateCostUsd } from '@/lib/llm/pricing';
 import { buildAgentPrompt } from '@/lib/promptBuilder';
 import { useWorkspaceStore } from '@/store/workspaceStore';
@@ -152,7 +152,7 @@ export function ContextCopyControls({ room, agent, role, cursor, onNotify, onApi
     try {
       // A stateless call has no chat memory behind it, so it gets the full
       // discussion rather than the copy/paste "new since last copy" prompt.
-      const apiPrompt = buildApiTurnPrompt(room, agent, role, { tokenSaver: getLlmSettings().tokenSaver, answerLength: getLlmSettings().answerLength }).prompt;
+      const apiPrompt = buildApiTurnPrompt(room, agent, role, apiContextOptions()).prompt;
       const { response, model } = await runPromptViaApi(apiPrompt, room.id, controller.signal, agent.id);
       const cost = estimateCostUsd(model, response.usage);
       markAgentContextCopied(room.id, agent.id);

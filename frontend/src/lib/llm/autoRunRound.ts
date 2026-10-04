@@ -1,8 +1,8 @@
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
-import { buildApiTurnPrompt } from '@/lib/llm/apiContext';
+import { apiContextOptions, buildApiTurnPrompt } from '@/lib/llm/apiContext';
 import { estimateRunCostUsd, runPromptViaApi, describeLlmError, isCancelled } from '@/lib/llm/apiRun';
 import type { ApiRunResult } from '@/lib/llm/apiRun';
-import { getLlmSettings, modelForAgent } from '@/lib/llm/llmSettings';
+import { modelForAgent } from '@/lib/llm/llmSettings';
 import { ensureMeetingRoom, hasMeetingStarted } from '@/lib/meetingOrchestration';
 import type { MeetingRoomState } from '@/lib/meetingOrchestration';
 import type { MeetingResponseAdvanceReason } from '@/lib/meetingResponseFlow';
@@ -82,7 +82,7 @@ export function buildCurrentTurnPrompt(roomId: string): { prompt: string; agentI
   const role = agent ? state.roles.find(item => item.id === agent.roleId) : undefined;
   if (!agent || !role) return null;
   return {
-    prompt: buildApiTurnPrompt(room, agent, role, { tokenSaver: getLlmSettings().tokenSaver, answerLength: getLlmSettings().answerLength }).prompt,
+    prompt: buildApiTurnPrompt(room, agent, role, apiContextOptions()).prompt,
     agentId: agent.id,
     agentName: agent.name,
   };

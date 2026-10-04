@@ -116,6 +116,7 @@ export function LlmSettingsLauncher() {
         'Specialist model': settings.specialistModel ?? 'same as default',
         Thinking: settings.thinking,
         'Token saver': settings.tokenSaver ? 'on' : 'off',
+        'Independent opinions and votes': settings.independentOpinions ? 'on' : 'off',
         'Answer length': settings.answerLength,
       },
       invoiceUsd: invoice,
@@ -251,6 +252,22 @@ export function LlmSettingsLauncher() {
                     className={`relative h-6 w-11 shrink-0 rounded-full transition ${settings.tokenSaver ? 'bg-violet-600' : 'bg-slate-300'}`}
                   >
                     <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${settings.tokenSaver ? 'start-[22px]' : 'start-0.5'}`} />
+                  </button>
+                </div>
+                <div className="mt-3 flex items-start justify-between gap-3 text-xs">
+                  <span>
+                    <span className="font-semibold text-slate-700">Independent opinions and votes</span>
+                    <span className="mt-0.5 block text-[12px] leading-4 text-slate-500">In "Run round via API" one model plays every specialist, so reading each other's answers makes them echo the first one. When on, specialists give their first opinion and their final vote without seeing the others' answers; the critique and revision rounds still see everything.</span>
+                  </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={settings.independentOpinions}
+                    aria-label="Independent opinions and votes"
+                    onClick={() => updateLlmSettings({ independentOpinions: !settings.independentOpinions })}
+                    className={`relative h-6 w-11 shrink-0 rounded-full transition ${settings.independentOpinions ? 'bg-violet-600' : 'bg-slate-300'}`}
+                  >
+                    <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${settings.independentOpinions ? 'start-[22px]' : 'start-0.5'}`} />
                   </button>
                 </div>
                 <p className="mt-3 text-[12px] leading-4 text-slate-500">Costs shown in the app are estimates from public prices, not a bill.</p>
