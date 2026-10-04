@@ -7,6 +7,7 @@ import {
   updateMemoryV2,
   type MemorySuggestion,
 } from '@/lib/memoryV2';
+import { isPortableMemoryCategory } from '@/lib/memoryScope';
 import type { MeetingRoomState } from '@/lib/meetingOrchestration';
 import {
   addAgentMemory,
@@ -388,6 +389,10 @@ function autoSave(candidate: MemoryCandidate): string | null {
     memoryId = addAgentMemory({
       agentId: candidate.agentId,
       companyId: candidate.companyId,
+      // Professional practice (preference/lesson/protocol) carries across
+      // projects; anything else is a fact about the room it came from and must
+      // stay scoped to that project instead of becoming company-wide.
+      ...(candidate.projectId && !isPortableMemoryCategory(candidate.category) ? { projectId: candidate.projectId } : {}),
       category: candidate.category,
       title: candidate.title,
       content: candidate.content,

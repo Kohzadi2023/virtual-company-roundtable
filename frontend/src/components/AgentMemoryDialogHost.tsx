@@ -149,7 +149,7 @@ export function AgentMemoryDialogHost() {
       content,
       status,
       importance,
-      ...(projectId ? { projectId } : {}),
+      ...(projectId ? { projectId } : { crossProject: true }),
       ...(sourceRoomId ? { sourceRoomId } : {}),
       ...(sourceMessageId ? { sourceMessageId } : {}),
       ...(expiresAt ? { expiresAt } : {}),

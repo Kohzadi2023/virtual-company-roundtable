@@ -10,6 +10,7 @@ import {
   relevantSharedMemories,
   type SharedMemoryEntry,
 } from '@/lib/memoryV2';
+import { partitionAgentMemoriesByScope } from '@/lib/memoryScope';
 import { loadOperationsSuite } from '@/lib/operationsSuite';
 import { professionalProfiles } from '@/lib/professionalProfiles';
 import {
@@ -47,8 +48,10 @@ function formatProfessionalProfile(role: RoleDefinition): string[] {
   return lines;
 }
 
-function formatAgentMemory(entry: AgentMemoryEntry, projectName?: string): string {
-  const scope = entry.projectId ? `Project: ${projectName ?? entry.projectId}` : 'Company-wide agent memory';
+function formatAgentMemory(entry: AgentMemoryEntry, projectName?: string, fromElsewhere = false): string {
+  const scope = fromElsewhere
+    ? 'From another meeting/project'
+    : entry.projectId ? `Project: ${projectName ?? entry.projectId}` : 'Company-wide agent memory';
   return `- [${entry.importance.toUpperCase()} · ${entry.category.toUpperCase()} · ${scope}] ${entry.title}: ${entry.content}`;
 }
 
@@ -469,7 +472,16 @@ function assemblePromptSections(agent: Agent, role: RoleDefinition, messages: Me
   const systemAgentMemories = shared.filter(entry => entry.scope === 'agent-system');
   const scopedAgentMemories = relevantAgentMemories(agent.id, activeRoom?.projectId, companyId, 24)
     .filter(entry => !entry.companyId || entry.companyId === companyId);
-  const agentMemories = rankMemoriesByRelevance(query, scopedAgentMemories);
+  const agentScope = partitionAgentMemoriesByScope(scopedAgentMemories, {
+    activeRoomId: activeRoom?.id,
+    activeProjectId: activeRoom?.projectId,
+    lookupRoom: roomId => {
+      const source = state.rooms.find(room => room.id === roomId);
+      return { found: Boolean(source), projectId: source?.projectId };
+    },
+  });
+  const agentMemories = rankMemoriesByRelevance(query, agentScope.inScope);
+  const carriedMemories = rankMemoriesByRelevance(query, agentScope.carried);
   const language = getRoomLanguage(activeRoom?.languageCode);
 
   const memorySections = [
@@ -477,6 +489,14 @@ function assemblePromptSections(agent: Agent, role: RoleDefinition, messages: Me
     ...memorySection('PROJECT MEMORY — durable knowledge shared inside the active project:', projectMemories, entry => formatSharedMemory(entry, activeProject?.name)),
     ...memorySection(`${agent.name.toUpperCase()} SYSTEM MEMORY — automatically maintained operating state:`, systemAgentMemories, entry => formatSharedMemory(entry, activeProject?.name)),
     ...memorySection('PERSISTENT AGENT MEMORY — durable professional memory separate from this room conversation:', agentMemories, entry => formatAgentMemory(entry, entry.projectId === activeProject?.id ? activeProject?.name : undefined)),
+    ...memorySection(
+      'CARRIED-OVER PRACTICE FROM OTHER MEETINGS OR PROJECTS — your own working habits and lessons, captured elsewhere. Use them only as general professional practice. Any customers, products, jurisdictions, people or figures they mention belong to that other work and do not apply here:',
+      carriedMemories,
+      entry => formatAgentMemory(entry, undefined, true),
+    ),
+    ...(agentScope.withheld.length > 0
+      ? ['', `(${agentScope.withheld.length} of your saved memories were captured in other meetings or projects and are deliberately not included here.)`]
+      : []),
   ];
   const meetingSections = [
     ...oliviaMeetingSection(agent, activeRoom),
