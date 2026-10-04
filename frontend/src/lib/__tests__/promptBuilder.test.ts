@@ -123,6 +123,94 @@ describe('external chat title hint', () => {
   });
 });
 
+describe('agent memory from other meetings and projects', () => {
+  const agent = defaultAgents.find(item => item.id === 'agent-emma')!;
+  const role = defaultRoles.find(item => item.id === agent.roleId)!;
+
+  function setup(activeRoomId: string) {
+    const baseRoom = { emoji: '🏗️', companyId: 'company-default', languageCode: 'en', agentIds: [agent.id], messages: [], createdAt: 1 };
+    useWorkspaceStore.setState({
+      agents: defaultAgents,
+      roles: defaultRoles,
+      projects: [
+        { id: 'project-voice', name: 'Voice Platform', description: '', emoji: '📞', createdAt: 1 },
+        { id: 'project-b', name: 'Project B', description: '', emoji: '📁', createdAt: 1 },
+      ],
+      rooms: [
+        { ...baseRoom, id: 'room-voice', name: 'Voice launch', projectId: 'project-voice' },
+        { ...baseRoom, id: 'room-adhoc', name: 'Funding chat' },
+        { ...baseRoom, id: 'room-b', name: 'Feasibility review', projectId: 'project-b' },
+        { ...baseRoom, id: 'room-b2', name: 'Feasibility follow-up', projectId: 'project-b' },
+        { ...baseRoom, id: 'room-adhoc2', name: 'Another chat' },
+      ],
+      activeRoomId,
+    });
+  }
+
+  const base = { agentId: agent.id, companyId: 'company-default', status: 'active' as const, importance: 'high' as const };
+
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  it('does not inject project-less facts captured in another project room', () => {
+    setup('room-b');
+    addAgentMemory({ ...base, category: 'decision', title: 'Telephony webhooks', content: 'CRM webhooks and toll fraud controls for the SIP trunk.', sourceRoomId: 'room-voice' });
+    addAgentMemory({ ...base, category: 'fact', title: 'Grant accounting', content: 'Canadian innovation funding changes the accounting treatment.', sourceRoomId: 'room-adhoc' });
+    addAgentMemory({ ...base, category: 'decision', title: 'Same project fact', content: 'Project B ships quarterly.', sourceRoomId: 'room-b2' });
+
+    const prompt = buildAgentPrompt(agent, role, []);
+
+    expect(prompt).not.toContain('toll fraud');
+    expect(prompt).not.toContain('innovation funding');
+    expect(prompt).toContain('Project B ships quarterly.');
+    expect(prompt).toContain('2 of your saved memories were captured in other meetings or projects');
+  });
+
+  it('keeps other-meeting professional practice but labels it as carried over', () => {
+    setup('room-b');
+    addAgentMemory({ ...base, category: 'lesson', title: 'Review habit', content: 'Ask for the failure mode before approving a design.', sourceRoomId: 'room-voice' });
+
+    const prompt = buildAgentPrompt(agent, role, []);
+
+    expect(prompt).toContain('CARRIED-OVER PRACTICE FROM OTHER MEETINGS OR PROJECTS');
+    expect(prompt).toContain('From another meeting/project');
+    expect(prompt).toContain('Ask for the failure mode before approving a design.');
+    expect(prompt).not.toContain('PERSISTENT AGENT MEMORY');
+  });
+
+  it('treats a different project-less room as another meeting', () => {
+    setup('room-adhoc2');
+    addAgentMemory({ ...base, category: 'risk', title: 'Fraud risk', content: 'Toll fraud on the SIP trunk.', sourceRoomId: 'room-adhoc' });
+    addAgentMemory({ ...base, category: 'risk', title: 'Own room risk', content: 'Vendor lock-in with the hosting provider.', sourceRoomId: 'room-adhoc2' });
+
+    const prompt = buildAgentPrompt(agent, role, []);
+
+    expect(prompt).not.toContain('Toll fraud');
+    expect(prompt).toContain('Vendor lock-in');
+  });
+
+  it('keeps memories the user deliberately saved as company-wide, or that have no source room', () => {
+    setup('room-b');
+    addAgentMemory({ ...base, category: 'constraint', title: 'House rule', content: 'Every estimate states its confidence interval.', sourceRoomId: 'room-voice', crossProject: true });
+    addAgentMemory({ ...base, category: 'constraint', title: 'Manual rule', content: 'Cite sources for market-size figures.' });
+
+    const prompt = buildAgentPrompt(agent, role, []);
+
+    expect(prompt).toContain('Every estimate states its confidence interval.');
+    expect(prompt).toContain('Cite sources for market-size figures.');
+    expect(prompt).not.toContain('deliberately not included here');
+  });
+
+  it('withholds memories whose source room no longer exists', () => {
+    setup('room-b');
+    addAgentMemory({ ...base, category: 'fact', title: 'Orphan', content: 'Fact from a deleted meeting.', sourceRoomId: 'room-deleted' });
+
+    expect(buildAgentPrompt(agent, role, [])).not.toContain('Fact from a deleted meeting.');
+  });
+});
+
 describe('Olivia staffing roster injection', () => {
   beforeEach(() => {
     localStorage.clear();

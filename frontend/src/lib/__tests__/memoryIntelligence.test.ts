@@ -88,6 +88,28 @@ describe('memory intelligence', () => {
     expect(memory?.category).toBe('preference');
   });
 
+  it('keeps non-portable auto-saved agent memory scoped to the room project', () => {
+    const message = agentMessage('m4b', 'When I evaluate vendors I always insist that every contract must include an exit clause for this project.');
+    const currentRoom = room([message]);
+    expect(assessMemoryCandidate(currentRoom, message, 'company-default', round)?.target).toBe('agent');
+    queueMemoryCandidate(currentRoom, message, 'company-default', round);
+    consolidateRoundMemory(currentRoom, { ...round, roundStage: 'complete' });
+
+    const memory = loadWorkspaceSuite().agentMemories.find(entry => entry.sourceMessageId === 'm4b');
+    expect(memory?.category).toBe('constraint');
+    expect(memory?.projectId).toBe('project-atoms');
+  });
+
+  it('leaves auto-saved professional preferences company-wide so they carry across projects', () => {
+    const message = agentMessage('m4c', 'I prefer explicit bounded contexts and I prioritize clear service ownership when I evaluate architecture.');
+    const currentRoom = room([message]);
+    queueMemoryCandidate(currentRoom, message, 'company-default', round);
+    consolidateRoundMemory(currentRoom, { ...round, roundStage: 'complete' });
+
+    const memory = loadWorkspaceSuite().agentMemories.find(entry => entry.sourceMessageId === 'm4c');
+    expect(memory?.projectId).toBeUndefined();
+  });
+
   it('sends medium-confidence candidates to Memory Center review instead of auto-saving', () => {
     const message = agentMessage('m5', 'What evidence is still missing before we settle the retry budget for the next release?');
     const currentRoom = room([message]);

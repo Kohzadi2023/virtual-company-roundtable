@@ -95,6 +95,12 @@ export interface AgentMemoryEntry {
   sourceRoomId?: string | undefined;
   sourceMessageId?: string | undefined;
   expiresAt?: number | undefined;
+  /**
+   * Set when the user deliberately saved this memory as company-wide. Without
+   * it, a project-less memory that was captured inside a room is treated as
+   * tied to that room's project/meeting when it is injected elsewhere.
+   */
+  crossProject?: boolean | undefined;
   createdAt: number;
   updatedAt: number;
 }
