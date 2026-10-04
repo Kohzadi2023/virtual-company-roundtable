@@ -118,6 +118,23 @@ describe('workspaceSuite', () => {
     expect(memories.map(entry => entry.title)).toEqual(['Manual AI', 'Desktop shell']);
   });
 
+  it('clears the project when an entry is edited to company-wide', () => {
+    const id = addAgentMemory({
+      agentId: 'agent-emma',
+      companyId: 'company-default',
+      projectId: 'project-a',
+      category: 'lesson',
+      title: 'Review habit',
+      content: 'Ask for the failure mode first.',
+      status: 'active',
+      importance: 'medium',
+    });
+    updateAgentMemory(id!, { projectId: undefined, crossProject: true });
+
+    const memories = relevantAgentMemories('agent-emma', 'project-b', 'company-default');
+    expect(memories.map(entry => entry.title)).toEqual(['Review habit']);
+  });
+
   it('excludes superseded memories from prompt context', () => {
     const id = addAgentMemory({
       agentId: 'agent-mike',
