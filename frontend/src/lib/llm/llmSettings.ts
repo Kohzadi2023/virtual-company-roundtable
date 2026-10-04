@@ -31,6 +31,12 @@ export interface LlmSettings {
   /** Summarise older discussion sooner to cut input tokens. */
   tokenSaver: boolean;
   answerLength: AnswerLength;
+  /**
+   * Specialists give their first opinion and their final vote without seeing
+   * each other's answers. One model plays every persona, so letting each one
+   * read the previous answers makes the group echo the first voice.
+   */
+  independentOpinions: boolean;
 }
 
 export const DEFAULT_LLM_SETTINGS: LlmSettings = {
@@ -41,6 +47,7 @@ export const DEFAULT_LLM_SETTINGS: LlmSettings = {
   // details (numbering, earlier positions) that later rounds depend on.
   tokenSaver: false,
   answerLength: 'normal',
+  independentOpinions: true,
 };
 
 /**
@@ -78,6 +85,7 @@ export function getLlmSettings(): LlmSettings {
       answerLength: ANSWER_LENGTHS.includes(parsed.answerLength as AnswerLength)
         ? (parsed.answerLength as AnswerLength)
         : DEFAULT_LLM_SETTINGS.answerLength,
+      independentOpinions: typeof parsed.independentOpinions === 'boolean' ? parsed.independentOpinions : DEFAULT_LLM_SETTINGS.independentOpinions,
     };
   } catch {
     return { ...DEFAULT_LLM_SETTINGS };

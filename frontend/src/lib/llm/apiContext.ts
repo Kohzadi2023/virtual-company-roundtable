@@ -1,6 +1,8 @@
 import { compactMessageList, decoratePromptForContextMode } from '@/lib/contextModes';
+import { findLatestDecisionProposal } from '@/lib/decisionVoting';
 import { MEETING_FACILITATOR_AGENT_ID } from '@/lib/defaultCompany';
-import type { AnswerLength } from '@/lib/llm/llmSettings';
+import { getLlmSettings, type AnswerLength, type LlmSettings } from '@/lib/llm/llmSettings';
+import { ensureMeetingRoom } from '@/lib/meetingOrchestration';
 import { buildAgentPromptForApi } from '@/lib/promptBuilder';
 import type { Agent, Message, RoleDefinition, Room } from '@/types/domain';
 
@@ -31,6 +33,55 @@ export interface ApiContext {
 export interface ApiContextOptions {
   tokenSaver?: boolean;
   answerLength?: AnswerLength;
+  /** Hide other specialists' answers from first opinions and final votes. Off unless asked for. */
+  independentOpinions?: boolean;
+}
+
+/** The options every API prompt should be built with, from the saved settings. */
+export function apiContextOptions(settings: LlmSettings = getLlmSettings()): ApiContextOptions {
+  return { tokenSaver: settings.tokenSaver, answerLength: settings.answerLength, independentOpinions: settings.independentOpinions };
+}
+
+export type IndependentTurnKind = 'opinions' | 'vote';
+
+const INDEPENDENCE_NOTE: Record<IndependentTurnKind, string> = {
+  opinions: 'INDEPENDENT OPINION: the other specialists are answering this same question separately, and their answers are deliberately hidden from you so the group does not simply echo the first voice. Give your own view from your professional scope. If you see a problem, say so; if you do not, do not invent one.',
+  vote: 'INDEPENDENT VOTE: the other specialists are voting separately and their votes are hidden from you. Vote on the proposal as written, from your own professional scope, and do not assume a majority.',
+};
+
+/**
+ * Whether this specialist's turn must be answered without reading the other
+ * specialists: the first opinion (opening round) and the final vote (last
+ * round). The critique and revision rounds are where specialists respond to
+ * each other, so they see everything. Meetings with fewer than two rounds have
+ * no separate opinion or vote round.
+ */
+export function independentTurnKind(room: Room, agent: Agent): IndependentTurnKind | null {
+  if (agent.id === MEETING_FACILITATOR_AGENT_ID) return null;
+  const meeting = ensureMeetingRoom(room.id, room.agentIds);
+  if (meeting.roundStage !== 'specialists' || meeting.rounds.length < 2) return null;
+  if (meeting.roundIndex === 0) return 'opinions';
+  if (meeting.roundIndex === meeting.rounds.length - 1) return 'vote';
+  return null;
+}
+
+function isOtherSpecialist(message: Message, agent: Agent): boolean {
+  return message.authorType === 'agent' && message.authorId !== agent.id && message.authorId !== MEETING_FACILITATOR_AGENT_ID;
+}
+
+/**
+ * The room as this specialist is allowed to see it. Opinions: no other
+ * specialist's messages. Vote: everything up to and including Olivia's latest
+ * proposal, then nobody else's reply. Everyone in the same stage gets the same
+ * view, so the shared prompt prefix stays identical across specialists and the
+ * provider's cache still applies.
+ */
+export function hideOtherSpecialists(room: Room, agent: Agent, kind: IndependentTurnKind): Room {
+  if (kind === 'opinions') return { ...room, messages: room.messages.filter(message => !isOtherSpecialist(message, agent)) };
+  const proposal = findLatestDecisionProposal(room.messages);
+  if (!proposal) return room;
+  const cut = room.messages.indexOf(proposal.message);
+  return { ...room, messages: room.messages.filter((message, index) => index <= cut || !isOtherSpecialist(message, agent)) };
 }
 
 const WORD_BUDGET: Record<Exclude<AnswerLength, 'normal'>, { specialist: number; facilitator: number }> = {
@@ -104,6 +155,8 @@ export function selectApiContext(room: Room, options: ApiContextOptions = {}): A
 export interface ApiTurnPrompt {
   prompt: string;
   compacted: boolean;
+  /** Set when other specialists' answers were hidden from this turn. */
+  independent: IndependentTurnKind | null;
 }
 
 export function buildApiTurnPrompt(
@@ -112,12 +165,14 @@ export function buildApiTurnPrompt(
   role: RoleDefinition,
   options: ApiContextOptions = {},
 ): ApiTurnPrompt {
-  const { messages, compacted } = selectApiContext(room, options);
+  const independent = options.independentOpinions === true ? independentTurnKind(room, agent) : null;
+  const { messages, compacted } = selectApiContext(independent ? hideOtherSpecialists(room, agent, independent) : room, options);
   const { prompt, tail } = buildAgentPromptForApi(agent, role, messages);
   // 'new-chat' is the honest description of a stateless call; 'compact' adds the
   // note that older discussion is a digest. Round/role markers are detected on
   // the turn-specific tail only, so quoted discussion text can't trigger them.
   const decorated = decoratePromptForContextMode(prompt, compacted ? 'compact' : 'new-chat', tail);
   const budget = lengthBudgetInstruction(options.answerLength ?? 'normal', agent.id === MEETING_FACILITATOR_AGENT_ID);
-  return { prompt: budget ? `${decorated}\n\n${budget}` : decorated, compacted };
+  const withNote = independent ? `${decorated}\n\n${INDEPENDENCE_NOTE[independent]}` : decorated;
+  return { prompt: budget ? `${withNote}\n\n${budget}` : withNote, compacted, independent };
 }

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LlmSettingsLauncher } from '@/components/LlmSettingsLauncher';
 import { downloadTextFile } from '@/lib/downloadText';
 import { recordUsage, resetBudgetMemory } from '@/lib/llm/budget';
+import { getLlmSettings, resetSettingsMemory } from '@/lib/llm/llmSettings';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
 vi.mock('@/lib/downloadText', () => ({ downloadTextFile: vi.fn() }));
@@ -78,5 +79,19 @@ describe('LlmSettingsLauncher cost benchmark download', () => {
 
     expect(downloadTextFile).not.toHaveBeenCalled();
     expect(container.textContent).toContain('Enter the invoice amount as a positive number');
+  });
+
+  it('shows the independent-opinions switch on by default and turns it off and on', () => {
+    resetSettingsMemory();
+    open();
+    const toggle = () => container.querySelector<HTMLButtonElement>('button[aria-label="Independent opinions and votes"]')!;
+    expect(toggle().getAttribute('aria-checked')).toBe('true');
+
+    act(() => toggle().click());
+    expect(toggle().getAttribute('aria-checked')).toBe('false');
+    expect(getLlmSettings().independentOpinions).toBe(false);
+
+    act(() => toggle().click());
+    expect(getLlmSettings().independentOpinions).toBe(true);
   });
 });
