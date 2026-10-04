@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { downloadTextFile } from '@/lib/downloadText';
 import { formatUsd } from '@/lib/llm/apiRun';
+import { buildBenchmarkReport } from '@/lib/llm/benchmarkReport';
 import {
   cachedInputShare,
   clearUsage,
@@ -63,6 +65,7 @@ export function LlmSettingsLauncher() {
   const [, setRevision] = useState(0);
   const [keyDraft, setKeyDraft] = useState('');
   const [status, setStatus] = useState('');
+  const [invoiceDraft, setInvoiceDraft] = useState('');
 
   useEffect(() => {
     const refresh = () => setRevision(value => value + 1);
@@ -98,6 +101,27 @@ export function LlmSettingsLauncher() {
     saveBudgetSettings(patch);
     setStatus('Budget saved.');
     notifyLlmChange();
+  };
+
+  const downloadBenchmark = () => {
+    const invoice = invoiceDraft.trim() === '' ? undefined : Number(invoiceDraft);
+    if (invoice !== undefined && (!Number.isFinite(invoice) || invoice <= 0)) {
+      setStatus('Enter the invoice amount as a positive number, or leave it empty.');
+      return;
+    }
+    const report = buildBenchmarkReport(budget.entries, {
+      roomNames: Object.fromEntries(roomNames.map(room => [room.id, room.name])),
+      configuration: {
+        'Default model': settings.model,
+        'Specialist model': settings.specialistModel ?? 'same as default',
+        Thinking: settings.thinking,
+        'Token saver': settings.tokenSaver ? 'on' : 'off',
+        'Answer length': settings.answerLength,
+      },
+      invoiceUsd: invoice,
+    });
+    downloadTextFile(`gemini-cost-benchmark-${new Date().toISOString().slice(0, 10)}.md`, report);
+    setStatus('Benchmark report downloaded.');
   };
 
   const resetUsage = () => {
@@ -260,6 +284,24 @@ export function LlmSettingsLauncher() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                ) : null}
+                {budget.entries.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 px-3 py-2">
+                    <label className="block text-xs">
+                      <span className="font-semibold text-slate-700">Provider invoice for these calls (USD, optional)</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        value={invoiceDraft}
+                        onChange={event => setInvoiceDraft(event.target.value)}
+                        placeholder="e.g. 1.37"
+                        className="mt-1 block w-44 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                      />
+                    </label>
+                    <button type="button" onClick={downloadBenchmark} className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700 hover:bg-violet-100">Download cost benchmark (.md)</button>
+                    <span className="basis-full text-[12px] leading-4 text-slate-500">Per-meeting tokens, thinking and cache share, plus how far this app&apos;s estimate is from the invoice.</span>
                   </div>
                 ) : null}
                 <p className="mt-2 text-[12px] leading-4 text-slate-500">Limits are enforced by this app only. They cannot stop spending made with the same key elsewhere.</p>

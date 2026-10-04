@@ -46,6 +46,7 @@ export async function runLlm(request: LlmRequest, options: RunLlmOptions): Promi
       inputTokens: usage.inputTokens,
       cachedInputTokens: usage.cachedInputTokens,
       outputTokens: usage.outputTokens + usage.thoughtTokens,
+      thoughtTokens: usage.thoughtTokens,
     });
 
   let current = request;

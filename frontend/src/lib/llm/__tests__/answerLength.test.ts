@@ -113,4 +113,13 @@ describe('summarizeUsageByRoom', () => {
     expect(rows[1]).toMatchObject({ calls: 2, inputTokens: 2000, cachedInputTokens: 500 });
     expect(summarizeUsageByRoom([])).toEqual([]);
   });
+
+  it('tracks thinking tokens and the time span of each meeting', () => {
+    const rows = summarizeUsageByRoom([
+      { ...entry('a', 0.1, 1000), at: 5_000, thoughtTokens: 40 },
+      { ...entry('a', 0.1, 1000), at: 1_000 },
+      { ...entry('a', 0.1, 1000), at: 9_000, thoughtTokens: 10 },
+    ]);
+    expect(rows[0]).toMatchObject({ thoughtTokens: 50, firstAt: 1_000, lastAt: 9_000 });
+  });
 });

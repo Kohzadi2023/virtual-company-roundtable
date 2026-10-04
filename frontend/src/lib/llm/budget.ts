@@ -21,7 +21,10 @@ export interface UsageEntry {
   inputTokens: number;
   /** Part of inputTokens billed at the cached rate; absent on entries recorded before this was tracked. */
   cachedInputTokens?: number;
+  /** Output tokens (visible answer plus reasoning). */
   outputTokens: number;
+  /** Part of outputTokens spent on hidden reasoning; absent on entries recorded before this was tracked. */
+  thoughtTokens?: number;
 }
 
 export interface BudgetState {
@@ -35,8 +38,8 @@ export const DEFAULT_BUDGET_SETTINGS: BudgetSettings = {
   maxCallsPerMeeting: 80,
 };
 
-const MAX_ENTRIES = 3000;
-const RETENTION_MS = 120 * 24 * 60 * 60 * 1000;
+export const MAX_ENTRIES = 3000;
+export const RETENTION_MS = 120 * 24 * 60 * 60 * 1000;
 
 export type BudgetVerdict =
   | { ok: true }
@@ -132,15 +135,24 @@ export interface RoomUsageSummary {
   inputTokens: number;
   cachedInputTokens: number;
   outputTokens: number;
+  thoughtTokens: number;
   costUsd: number;
+  firstAt: number;
+  lastAt: number;
 }
 
 /** Per-meeting totals, most expensive first, so it is visible where tokens actually go. */
 export function summarizeUsageByRoom(entries: readonly UsageEntry[]): RoomUsageSummary[] {
   const byRoom = new Map<string, RoomUsageSummary>();
   for (const entry of entries) {
-    const row = byRoom.get(entry.roomId) ?? { roomId: entry.roomId, calls: 0, inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, costUsd: 0 };
+    const row = byRoom.get(entry.roomId) ?? {
+      roomId: entry.roomId, calls: 0, inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, thoughtTokens: 0, costUsd: 0,
+      firstAt: entry.at, lastAt: entry.at,
+    };
     row.calls += 1;
+    row.firstAt = Math.min(row.firstAt, entry.at);
+    row.lastAt = Math.max(row.lastAt, entry.at);
+    row.thoughtTokens += entry.thoughtTokens ?? 0;
     row.inputTokens += entry.inputTokens;
     row.cachedInputTokens += entry.cachedInputTokens ?? 0;
     row.outputTokens += entry.outputTokens;
