@@ -49,12 +49,31 @@ describe('collectObjections', () => {
     expect(collectObjections(messages).map(item => item.topic)).toEqual(['Key storage', 'Minor thing']);
   });
 
-  it('counts only a specialist\'s latest block so a regenerated reply is not listed twice', () => {
+  it('replaces an objection a specialist restates on the same topic instead of listing it twice', () => {
     const messages: Message[] = [
-      agentMessage('agent-emma', 'Emma', block([{ topic: 'Old', objection: 'o' }])),
-      agentMessage('agent-emma', 'Emma', block([{ topic: 'New', objection: 'o' }, { topic: 'New 2', objection: 'o' }])),
+      agentMessage('agent-emma', 'Emma', block([{ topic: 'Rust rewrite', objection: 'first wording', severity: 'minor' }])),
+      agentMessage('agent-emma', 'Emma', block([{ topic: 'rust REWRITE', objection: 'sharper wording', severity: 'blocker' }])),
     ];
-    expect(collectObjections(messages).map(item => item.topic)).toEqual(['New', 'New 2']);
+    const found = collectObjections(messages);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ objection: 'sharper wording', severity: 'blocker' });
+  });
+
+  it('keeps earlier objections when a later block is empty or covers other topics (seen in a real meeting)', () => {
+    const messages: Message[] = [
+      agentMessage('agent-grace', 'Grace', block([{ topic: 'Lifetime licence', objection: 'Deferred revenue.', severity: 'major' }, { topic: 'COGS ledger', objection: 'No usage ledger.', severity: 'blocker' }])),
+      agentMessage('agent-grace', 'Grace', block([])),
+      agentMessage('agent-grace', 'Grace', block([{ topic: 'Rate card', objection: 'Prices drift.' }])),
+    ];
+    expect(collectObjections(messages).map(item => item.topic)).toEqual(['COGS ledger', 'Lifetime licence', 'Rate card']);
+  });
+
+  it('keeps different specialists\' objections on the same topic apart', () => {
+    const messages: Message[] = [
+      agentMessage('agent-emma', 'Emma', block([{ topic: 'Proxy', objection: 'a' }])),
+      agentMessage('agent-leo', 'Leo', block([{ topic: 'Proxy', objection: 'b' }])),
+    ];
+    expect(collectObjections(messages).map(item => item.author).sort()).toEqual(['Emma', 'Leo']);
   });
 
   it('carries the author and role for display', () => {
