@@ -47,7 +47,7 @@ const WORD_BUDGET: Record<Exclude<AnswerLength, 'normal'>, { specialist: number;
 export function lengthBudgetInstruction(length: AnswerLength, facilitator: boolean): string | null {
   if (length === 'normal') return null;
   const words = WORD_BUDGET[length][facilitator ? 'facilitator' : 'specialist'];
-  return `LENGTH BUDGET: write at most about ${words} words of prose. Lead with your position, then only the reasons and risks that matter; do not restate earlier messages. Any machine-readable block this prompt requires (VC_STAFFING_PLAN, VC_DECISION_PROPOSAL, VC_DECISION_VOTE) does not count toward the budget and must still be complete and valid.`;
+  return `LENGTH BUDGET: write at most about ${words} words of prose. Lead with your position, then only the reasons and risks that matter; do not restate earlier messages. Any machine-readable block this prompt requires (VC_STAFFING_PLAN, VC_OBJECTIONS, VC_DECISION_PROPOSAL, VC_DECISION_VOTE) does not count toward the budget and must still be complete and valid.`;
 }
 
 function totalChars(messages: Message[]): number {

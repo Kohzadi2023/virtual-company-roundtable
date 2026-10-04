@@ -197,6 +197,33 @@ function finalDecisionWorkflowInstruction(prompt: string): string | null {
 }
 
 /**
+ * Asks specialists, in the critique round only, to record their objections in
+ * a machine-readable block. It is a request, not a contract: a response
+ * without the block is still valid, it just leaves nothing for the decision
+ * brief to show.
+ */
+function critiqueObjectionsInstruction(prompt: string): string | null {
+  const round = prompt.match(/Round: (\d+)\/(\d+)/);
+  if (!round || Number(round[1]) !== 2 || Number(round[2]) < 3) return null;
+  if (prompt.includes('You are Olivia,') || !prompt.includes('Stage: specialists')) return null;
+  return [
+    'Besides your normal critique, record each substantive objection you are raising so the minutes can keep it even if the discussion later converges.',
+    'If you have objections, finish your response with this block (omit it only if you have none):',
+    '',
+    'VC_OBJECTIONS',
+    '```json',
+    '{',
+    '  "objections": [',
+    '    { "topic": "Short subject, e.g. Rust rewrite timeline", "objection": "What is wrong or unproven, in one or two sentences", "against": "Name of the specialist or proposal you disagree with, or empty", "severity": "major" }',
+    '  ]',
+    '}',
+    '```',
+    '',
+    'Rules: severity is exactly one of blocker, major, minor; at most 5 objections; only objections you actually hold, never invented ones; valid JSON with no comments; emit the block at most once and make it the last content of your response.',
+  ].join('\n');
+}
+
+/**
  * `detectionText` lets a caller point the round/role/stage detection at just
  * the part of the prompt that describes this turn, so quoted discussion text
  * can never be mistaken for the turn's own markers.
@@ -204,8 +231,11 @@ function finalDecisionWorkflowInstruction(prompt: string): string | null {
 export function decoratePromptForContextMode(prompt: string, mode: ContextCopyMode, detectionText?: string): string {
   const instruction = contextModeInstruction(mode);
   const withMode = instruction ? `${prompt}\n\nCONTEXT MODE INSTRUCTION:\n${instruction}` : prompt;
-  const finalDecision = finalDecisionWorkflowInstruction(detectionText ?? withMode);
-  return finalDecision ? `${withMode}\n\nFINAL DECISION WORKFLOW:\n${finalDecision}` : withMode;
+  const detection = detectionText ?? withMode;
+  const finalDecision = finalDecisionWorkflowInstruction(detection);
+  if (finalDecision) return `${withMode}\n\nFINAL DECISION WORKFLOW:\n${finalDecision}`;
+  const objections = critiqueObjectionsInstruction(detection);
+  return objections ? `${withMode}\n\nCRITIQUE ROUND — RECORD OBJECTIONS:\n${objections}` : withMode;
 }
 
 export function estimatePromptSize(value: string): { words: number; chars: number; approxTokens: number } {
