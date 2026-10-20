@@ -20,16 +20,42 @@ export const CONTEXT_MODES: ContextModeDefinition[] = [
   { value: 'challenge', label: 'Challenge Consensus', description: 'Smart compact context with a devil’s-advocate instruction.' },
 ];
 
+export interface ContinueSafety {
+  /** Messages a "Continue" copy would send right now. */
+  unseenCount: number;
+  /** The agent's chat link was saved after its last copy in this room, i.e. it now points at a fresh conversation. */
+  chatLinkedAfterLastCopy: boolean;
+}
+
+/**
+ * Why "Continue Existing Chat" would leave the agent without the discussion,
+ * or null when it is safe. Continue sends only what is new since the last
+ * copy, so with nothing new — or a newly linked, empty conversation — the
+ * model receives its role description and "(No new context)" and answers by
+ * asking for the problem statement instead of contributing.
+ */
+export function continueModeGap(safety: ContinueSafety | undefined): 'no-new-messages' | 'new-chat-linked' | null {
+  if (!safety) return null;
+  if (safety.chatLinkedAfterLastCopy) return 'new-chat-linked';
+  if (safety.unseenCount === 0) return 'no-new-messages';
+  return null;
+}
+
+export function chatLinkedAfterLastCopy(
+  chat: { updatedAt: number } | undefined,
+  cursor: AgentContextState | undefined,
+): boolean {
+  return Boolean(chat && cursor?.copiedAt != null && chat.updatedAt > cursor.copiedAt);
+}
+
 export function preferredContextModeForMeetingTurn(
   agentId: string,
   activeSpeakerId: string | null | undefined,
   roundStage: RoundStage | undefined,
+  safety?: ContinueSafety,
 ): ContextCopyMode {
-  return agentId === MEETING_FACILITATOR_AGENT_ID
-    && activeSpeakerId === agentId
-    && roundStage === 'synthesis'
-    ? 'compact'
-    : 'continue';
+  if (agentId === MEETING_FACILITATOR_AGENT_ID && activeSpeakerId === agentId && roundStage === 'synthesis') return 'compact';
+  return continueModeGap(safety) ? 'new-chat' : 'continue';
 }
 
 function withoutAgentOwnMessages(room: Room, agentId: string): Message[] {

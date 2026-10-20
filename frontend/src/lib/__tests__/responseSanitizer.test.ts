@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   findDuplicateAgentMessage,
+  looksLikeContextlessReply,
   sanitizeAgentResponse,
   stripEchoedPrompt,
   stripProviderArtifacts,
@@ -48,5 +49,25 @@ describe('response sanitizer', () => {
     expect(findDuplicateAgentMessage(messages, 'From the CPA view  I agree with the seven-person core team. :chatgpt-content-reference{index="0"}'))
       .toMatchObject({ id: 'm1' });
     expect(findDuplicateAgentMessage(messages, 'From the CPA view the ledger controls are incomplete.')).toBeUndefined();
+  });
+});
+
+describe('contextless reply detection', () => {
+  it('flags a reply that asks for the problem statement instead of answering', () => {
+    const leo = `Leo here. I own server-side domain logic, APIs, persistence, concurrency, integration behavior, performance, and reliable service implementation.
+
+Send me the feature or problem statement and I'll produce the backend deliverables: API contract, domain model, persistence/schema design, transaction and idempotency strategy, failure handling, integration behavior, and observability hooks.
+
+Useful inputs if available:
+- Actors and core use cases
+- Entities and relationships`;
+    expect(looksLikeContextlessReply(leo)).toBe(true);
+    expect(looksLikeContextlessReply('سلام، من مهندس بک‌اند هستم. لطفاً شرح مسئله را ارسال کنید.')).toBe(true);
+  });
+
+  it('does not flag a real contribution, short or long', () => {
+    expect(looksLikeContextlessReply('The CRM gateway must be idempotent: key every write by provider_event_id and reject replays.')).toBe(false);
+    const long = `${'Architecture detail. '.repeat(100)}Please share the CRM vendor so we can confirm limits.`;
+    expect(looksLikeContextlessReply(long)).toBe(false);
   });
 });

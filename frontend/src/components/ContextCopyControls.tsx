@@ -4,6 +4,8 @@ import {
   CONTEXT_MODES,
   decoratePromptForContextMode,
   estimatePromptSize,
+  chatLinkedAfterLastCopy,
+  continueModeGap,
   messagesForContextMode,
   preferredContextModeForMeetingTurn,
   type ContextCopyMode,
@@ -55,10 +57,16 @@ export function ContextCopyControls({ room, agent, role, cursor, onNotify, onApi
   const markAgentContextCopied = useWorkspaceStore(state => state.markAgentContextCopied);
   const [, setMeetingRevision] = useState(0);
   const meeting = loadMeetingOrchestration().rooms[room.id];
+  const continueSafety = {
+    unseenCount: messagesForContextMode(room, agent.id, cursor, 'continue').length,
+    chatLinkedAfterLastCopy: chatLinkedAfterLastCopy(getExternalAgentChat(agent.id), cursor),
+  };
+  const continueGap = continueModeGap(continueSafety);
   const preferredMode = preferredContextModeForMeetingTurn(
     agent.id,
     meeting?.activeSpeakerId,
     meeting?.roundStage,
+    continueSafety,
   );
   const [, setLlmRevision] = useState(0);
   const [apiRunning, setApiRunning] = useState(false);
@@ -182,6 +190,14 @@ export function ContextCopyControls({ room, agent, role, cursor, onNotify, onApi
         <select value={mode} onChange={event => setMode(event.target.value as ContextCopyMode)} className="w-auto min-w-[150px] rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-slate-700" aria-label="Context mode">
           {CONTEXT_MODES.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
         </select>
+        {continueGap ? (
+          <span className={`rounded-lg border px-2.5 py-1.5 text-[12px] font-semibold leading-4 ${mode === 'continue' ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`} role="note">
+            {continueGap === 'new-chat-linked'
+              ? `${agent.name}'s chat link changed since the last copy, so that conversation has not seen this meeting.`
+              : `Nothing is new for ${agent.name} since the last copy.`}
+            {mode === 'continue' ? ' Continue would send no discussion — use New Chat.' : ' New Chat sends the whole discussion.'}
+          </span>
+        ) : null}
         <div
           className={`rounded-lg border px-2.5 py-1.5 text-[12px] font-semibold leading-4 ${veryLarge ? 'border-rose-200 bg-rose-50 text-rose-700' : large ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-slate-200 bg-slate-50 text-slate-600'}`}
           title={`${CONTEXT_MODES.find(item => item.value === mode)?.description ?? ''}${large ? (veryLarge ? ' Very large context: use Smart Compact or remove messages in Preview.' : ' Large context: Preview lets you remove unnecessary messages.') : ''}`}

@@ -13,7 +13,7 @@ import { agentContextKey } from '@/lib/id';
 import { formatUsd } from '@/lib/llm/apiRun';
 import { getExternalAgentChat, loadMeetingOrchestration, MEETING_ORCHESTRATION_EVENT } from '@/lib/meetingOrchestration';
 import { advanceAfterAgentResponse } from '@/lib/meetingResponseFlow';
-import { findDuplicateAgentMessage, sanitizeAgentResponse } from '@/lib/responseSanitizer';
+import { findDuplicateAgentMessage, looksLikeContextlessReply, sanitizeAgentResponse } from '@/lib/responseSanitizer';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 
 function useAutoResize(value: string) {
@@ -162,6 +162,11 @@ export function ActionPanel({ roomId }: { roomId: string }) {
     if (duplicate) {
       notify(`Not added: this response is identical to ${duplicate.authorNameSnapshot ?? 'an agent'}'s earlier message in this room. Paste ${agent.name}'s new reply instead.`, 'error');
       return false;
+    }
+    // Only for pasted replies: an API run always carries the whole discussion.
+    if (!viaApiNote && looksLikeContextlessReply(content)) {
+      const proceed = window.confirm(`${agent.name}'s reply asks for the problem statement instead of answering it. That usually means the copied prompt did not contain the meeting discussion (for example after switching ${agent.name} to a new chat).\n\nPress Cancel, choose "New Chat" as the context mode, copy again and paste the new reply. Press OK only to add this reply anyway.`);
+      if (!proceed) return false;
     }
     if (!state.addAgentMessage(currentRoom.id, agent.id, content)) return false;
 
