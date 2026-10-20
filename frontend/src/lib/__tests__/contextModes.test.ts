@@ -4,6 +4,8 @@ import {
   estimatePromptSize,
   messagesForContextMode,
   preferredContextModeForMeetingTurn,
+  chatLinkedAfterLastCopy,
+  continueModeGap,
 } from '@/lib/contextModes';
 import type { AgentContextState, Message, Room } from '@/types/domain';
 
@@ -76,5 +78,23 @@ describe('context copy modes', () => {
       'agent-emma',
       'synthesis',
     )).toBe('continue');
+  });
+
+  it('never prefers Continue when it would send the agent no discussion', () => {
+    const safe = { unseenCount: 3, chatLinkedAfterLastCopy: false };
+    expect(preferredContextModeForMeetingTurn('agent-leo', 'agent-leo', 'specialists', safe)).toBe('continue');
+    expect(preferredContextModeForMeetingTurn('agent-leo', 'agent-leo', 'specialists', { ...safe, unseenCount: 0 })).toBe('new-chat');
+    expect(preferredContextModeForMeetingTurn('agent-leo', 'agent-leo', 'specialists', { ...safe, chatLinkedAfterLastCopy: true })).toBe('new-chat');
+    expect(continueModeGap({ unseenCount: 0, chatLinkedAfterLastCopy: false })).toBe('no-new-messages');
+    expect(continueModeGap({ unseenCount: 2, chatLinkedAfterLastCopy: true })).toBe('new-chat-linked');
+    expect(continueModeGap(undefined)).toBeNull();
+  });
+
+  it('detects a chat linked after the agent\'s last copy', () => {
+    const cursor = { lastCopiedMessageId: 'm1', lastCopiedAt: 1, copiedAt: 100 };
+    expect(chatLinkedAfterLastCopy({ updatedAt: 200 }, cursor)).toBe(true);
+    expect(chatLinkedAfterLastCopy({ updatedAt: 50 }, cursor)).toBe(false);
+    expect(chatLinkedAfterLastCopy(undefined, cursor)).toBe(false);
+    expect(chatLinkedAfterLastCopy({ updatedAt: 200 }, undefined)).toBe(false);
   });
 });

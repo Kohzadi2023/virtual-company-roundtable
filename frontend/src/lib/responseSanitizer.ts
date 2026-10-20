@@ -79,3 +79,30 @@ export function findDuplicateAgentMessage(messages: readonly Message[], content:
   if (!fingerprint) return undefined;
   return messages.find(message => message.authorType === 'agent' && duplicateFingerprint(message.content) === fingerprint);
 }
+
+const CONTEXTLESS_REPLY_MAX_LENGTH = 1500;
+
+// Phrases a model uses when it was given a role but no task: it introduces
+// itself and asks for the input instead of contributing.
+const CONTEXTLESS_REPLY_PATTERNS: RegExp[] = [
+  /\b(?:send|share|give|paste|provide)\s+me\s+(?:the|your|a|an|with)\b/i,
+  /\bplease\s+(?:share|send|provide|paste)\s+(?:the|your)\b/i,
+  /\bonce\s+you\s+(?:share|send|provide|paste)\b/i,
+  /\buseful\s+inputs?\b/i,
+  /\bwhat\s+would\s+you\s+like\s+(?:me\s+)?to\b/i,
+  /\bhow\s+can\s+I\s+help\b/i,
+  /لطفاً?\s.{0,60}(?:ارسال\s*کنید|بفرستید|به\s*اشتراک\s*بگذارید)/,
+  /چه\s*کمکی\s*(?:از\s*من\s*)?(?:می‌توانم|میتوانم|برمی‌آید)/,
+];
+
+/**
+ * True for a short reply that asks for the problem statement instead of
+ * answering it — what an agent produces when its prompt carried no meeting
+ * discussion. Long replies are never flagged: a real contribution may well
+ * end by asking for more detail.
+ */
+export function looksLikeContextlessReply(content: string): boolean {
+  const text = stripProviderArtifacts(content);
+  if (!text || text.length > CONTEXTLESS_REPLY_MAX_LENGTH) return false;
+  return CONTEXTLESS_REPLY_PATTERNS.some(pattern => pattern.test(text));
+}

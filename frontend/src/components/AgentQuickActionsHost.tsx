@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { openAgentMemory } from '@/lib/agentMemory';
 import { copyText } from '@/lib/clipboard';
 import { unseenMessagesForAgent } from '@/lib/contextDelta';
+import { chatLinkedAfterLastCopy, continueModeGap, decoratePromptForContextMode, messagesForContextMode } from '@/lib/contextModes';
 import { openOrFocusExternalChat } from '@/lib/externalChatWindow';
 import { agentContextKey } from '@/lib/id';
 import { getExternalAgentChat, setActiveSpeaker } from '@/lib/meetingOrchestration';
@@ -57,8 +58,14 @@ export function AgentQuickActionsHost() {
   const copyContext = async () => {
     if (!room || !role) return;
     const cursor = agentContext[agentContextKey(room.id, agent.id)];
-    const messages = unseenMessagesForAgent(room, agent.id, cursor);
-    await copyText(buildAgentPrompt(agent, role, messages));
+    const unseen = unseenMessagesForAgent(room, agent.id, cursor);
+    // Same rule as the response panel: never hand an agent a prompt with no
+    // discussion in it, or it replies by asking for the problem statement.
+    const gap = continueModeGap({ unseenCount: unseen.length, chatLinkedAfterLastCopy: chatLinkedAfterLastCopy(chat, cursor) });
+    const prompt = gap
+      ? decoratePromptForContextMode(buildAgentPrompt(agent, role, messagesForContextMode(room, agent.id, cursor, 'new-chat')), 'new-chat')
+      : buildAgentPrompt(agent, role, unseen);
+    await copyText(prompt);
     markAgentContextCopied(room.id, agent.id);
   };
 
